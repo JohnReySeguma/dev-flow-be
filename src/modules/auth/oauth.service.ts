@@ -18,6 +18,7 @@ export const OAUTH_ERROR_CODES = [
   "oauth_denied",
   "oauth_state_mismatch",
   "oauth_email_unverified",
+  "oauth_account_locked",
   "oauth_failed",
 ] as const;
 export type OAuthErrorCode = (typeof OAUTH_ERROR_CODES)[number];
@@ -54,7 +55,7 @@ type Deps = {
 };
 
 export function createOAuthService({ providers, auth, users, sessions, secret, apiUrl, logger }: Deps) {
-  const redirectUri = (name: OAuthProviderName) => `${apiUrl}/api/v1/auth/oauth/${name}/callback`;
+  const redirectUri = (name: OAuthProviderName) => `${apiUrl}/api/auth/oauth/${name}/callback`;
 
   function readState(token: string | undefined, name: OAuthProviderName, state: string | undefined): StateClaims {
     try {
@@ -89,6 +90,8 @@ export function createOAuthService({ providers, auth, users, sessions, secret, a
     if (!profile.email || !profile.emailVerified) throw new OAuthFlowError("oauth_email_unverified");
 
     const existing = await users.findByEmail(profile.email);
+    // Demo accounts belong to everyone: whoever controls the address must not take one over.
+    if (existing?.isDemo) throw new OAuthFlowError("oauth_account_locked");
     if (existing?.passwordHash) {
       // Sign-up never verifies email addresses, so whoever set that password may not own the
       // address; the provider just proved who does. Clear the password and sign everyone out, or

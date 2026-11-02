@@ -70,6 +70,8 @@ model User {
   passwordHash    String?   @map("password_hash")
   /// Null until the owner proves the address (an emailed link, an OAuth provider or an accepted invite).
   emailVerifiedAt DateTime? @map("email_verified_at") @db.Timestamptz(3)
+  /// A seeded demo account: its password is public, so its profile, tokens and password reset are locked.
+  isDemo          Boolean   @default(false) @map("is_demo")
   lastActiveAt    DateTime? @map("last_active_at") @db.Timestamptz(3)
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -218,6 +220,8 @@ model Project {
   leadId          String?  @map("lead_id") @db.Uuid
   /// Next issue number; incremented atomically when an issue is created.
   nextIssueNumber Int      @default(1) @map("next_issue_number")
+  /// Copied from the sample data; resetting the sample data replaces these projects only.
+  isSample        Boolean  @default(false) @map("is_sample")
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 

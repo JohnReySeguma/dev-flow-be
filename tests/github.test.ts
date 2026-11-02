@@ -30,7 +30,7 @@ afterAll(async () => {
   rmSync(keyDir, { recursive: true, force: true });
 });
 
-const WEBHOOK = "/api/v1/integrations/github/webhook";
+const WEBHOOK = "/api/integrations/github/webhook";
 const sign = (body: string, secret = SECRET) => `sha256=${createHmac("sha256", secret).update(body).digest("hex")}`;
 
 function deliver(event: string, payload: unknown, signature?: string) {
@@ -58,15 +58,15 @@ const pr = (
 });
 
 let member: ReturnType<typeof asBrowser>;
-const issue = async (key: string) => (await member.get(`/api/v1/issues/${key}`)).body as Payload;
+const issue = async (key: string) => (await member.get(`/api/v2/workspaces/acme-inc/issues/${key}`)).body as Payload;
 
 beforeEach(async () => {
   await truncateAll(prisma);
   await seed(prisma, createLogger(env), undefined, { tracker: false });
   member = asBrowser(app, await signIn(app, "member@devflow.local"));
-  await member.post("/api/v1/projects").send({ name: "DevFlow Core", key: "DEV" });
+  await member.post("/api/v2/workspaces/acme-inc/projects").send({ name: "DevFlow Core", key: "DEV" });
   for (const title of ["Token refresh", "Idempotency keys", "Docs"]) {
-    await member.post("/api/v1/projects/DEV/issues").send({ title });
+    await member.post("/api/v2/workspaces/acme-inc/projects/DEV/issues").send({ title });
   }
 });
 
@@ -139,7 +139,7 @@ describe("pull requests", () => {
     await deliver("pull_request", pr("closed", { number: 421, title: "DEV-1", ref: "main-fix", merged: true }));
 
     const merged = await issue("DEV-1");
-    const project = (await member.get("/api/v1/projects/DEV")).body as Payload;
+    const project = (await member.get("/api/v2/workspaces/acme-inc/projects/DEV")).body as Payload;
     const done = (project.workflow as Payload[]).find((s) => s.category === "done");
     expect(merged.git).toEqual({ kind: "pr", number: 421, state: "merged" });
     expect(merged.statusId).toBe(done?.id);

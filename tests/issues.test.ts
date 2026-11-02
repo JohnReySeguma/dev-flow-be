@@ -1,6 +1,6 @@
 import request from "supertest";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { seed } from "../prisma/seed.js";
+import { seedTeam } from "./helpers/team.js";
 import { createLogger } from "../src/lib/logger.js";
 import { createTestApp } from "./helpers/app.js";
 import { truncateAll } from "./helpers/db.js";
@@ -16,21 +16,21 @@ let projectId = "";
 
 beforeEach(async () => {
   await truncateAll(prisma);
-  await seed(prisma, createLogger(env), undefined, { tracker: false });
+  await seedTeam(prisma, createLogger(env), undefined, { tracker: false });
   member = asBrowser(app, await signIn(app, "member@devflow.local"));
   viewer = asBrowser(app, await signIn(app, "viewer@devflow.local"));
-  const project = await member.post("/api/v1/projects").send({ name: "DevFlow Core", key: "DEV" });
+  const project = await member.post("/api/v2/workspaces/acme-inc/projects").send({ name: "DevFlow Core", key: "DEV" });
   projectId = project.body.id;
   const [todo, progress, review, done] = project.body.workflow.map((s: { id: string }) => s.id);
   statuses = { todo, progress, review, done };
 });
 
 const create = (body: object = {}) =>
-  member.post("/api/v1/projects/DEV/issues").send({ title: "Fix the flaky test", ...body });
+  member.post("/api/v2/workspaces/acme-inc/projects/DEV/issues").send({ title: "Fix the flaky test", ...body });
 const sprint = (status: "planned" | "active" | "completed", number: number) =>
   prisma.sprint.create({ data: { projectId, number, name: `Sprint ${number}`, status } });
 
-describe("POST /api/v1/projects/:key/issues", () => {
+describe("POST /api/v2/workspaces/acme-inc/projects/:key/issues", () => {
   it("numbers issues per project and applies the defaults", async () => {
     const first = await create();
     const second = await create({ title: "Second" });
@@ -71,13 +71,13 @@ describe("POST /api/v1/projects/:key/issues", () => {
     await create({ title: "Older" });
     await create({ title: "Newer" });
 
-    const list = await viewer.get("/api/v1/projects/DEV/issues");
+    const list = await viewer.get("/api/v2/workspaces/acme-inc/projects/DEV/issues");
 
     expect(list.body.items.map((i: { title: string }) => i.title)).toEqual(["Newer", "Older"]);
   });
 
   it("checks that references belong to this project and workspace", async () => {
-    const other = await member.post("/api/v1/projects").send({ name: "Other", key: "OTH" });
+    const other = await member.post("/api/v2/workspaces/acme-inc/projects").send({ name: "Other", key: "OTH" });
     const completed = await sprint("completed", 1);
 
     const res = await create({
@@ -98,17 +98,19 @@ describe("POST /api/v1/projects/:key/issues", () => {
   });
 
   it("is for members and admins only", async () => {
-    expect((await viewer.post("/api/v1/projects/DEV/issues").send({ title: "Nope" })).status).toBe(403);
+    expect((await viewer.post("/api/v2/workspaces/acme-inc/projects/DEV/issues").send({ title: "Nope" })).status).toBe(
+      403,
+    );
   });
 });
 
-describe("GET /api/v1/issues/:issueKey", () => {
+describe("GET /api/v2/workspaces/acme-inc/issues/:issueKey", () => {
   beforeEach(async () => {
     await create({ title: "First" });
   });
 
   it("finds an issue by key in any case", async () => {
-    const res = await viewer.get("/api/v1/issues/dev-1");
+    const res = await viewer.get("/api/v2/workspaces/acme-inc/issues/dev-1");
 
     expect(res.status).toBe(200);
     expect(res.body.id).toBe("DEV-1");
@@ -116,36 +118,36 @@ describe("GET /api/v1/issues/:issueKey", () => {
   });
 
   it("accepts a bare number together with ?project=", async () => {
-    expect((await viewer.get("/api/v1/issues/1?project=dev")).body.id).toBe("DEV-1");
+    expect((await viewer.get("/api/v2/workspaces/acme-inc/issues/1?project=dev")).body.id).toBe("DEV-1");
 
-    const withoutProject = await viewer.get("/api/v1/issues/1");
+    const withoutProject = await viewer.get("/api/v2/workspaces/acme-inc/issues/1");
     expect(withoutProject.status).toBe(422);
     expect(withoutProject.body.errors[0].field).toBe("project");
   });
 
   it("is 404 for unknown issues and projects", async () => {
-    expect((await viewer.get("/api/v1/issues/DEV-99")).status).toBe(404);
-    expect((await viewer.get("/api/v1/issues/NOPE-1")).status).toBe(404);
-    expect((await viewer.get("/api/v1/issues/not-a-key")).status).toBe(404);
+    expect((await viewer.get("/api/v2/workspaces/acme-inc/issues/DEV-99")).status).toBe(404);
+    expect((await viewer.get("/api/v2/workspaces/acme-inc/issues/NOPE-1")).status).toBe(404);
+    expect((await viewer.get("/api/v2/workspaces/acme-inc/issues/not-a-key")).status).toBe(404);
   });
 });
 
-describe("PATCH /api/v1/issues/:issueKey", () => {
+describe("PATCH /api/v2/workspaces/acme-inc/issues/:issueKey", () => {
   beforeEach(async () => {
     await create({ estimate: 3 });
   });
 
   it("keeps resolvedAt in step with done-ness", async () => {
-    const done = await member.patch("/api/v1/issues/DEV-1").send({ statusId: statuses.done });
+    const done = await member.patch("/api/v2/workspaces/acme-inc/issues/DEV-1").send({ statusId: statuses.done });
     expect(done.body.resolvedAt).toEqual(expect.any(String));
 
-    const reopened = await member.patch("/api/v1/issues/DEV-1").send({ statusId: statuses.review });
+    const reopened = await member.patch("/api/v2/workspaces/acme-inc/issues/DEV-1").send({ statusId: statuses.review });
     expect(reopened.body.resolvedAt).toBeNull();
   });
 
   it("does not let the client set resolvedAt", async () => {
     const res = await member
-      .patch("/api/v1/issues/DEV-1")
+      .patch("/api/v2/workspaces/acme-inc/issues/DEV-1")
       .send({ title: "Renamed", resolvedAt: "2020-01-01T00:00:00Z" });
 
     expect(res.body).toMatchObject({ title: "Renamed", resolvedAt: null });
@@ -154,7 +156,9 @@ describe("PATCH /api/v1/issues/:issueKey", () => {
   it("records status, sprint and estimate changes for burndown", async () => {
     const active = await sprint("active", 1);
 
-    await member.patch("/api/v1/issues/DEV-1").send({ sprintId: active.id, estimate: 5, statusId: statuses.done });
+    await member
+      .patch("/api/v2/workspaces/acme-inc/issues/DEV-1")
+      .send({ sprintId: active.id, estimate: 5, statusId: statuses.done });
 
     const events = await prisma.issueEvent.findMany({ orderBy: { createdAt: "asc" } });
     expect(events.map((e) => e.kind)).toEqual(["created", "status", "sprint", "estimate"]);
@@ -162,17 +166,20 @@ describe("PATCH /api/v1/issues/:issueKey", () => {
   });
 
   it("answers 412 CONFLICT_STALE to an outdated If-Match", async () => {
-    const { etag } = (await viewer.get("/api/v1/issues/DEV-1")).headers;
-    await member.patch("/api/v1/issues/DEV-1").send({ priority: "urgent" });
+    const { etag } = (await viewer.get("/api/v2/workspaces/acme-inc/issues/DEV-1")).headers;
+    await member.patch("/api/v2/workspaces/acme-inc/issues/DEV-1").send({ priority: "urgent" });
 
-    const res = await member.patch("/api/v1/issues/DEV-1").set("If-Match", String(etag)).send({ priority: "low" });
+    const res = await member
+      .patch("/api/v2/workspaces/acme-inc/issues/DEV-1")
+      .set("If-Match", String(etag))
+      .send({ priority: "low" });
 
     expect(res.status).toBe(412);
-    expect((await viewer.get("/api/v1/issues/DEV-1")).body.priority).toBe("urgent");
+    expect((await viewer.get("/api/v2/workspaces/acme-inc/issues/DEV-1")).body.priority).toBe("urgent");
   });
 });
 
-describe("GET /api/v1/projects/:key/issues filters", () => {
+describe("GET /api/v2/workspaces/acme-inc/projects/:key/issues filters", () => {
   let dmitri = "";
   beforeEach(async () => {
     dmitri = (await prisma.user.findUniqueOrThrow({ where: { email: "member@devflow.local" } })).id;
@@ -184,7 +191,9 @@ describe("GET /api/v1/projects/:key/issues filters", () => {
   });
 
   const titles = async (query: string) =>
-    (await viewer.get(`/api/v1/projects/DEV/issues${query}`)).body.items.map((i: { title: string }) => i.title);
+    (await viewer.get(`/api/v2/workspaces/acme-inc/projects/DEV/issues${query}`)).body.items.map(
+      (i: { title: string }) => i.title,
+    );
 
   it.each([
     ["?sprint=backlog", ["Backlog bug"]],
@@ -198,14 +207,16 @@ describe("GET /api/v1/projects/:key/issues filters", () => {
   });
 
   it("filters to the caller's own issues with mine=true", async () => {
-    const res = await member.get("/api/v1/projects/DEV/issues?mine=true");
+    const res = await member.get("/api/v2/workspaces/acme-inc/projects/DEV/issues?mine=true");
 
     expect(res.body.items.map((i: { assigneeId: string }) => i.assigneeId)).toEqual([dmitri]);
   });
 
   it("pages in rank order", async () => {
-    const first = await viewer.get("/api/v1/projects/DEV/issues?limit=2");
-    const second = await viewer.get(`/api/v1/projects/DEV/issues?limit=2&cursor=${first.body.nextCursor}`);
+    const first = await viewer.get("/api/v2/workspaces/acme-inc/projects/DEV/issues?limit=2");
+    const second = await viewer.get(
+      `/api/v2/workspaces/acme-inc/projects/DEV/issues?limit=2&cursor=${first.body.nextCursor}`,
+    );
 
     expect([...first.body.items, ...second.body.items].map((i: { id: string }) => i.id)).toEqual([
       "DEV-3",
@@ -223,17 +234,17 @@ describe("ranking", () => {
     await prisma.issue.update({ where: { projectId_number: { projectId, number: 1 } }, data: { rank: "a0" } });
     await prisma.issue.update({ where: { projectId_number: { projectId, number: 2 } }, data: { rank: "Zz" } });
 
-    const list = await viewer.get("/api/v1/projects/DEV/issues");
+    const list = await viewer.get("/api/v2/workspaces/acme-inc/projects/DEV/issues");
 
     expect(list.body.items.map((i: { title: string }) => i.title)).toEqual(["B", "A"]);
   });
 });
 
-describe("DELETE /api/v1/issues/:issueKey", () => {
+describe("DELETE /api/v2/workspaces/acme-inc/issues/:issueKey", () => {
   it("deletes the issue without reusing its number", async () => {
     await create();
 
-    expect((await member.delete("/api/v1/issues/DEV-1")).status).toBe(204);
+    expect((await member.delete("/api/v2/workspaces/acme-inc/issues/DEV-1")).status).toBe(204);
     expect((await create()).body.id).toBe("DEV-2");
   });
 
@@ -241,21 +252,23 @@ describe("DELETE /api/v1/issues/:issueKey", () => {
     await create();
     const admin = asBrowser(app, await signIn(app, "demo@devflow.local"));
     const { secret } = (
-      await admin.post("/api/v1/me/tokens").send({ name: "ro", scopes: ["issues:read"], expiresInDays: null })
+      await admin
+        .post("/api/v2/me/tokens")
+        .send({ name: "ro", scopes: ["issues:read"], expiresInDays: null, workspace: "acme-inc" })
     ).body;
 
     const res = await request(app)
-      .delete("/api/v1/issues/DEV-1")
+      .delete("/api/v2/workspaces/acme-inc/issues/DEV-1")
       .set("Authorization", `Bearer ${secret as string}`);
 
     expect(res.status).toBe(403);
   });
 });
 
-describe("POST /api/v1/issues/:issueKey/move", () => {
+describe("POST /api/v2/workspaces/acme-inc/issues/:issueKey/move", () => {
   const order = async () =>
-    (await viewer.get("/api/v1/projects/DEV/issues")).body.items.map((i: { id: string }) => i.id);
-  const move = (key: string, body: object) => member.post(`/api/v1/issues/${key}/move`).send(body);
+    (await viewer.get("/api/v2/workspaces/acme-inc/projects/DEV/issues")).body.items.map((i: { id: string }) => i.id);
+  const move = (key: string, body: object) => member.post(`/api/v2/workspaces/acme-inc/issues/${key}/move`).send(body);
 
   beforeEach(async () => {
     for (const title of ["one", "two", "three", "four"]) await create({ title });
@@ -298,7 +311,7 @@ describe("POST /api/v1/issues/:issueKey/move", () => {
     await move("DEV-1", { sprintId: planned.id, beforeIssueKey: "DEV-3" });
 
     expect(
-      (await viewer.get(`/api/v1/projects/DEV/issues?sprint=${planned.id}`)).body.items.map(
+      (await viewer.get(`/api/v2/workspaces/acme-inc/projects/DEV/issues?sprint=${planned.id}`)).body.items.map(
         (i: { id: string }) => i.id,
       ),
     ).toEqual(["DEV-1", "DEV-3"]);

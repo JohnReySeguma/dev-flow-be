@@ -1,17 +1,17 @@
 import type { RequestHandler } from "express";
-import { authOf } from "../../middleware/require-auth.js";
+import { identityOf } from "../../middleware/require-auth.js";
 import type { UpdateProfileInput } from "./users.schemas.js";
 import type { UsersService } from "./users.service.js";
 
 export function createUsersController(users: UsersService) {
   const getMe: RequestHandler = async (req, res) => {
-    const { profile, etag } = await users.getProfile(authOf(req).userId);
+    const { profile, etag } = await users.getProfile(identityOf(req).userId);
     res.set({ ETag: etag, "Cache-Control": "no-store" }).json(profile);
   };
 
   const updateMe: RequestHandler = async (req, res) => {
     const { profile, etag } = await users.updateProfile(
-      authOf(req).userId,
+      identityOf(req).userId,
       req.body as UpdateProfileInput,
       req.get("if-match"),
     );

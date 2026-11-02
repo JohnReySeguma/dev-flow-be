@@ -12,14 +12,14 @@ afterAll(close);
 const ada = { name: "Ada Lovelace", email: "Ada@Acme.dev", password: "correct horse battery" };
 
 const signup = (body: object = ada) =>
-  request(app).post("/api/v1/auth/signup").set("Origin", FRONTEND_ORIGIN).send(body);
-const login = (body: object) => request(app).post("/api/v1/auth/login").set("Origin", FRONTEND_ORIGIN).send(body);
+  request(app).post("/api/v2/auth/signup").set("Origin", FRONTEND_ORIGIN).send(body);
+const login = (body: object) => request(app).post("/api/v2/auth/login").set("Origin", FRONTEND_ORIGIN).send(body);
 const me = (cookie?: string) => {
-  const req = request(app).get("/api/v1/auth/me");
+  const req = request(app).get("/api/v2/auth/me");
   return cookie ? req.set("Cookie", cookie) : req;
 };
 
-describe("POST /api/v1/auth/signup", () => {
+describe("POST /api/v2/auth/signup", () => {
   it("creates the account, signs in and sets hardened session cookies", async () => {
     const res = await signup();
 
@@ -33,21 +33,37 @@ describe("POST /api/v1/auth/signup", () => {
       bio: "",
     });
     const cookies = setCookies(res);
-    expect(cookies.devflow_access?.attributes).toMatch(/Path=\/api\/v1;.*HttpOnly;.*Secure;.*SameSite=Lax/);
-    expect(cookies.devflow_refresh?.attributes).toMatch(/Path=\/api\/v1\/auth;.*HttpOnly;.*Secure;.*SameSite=Lax/);
+    expect(cookies.devflow_access?.attributes).toMatch(/Path=\/api\/v2;.*HttpOnly;.*Secure;.*SameSite=Lax/);
+    expect(cookies.devflow_refresh?.attributes).toMatch(/Path=\/api\/v2\/auth;.*HttpOnly;.*Secure;.*SameSite=Lax/);
 
     const session = await me(sessionCookieHeader(res));
     expect(session.status).toBe(200);
     expect(session.body.user.email).toBe("ada@acme.dev");
   });
 
-  it("makes the first user of an empty workspace its admin and later users members", async () => {
+  it("gives every new account its own workspace, as admin", async () => {
     const first = await signup();
     const second = await signup({ name: "Grace Hopper", email: "grace@acme.dev", password: "compiler-1952" });
 
-    expect(first.body.user.role).toBe("admin");
-    expect(second.body.user.role).toBe("member");
-    expect(second.body.workspace).toEqual(first.body.workspace);
+    expect(first.body.workspaces).toEqual([
+      {
+        id: expect.any(String),
+        slug: "ada-lovelaces-workspace",
+        name: "Ada Lovelace's workspace",
+        role: "admin",
+        isDemo: false,
+      },
+    ]);
+    expect(second.body.workspaces).toEqual([
+      expect.objectContaining({ slug: "grace-hoppers-workspace", name: "Grace Hopper's workspace", role: "admin" }),
+    ]);
+  });
+
+  it("suffixes the workspace slug when the plain one is taken", async () => {
+    await signup();
+    const twin = await signup({ name: "Ada Lovelace", email: "ada@other.dev", password: "compiler-1952" });
+
+    expect(twin.body.workspaces[0].slug).toMatch(/^ada-lovelaces-workspace-[a-z0-9]{4}$/);
   });
 
   it("rejects an email that is already registered, whatever its case", async () => {
@@ -74,7 +90,7 @@ describe("POST /api/v1/auth/signup", () => {
   });
 });
 
-describe("POST /api/v1/auth/login", () => {
+describe("POST /api/v2/auth/login", () => {
   beforeEach(async () => {
     await signup();
   });
@@ -98,7 +114,7 @@ describe("POST /api/v1/auth/login", () => {
   });
 });
 
-describe("GET /api/v1/auth/me", () => {
+describe("GET /api/v2/auth/me", () => {
   it("is 401 UNAUTHENTICATED without a session", async () => {
     const res = await me();
 
@@ -123,11 +139,11 @@ describe("GET /api/v1/auth/me", () => {
   });
 });
 
-describe("POST /api/v1/auth/logout", () => {
+describe("POST /api/v2/auth/logout", () => {
   it("revokes the session and clears both cookies", async () => {
     const cookie = sessionCookieHeader(await signup());
 
-    const res = await request(app).post("/api/v1/auth/logout").set("Origin", FRONTEND_ORIGIN).set("Cookie", cookie);
+    const res = await request(app).post("/api/v2/auth/logout").set("Origin", FRONTEND_ORIGIN).set("Cookie", cookie);
 
     expect(res.status).toBe(204);
     const cleared = setCookies(res);
@@ -137,15 +153,15 @@ describe("POST /api/v1/auth/logout", () => {
   });
 
   it("succeeds when already signed out", async () => {
-    const res = await request(app).post("/api/v1/auth/logout").set("Origin", FRONTEND_ORIGIN);
+    const res = await request(app).post("/api/v2/auth/logout").set("Origin", FRONTEND_ORIGIN);
 
     expect(res.status).toBe(204);
   });
 });
 
-describe("POST /api/v1/auth/refresh", () => {
+describe("POST /api/v2/auth/refresh", () => {
   const refresh = (cookie?: string) => {
-    const req = request(app).post("/api/v1/auth/refresh").set("Origin", FRONTEND_ORIGIN);
+    const req = request(app).post("/api/v2/auth/refresh").set("Origin", FRONTEND_ORIGIN);
     return cookie ? req.set("Cookie", cookie) : req;
   };
 
@@ -184,7 +200,7 @@ describe("POST /api/v1/auth/refresh", () => {
 
   it("is 401 without a refresh cookie or after logout", async () => {
     const cookie = sessionCookieHeader(await signup());
-    await request(app).post("/api/v1/auth/logout").set("Origin", FRONTEND_ORIGIN).set("Cookie", cookie);
+    await request(app).post("/api/v2/auth/logout").set("Origin", FRONTEND_ORIGIN).set("Cookie", cookie);
 
     expect((await refresh()).status).toBe(401);
     expect((await refresh(cookie)).status).toBe(401);
@@ -196,7 +212,7 @@ describe("cross-site request protection", () => {
     const cookie = sessionCookieHeader(await signup());
 
     const res = await request(app)
-      .post("/api/v1/auth/logout")
+      .post("/api/v2/auth/logout")
       .set("Origin", "https://evil.example")
       .set("Cookie", cookie);
 

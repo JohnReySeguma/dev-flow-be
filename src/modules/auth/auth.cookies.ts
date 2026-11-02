@@ -6,8 +6,8 @@ export const REFRESH_COOKIE = "devflow_refresh";
 
 // Scoped to the API so the frontend's own server (also on localhost) never receives them;
 // the refresh token only travels to the auth endpoints that use it.
-const ACCESS_PATH = "/api/v1";
-const REFRESH_PATH = "/api/v1/auth";
+const ACCESS_PATH = "/api/v2";
+const REFRESH_PATH = "/api/v2/auth";
 
 const base: CookieOptions = { httpOnly: true, secure: true, sameSite: "lax" };
 
@@ -28,7 +28,8 @@ export function clearSessionCookies(res: Response): void {
 }
 
 export const OAUTH_STATE_COOKIE = "devflow_oauth";
-const OAUTH_PATH = "/api/v1/auth/oauth";
+/** The version-free callback path (app.ts PROVIDER_PREFIX), where the state is read back. */
+const OAUTH_PATH = "/api/auth/oauth";
 
 /** Holds the signed OAuth state and PKCE verifier between the redirect and the callback. */
 export function setOAuthStateCookie(res: Response, token: string, maxAgeSeconds: number): void {

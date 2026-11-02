@@ -106,7 +106,10 @@ function repository(db: Db) {
       db.issue.findMany({
         where: { projectId, OR: [{ sprintId: null }, { sprint: { status: { not: "completed" } } }] },
         orderBy: [{ rank: "asc" }, { id: "asc" }],
-        include: { project: { select: { key: true } }, status: { select: { category: true } } },
+        include: {
+          project: { select: { id: true, workspaceId: true, key: true } },
+          status: { select: { category: true } },
+        },
       }),
   };
 }

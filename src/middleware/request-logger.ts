@@ -22,7 +22,7 @@ export function requestLogger(logger: Logger) {
       if (res.statusCode >= 400) return "warn";
       return "info";
     },
-    autoLogging: { ignore: (req) => req.url?.startsWith("/api/v1/health") ?? false },
+    autoLogging: { ignore: (req) => req.url?.startsWith("/api/v2/health") ?? false },
     // pino-http hands custom serializers the already-serialized request.
     serializers: { req: (req: StdSerializedResults["req"]) => ({ ...req, url: redactUrl(req.url) }) },
   });

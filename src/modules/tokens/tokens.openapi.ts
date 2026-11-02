@@ -24,7 +24,8 @@ export function registerTokensDocs(registry: OpenAPIRegistry) {
     summary: "Generate a token",
     description:
       "The secret is returned once and never again; only its hash and last four characters are stored. " +
-      "expiresInDays: 1 to 365, or null for no expiry. Session only.",
+      "The token works in `workspace` only (422 if you are not a member). expiresInDays: 1 to 365, or null for " +
+      "no expiry. Session only. 403 DEMO_ACCOUNT_LOCKED for the shared demo accounts.",
     security: [{ cookieAuth: [] }],
     request: { body: json(createTokenBody) },
     responses: { 201: { description: "Created.", ...json(createTokenResponse) }, default: problemResponse },
@@ -34,7 +35,9 @@ export function registerTokensDocs(registry: OpenAPIRegistry) {
     path: "/me/tokens/{id}",
     tags: ["Access tokens"],
     summary: "Revoke a token",
-    description: "Takes effect immediately. 404 NOT_FOUND if it is not one of your tokens. Session only.",
+    description:
+      "Takes effect immediately. 404 NOT_FOUND if it is not one of your tokens. Session only. 403 " +
+      "DEMO_ACCOUNT_LOCKED for the shared demo accounts.",
     security: [{ cookieAuth: [] }],
     request: { params: z.object({ id: z.uuid() }) },
     responses: { 204: { description: "Revoked." }, default: problemResponse },

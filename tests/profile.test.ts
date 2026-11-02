@@ -11,33 +11,35 @@ let cookie = "";
 beforeEach(async () => {
   await truncateAll(prisma);
   const res = await request(app)
-    .post("/api/v1/auth/signup")
+    .post("/api/v2/auth/signup")
     .set("Origin", FRONTEND_ORIGIN)
     .send({ name: "Ada Lovelace", email: "ada@acme.dev", password: "correct horse battery" });
   cookie = sessionCookieHeader(res);
 });
 
-const getMe = () => request(app).get("/api/v1/me").set("Cookie", cookie);
+const getMe = () => request(app).get("/api/v2/me").set("Cookie", cookie);
 const patchMe = (body: object, ifMatch?: string) => {
-  const req = request(app).patch("/api/v1/me").set("Origin", FRONTEND_ORIGIN).set("Cookie", cookie);
+  const req = request(app).patch("/api/v2/me").set("Origin", FRONTEND_ORIGIN).set("Cookie", cookie);
   return (ifMatch ? req.set("If-Match", ifMatch) : req).send(body);
 };
 
-describe("GET /api/v1/me", () => {
+describe("GET /api/v2/me", () => {
   it("returns the profile with an ETag", async () => {
     const res = await getMe();
 
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ name: "Ada Lovelace", handle: "ada", initials: "AL", role: "admin" });
+    expect(res.body).toMatchObject({ name: "Ada Lovelace", handle: "ada", initials: "AL" });
+    expect(res.body).not.toHaveProperty("role");
+    expect(res.body.isDemo).toBe(false);
     expect(res.headers.etag).toMatch(/^"[0-9a-f]{20}"$/);
   });
 
   it("requires a session", async () => {
-    expect((await request(app).get("/api/v1/me")).status).toBe(401);
+    expect((await request(app).get("/api/v2/me")).status).toBe(401);
   });
 });
 
-describe("PATCH /api/v1/me", () => {
+describe("PATCH /api/v2/me", () => {
   it("updates the editable fields and returns a new ETag", async () => {
     const before = await getMe();
 
@@ -60,9 +62,9 @@ describe("PATCH /api/v1/me", () => {
   });
 
   it("ignores fields that cannot be changed here", async () => {
-    const res = await patchMe({ bio: "Hi", role: "viewer", email: "evil@acme.dev" });
+    const res = await patchMe({ bio: "Hi", handle: "evil", email: "evil@acme.dev" });
 
-    expect(res.body).toMatchObject({ role: "admin", email: "ada@acme.dev", bio: "Hi" });
+    expect(res.body).toMatchObject({ handle: "ada", email: "ada@acme.dev", bio: "Hi" });
   });
 
   it.each([

@@ -21,9 +21,12 @@ export const userProfile = z
     initials: z.string(),
     gradient: z.string(),
     email: z.email(),
-    role: roleSchema,
     timezone: z.string(),
     bio: z.string(),
+    isDemo: z.boolean().meta({
+      description:
+        "A shared demo account (public password): profile edits, access tokens and creating workspaces are locked.",
+    }),
   })
   .meta({
     id: "UserProfile",
@@ -34,9 +37,9 @@ export const userProfile = z
       initials: "JR",
       gradient: "from-violet-500 to-indigo-600",
       email: "demo@devflow.local",
-      role: "admin",
       timezone: "America/New_York",
       bio: "Frontend platform lead. Owns the board, realtime sync and the design system.",
+      isDemo: true,
     },
   });
 
@@ -55,7 +58,7 @@ export const updateProfileBody = z
   .refine((body) => Object.keys(body).length > 0, "Send at least one of name, gradient, timezone or bio.")
   .meta({
     id: "UpdateProfileRequest",
-    description: "Only these fields can change; email, handle and role cannot.",
+    description: "Only these fields can change; email and handle cannot.",
     example: { timezone: "Asia/Manila", bio: "Owns the board and realtime sync." },
   });
 

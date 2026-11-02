@@ -2,12 +2,12 @@
   "openapi": "3.1.0",
   "info": {
     "title": "DevFlow API",
-    "version": "1.0.1",
+    "version": "2.0.0-beta.1",
     "description": "REST API for DevFlow, a sprint-based issue tracker. Errors use RFC 9457 problem details; see docs/INTEGRATION.md for the error catalogue and integration contract. Every endpoint except the health checks is rate-limited per client and answers 429 RATE_LIMITED with Retry-After when a limit is reached (limits: docs/INTEGRATION.md §4.1)."
   },
   "servers": [
     {
-      "url": "/api/v1"
+      "url": "/api/v2"
     }
   ],
   "components": {
@@ -75,6 +75,8 @@
               "FORBIDDEN",
               "CANNOT_CHANGE_OWN_ROLE",
               "CANNOT_REMOVE_SELF",
+              "DEMO_WORKSPACE_LOCKED",
+              "DEMO_ACCOUNT_LOCKED",
               "NOT_FOUND",
               "EMAIL_TAKEN",
               "PROJECT_KEY_TAKEN",
@@ -133,7 +135,7 @@
           "title": "Another sprint is already active",
           "status": 409,
           "detail": "Sprint 25 is already active in DEV.",
-          "instance": "/api/v1/sprints/0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e6f/start",
+          "instance": "/api/v2/workspaces/acme-inc/sprints/0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e6f/start",
           "code": "SPRINT_ALREADY_ACTIVE",
           "requestId": "6f1c2a9e-3b7d-4c8e-9f0a-1b2c3d4e5f60"
         }
@@ -235,26 +237,17 @@
           "user": {
             "$ref": "#/components/schemas/UserProfile"
           },
-          "workspace": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string",
-                "format": "uuid"
-              },
-              "name": {
-                "type": "string"
-              }
+          "workspaces": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Workspace"
             },
-            "required": [
-              "id",
-              "name"
-            ]
+            "description": "Every workspace the user belongs to, with their role in each, oldest membership first."
           }
         },
         "required": [
           "user",
-          "workspace"
+          "workspaces"
         ],
         "example": {
           "user": {
@@ -264,14 +257,19 @@
             "initials": "JR",
             "gradient": "from-violet-500 to-indigo-600",
             "email": "demo@devflow.local",
-            "role": "admin",
             "timezone": "America/New_York",
-            "bio": "Frontend platform lead. Owns the board, realtime sync and the design system."
+            "bio": "Frontend platform lead. Owns the board, realtime sync and the design system.",
+            "isDemo": true
           },
-          "workspace": {
-            "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e00",
-            "name": "Acme Inc"
-          }
+          "workspaces": [
+            {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e00",
+              "slug": "acme-inc",
+              "name": "Acme Inc",
+              "role": "admin",
+              "isDemo": true
+            }
+          ]
         }
       },
       "UserProfile": {
@@ -297,19 +295,15 @@
             "type": "string",
             "format": "email"
           },
-          "role": {
-            "type": "string",
-            "enum": [
-              "admin",
-              "member",
-              "viewer"
-            ]
-          },
           "timezone": {
             "type": "string"
           },
           "bio": {
             "type": "string"
+          },
+          "isDemo": {
+            "type": "boolean",
+            "description": "A shared demo account (public password): profile edits, access tokens and creating workspaces are locked."
           }
         },
         "required": [
@@ -319,9 +313,9 @@
           "initials",
           "gradient",
           "email",
-          "role",
           "timezone",
-          "bio"
+          "bio",
+          "isDemo"
         ],
         "example": {
           "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
@@ -330,9 +324,52 @@
           "initials": "JR",
           "gradient": "from-violet-500 to-indigo-600",
           "email": "demo@devflow.local",
-          "role": "admin",
           "timezone": "America/New_York",
-          "bio": "Frontend platform lead. Owns the board, realtime sync and the design system."
+          "bio": "Frontend platform lead. Owns the board, realtime sync and the design system.",
+          "isDemo": true
+        }
+      },
+      "Workspace": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "slug": {
+            "type": "string",
+            "description": "Used in URLs: /workspaces/{slug}/…. Set at creation, unchanged by renames."
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "member",
+              "viewer"
+            ],
+            "description": "The signed-in user's role in this workspace."
+          },
+          "isDemo": {
+            "type": "boolean",
+            "description": "The public demo workspace: renaming, deleting, leaving, invites and member changes are locked."
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "role",
+          "isDemo"
+        ],
+        "example": {
+          "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e00",
+          "slug": "acme-inc",
+          "name": "Acme Inc",
+          "role": "admin",
+          "isDemo": true
         }
       },
       "SignupRequest": {
@@ -448,7 +485,7 @@
             "maxLength": 280
           }
         },
-        "description": "Only these fields can change; email, handle and role cannot.",
+        "description": "Only these fields can change; email and handle cannot.",
         "example": {
           "timezone": "Asia/Manila",
           "bio": "Owns the board and realtime sync."
@@ -481,6 +518,11 @@
               "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e10",
               "name": "devflow-cli · MacBook Pro",
               "lastFour": "q7Rk",
+              "workspace": {
+                "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e00",
+                "slug": "acme-inc",
+                "name": "Acme Inc"
+              },
               "scopes": [
                 "issues:read",
                 "issues:write"
@@ -505,6 +547,27 @@
           },
           "lastFour": {
             "type": "string"
+          },
+          "workspace": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "slug": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "slug",
+              "name"
+            ],
+            "description": "The only workspace the token works in."
           },
           "scopes": {
             "type": "array",
@@ -541,6 +604,7 @@
           "id",
           "name",
           "lastFour",
+          "workspace",
           "scopes",
           "createdAt",
           "lastUsedAt",
@@ -550,6 +614,11 @@
           "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e10",
           "name": "devflow-cli · MacBook Pro",
           "lastFour": "q7Rk",
+          "workspace": {
+            "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e00",
+            "slug": "acme-inc",
+            "name": "Acme Inc"
+          },
           "scopes": [
             "issues:read",
             "issues:write"
@@ -579,6 +648,11 @@
             "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e10",
             "name": "devflow-cli · MacBook Pro",
             "lastFour": "q7Rk",
+            "workspace": {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e00",
+              "slug": "acme-inc",
+              "name": "Acme Inc"
+            },
             "scopes": [
               "issues:read",
               "issues:write"
@@ -618,30 +692,91 @@
             ],
             "minimum": 1,
             "maximum": 365
+          },
+          "workspace": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Slug of the workspace the token works in; you must be a member."
           }
         },
         "required": [
           "name",
           "scopes",
-          "expiresInDays"
+          "expiresInDays",
+          "workspace"
         ],
         "example": {
           "name": "GitHub Actions · release.yml",
           "scopes": [
             "issues:write"
           ],
-          "expiresInDays": 30
+          "expiresInDays": 30,
+          "workspace": "acme-inc"
         }
       },
-      "Workspace": {
+      "WorkspacePage": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Workspace"
+            }
           },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass as ?cursor= for the next page; null on the last."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "example": {
+          "items": [
+            {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e00",
+              "slug": "acme-inc",
+              "name": "Acme Inc",
+              "role": "admin",
+              "isDemo": true
+            }
+          ],
+          "nextCursor": null
+        }
+      },
+      "CreateWorkspaceRequest": {
+        "type": "object",
+        "properties": {
           "name": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 48
+          },
+          "sampleData": {
+            "type": "boolean",
+            "default": true,
+            "description": "Copy the sample projects (DEV, BIL, MOB) into it, so it is not empty. Default true."
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "example": {
+          "name": "Globex",
+          "sampleData": true
+        }
+      },
+      "InvitePreview": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
           },
           "role": {
             "type": "string",
@@ -649,19 +784,127 @@
               "admin",
               "member",
               "viewer"
+            ]
+          },
+          "workspace": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          },
+          "invitedBy": {
+            "type": [
+              "object",
+              "null"
             ],
-            "description": "The signed-in user's role in this workspace."
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
           }
         },
         "required": [
-          "id",
-          "name",
-          "role"
+          "email",
+          "role",
+          "workspace",
+          "invitedBy",
+          "expiresAt"
         ],
         "example": {
-          "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e00",
-          "name": "Acme Inc",
-          "role": "admin"
+          "email": "grace@acme.dev",
+          "role": "member",
+          "workspace": {
+            "name": "Acme Inc"
+          },
+          "invitedBy": {
+            "name": "John Rey"
+          },
+          "expiresAt": "2026-11-09T09:00:00.000Z"
+        }
+      },
+      "AcceptInviteRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 48
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "name",
+          "password"
+        ],
+        "example": {
+          "name": "Grace Hopper",
+          "password": "YOUR_PASSWORD"
+        }
+      },
+      "GitHubWebhookResult": {
+        "type": "object",
+        "properties": {
+          "event": {
+            "type": "string",
+            "description": "The X-GitHub-Event header."
+          },
+          "handled": {
+            "type": "boolean",
+            "description": "False for events and actions DevFlow ignores."
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Keys of the issues that changed."
+          }
+        },
+        "required": [
+          "event",
+          "handled",
+          "issues"
+        ],
+        "example": {
+          "event": "pull_request",
+          "handled": true,
+          "issues": [
+            "DEV-104"
+          ]
+        }
+      },
+      "RenameWorkspaceRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 48
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "description": "The slug stays the same.",
+        "example": {
+          "name": "Globex Corp"
         }
       },
       "TeamMemberPage": {
@@ -810,116 +1053,59 @@
           "role": "member"
         }
       },
-      "InvitePreview": {
+      "Bootstrap": {
         "type": "object",
         "properties": {
-          "email": {
-            "type": "string",
-            "format": "email"
-          },
-          "role": {
-            "type": "string",
-            "enum": [
-              "admin",
-              "member",
-              "viewer"
-            ]
+          "me": {
+            "$ref": "#/components/schemas/UserProfile"
           },
           "workspace": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "name"
-            ]
+            "$ref": "#/components/schemas/Workspace"
           },
-          "invitedBy": {
-            "type": [
-              "object",
-              "null"
-            ],
-            "properties": {
-              "name": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "name"
-            ]
+          "config": {
+            "$ref": "#/components/schemas/PublicConfig"
           },
-          "expiresAt": {
-            "type": "string",
-            "format": "date-time"
-          }
-        },
-        "required": [
-          "email",
-          "role",
-          "workspace",
-          "invitedBy",
-          "expiresAt"
-        ],
-        "example": {
-          "email": "grace@acme.dev",
-          "role": "member",
-          "workspace": {
-            "name": "Acme Inc"
-          },
-          "invitedBy": {
-            "name": "John Rey"
-          },
-          "expiresAt": "2026-11-09T09:00:00.000Z"
-        }
-      },
-      "AcceptInviteRequest": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 48
-          },
-          "password": {
-            "type": "string",
-            "minLength": 8,
-            "maxLength": 128
-          }
-        },
-        "required": [
-          "name",
-          "password"
-        ],
-        "example": {
-          "name": "Grace Hopper",
-          "password": "YOUR_PASSWORD"
-        }
-      },
-      "ProjectPage": {
-        "type": "object",
-        "properties": {
-          "items": {
+          "projects": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ProjectSummary"
             }
-          },
-          "nextCursor": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Pass as ?cursor= for the next page; null on the last."
           }
         },
         "required": [
-          "items",
-          "nextCursor"
+          "me",
+          "workspace",
+          "config",
+          "projects"
         ],
         "example": {
-          "items": [
+          "me": {
+            "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
+            "name": "John Rey",
+            "handle": "jrey",
+            "initials": "JR",
+            "gradient": "from-violet-500 to-indigo-600",
+            "email": "demo@devflow.local",
+            "timezone": "America/New_York",
+            "bio": "Frontend platform lead. Owns the board, realtime sync and the design system.",
+            "isDemo": true
+          },
+          "workspace": {
+            "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e00",
+            "slug": "acme-inc",
+            "name": "Acme Inc",
+            "role": "admin",
+            "isDemo": true
+          },
+          "config": {
+            "oauth": {
+              "github": true,
+              "google": false
+            },
+            "githubIntegration": false,
+            "email": false
+          },
+          "projects": [
             {
               "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e20",
               "key": "DEV",
@@ -967,8 +1153,7 @@
                 "gradient": "from-violet-500 to-indigo-600"
               }
             }
-          ],
-          "nextCursor": null
+          ]
         }
       },
       "ProjectSummary": {
@@ -1169,6 +1354,80 @@
           "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e21",
           "name": "In Review",
           "category": "in_progress"
+        }
+      },
+      "ProjectPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectSummary"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass as ?cursor= for the next page; null on the last."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "example": {
+          "items": [
+            {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e20",
+              "key": "DEV",
+              "name": "DevFlow Core",
+              "description": "The web app: board, realtime sync, auth and the public API gateway.",
+              "color": "from-violet-500 to-indigo-600",
+              "leadId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
+              "workflow": [
+                {
+                  "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e21",
+                  "name": "To Do",
+                  "category": "todo"
+                },
+                {
+                  "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e22",
+                  "name": "In Progress",
+                  "category": "in_progress"
+                },
+                {
+                  "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e23",
+                  "name": "In Review",
+                  "category": "in_progress"
+                },
+                {
+                  "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e24",
+                  "name": "Done",
+                  "category": "done"
+                }
+              ],
+              "nextIssueNumber": 134,
+              "createdAt": "2026-05-05T09:00:00.000Z",
+              "activeSprint": {
+                "name": "Sprint 25",
+                "endAt": "2026-11-09T09:00:00.000Z",
+                "donePoints": 9,
+                "totalPoints": 50,
+                "doneIssues": 3,
+                "totalIssues": 11
+              },
+              "backlogCount": 5,
+              "lead": {
+                "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
+                "name": "John Rey",
+                "initials": "JR",
+                "gradient": "from-violet-500 to-indigo-600"
+              }
+            }
+          ],
+          "nextCursor": null
         }
       },
       "Project": {
@@ -2582,139 +2841,6 @@
           ],
           "nextCursor": null
         }
-      },
-      "Bootstrap": {
-        "type": "object",
-        "properties": {
-          "me": {
-            "$ref": "#/components/schemas/UserProfile"
-          },
-          "workspace": {
-            "$ref": "#/components/schemas/Workspace"
-          },
-          "config": {
-            "$ref": "#/components/schemas/PublicConfig"
-          },
-          "projects": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ProjectSummary"
-            }
-          }
-        },
-        "required": [
-          "me",
-          "workspace",
-          "config",
-          "projects"
-        ],
-        "example": {
-          "me": {
-            "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
-            "name": "John Rey",
-            "handle": "jrey",
-            "initials": "JR",
-            "gradient": "from-violet-500 to-indigo-600",
-            "email": "demo@devflow.local",
-            "role": "admin",
-            "timezone": "America/New_York",
-            "bio": "Frontend platform lead. Owns the board, realtime sync and the design system."
-          },
-          "workspace": {
-            "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e00",
-            "name": "Acme Inc",
-            "role": "admin"
-          },
-          "config": {
-            "oauth": {
-              "github": true,
-              "google": false
-            },
-            "githubIntegration": false,
-            "email": false
-          },
-          "projects": [
-            {
-              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e20",
-              "key": "DEV",
-              "name": "DevFlow Core",
-              "description": "The web app: board, realtime sync, auth and the public API gateway.",
-              "color": "from-violet-500 to-indigo-600",
-              "leadId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
-              "workflow": [
-                {
-                  "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e21",
-                  "name": "To Do",
-                  "category": "todo"
-                },
-                {
-                  "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e22",
-                  "name": "In Progress",
-                  "category": "in_progress"
-                },
-                {
-                  "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e23",
-                  "name": "In Review",
-                  "category": "in_progress"
-                },
-                {
-                  "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e24",
-                  "name": "Done",
-                  "category": "done"
-                }
-              ],
-              "nextIssueNumber": 134,
-              "createdAt": "2026-05-05T09:00:00.000Z",
-              "activeSprint": {
-                "name": "Sprint 25",
-                "endAt": "2026-11-09T09:00:00.000Z",
-                "donePoints": 9,
-                "totalPoints": 50,
-                "doneIssues": 3,
-                "totalIssues": 11
-              },
-              "backlogCount": 5,
-              "lead": {
-                "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
-                "name": "John Rey",
-                "initials": "JR",
-                "gradient": "from-violet-500 to-indigo-600"
-              }
-            }
-          ]
-        }
-      },
-      "GitHubWebhookResult": {
-        "type": "object",
-        "properties": {
-          "event": {
-            "type": "string",
-            "description": "The X-GitHub-Event header."
-          },
-          "handled": {
-            "type": "boolean",
-            "description": "False for events and actions DevFlow ignores."
-          },
-          "issues": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Keys of the issues that changed."
-          }
-        },
-        "required": [
-          "event",
-          "handled",
-          "issues"
-        ],
-        "example": {
-          "event": "pull_request",
-          "handled": true,
-          "issues": [
-            "DEV-104"
-          ]
-        }
       }
     },
     "parameters": {}
@@ -2875,7 +3001,7 @@
             "description": "Signed up and signed in.",
             "headers": {
               "Set-Cookie": {
-                "description": "`devflow_access` (Path=/api/v1) and `devflow_refresh` (Path=/api/v1/auth); both HttpOnly, Secure, SameSite=Lax.",
+                "description": "`devflow_access` (Path=/api/v2) and `devflow_refresh` (Path=/api/v2/auth); both HttpOnly, Secure, SameSite=Lax.",
                 "schema": {
                   "type": "string"
                 }
@@ -2947,7 +3073,7 @@
             "description": "Signed in.",
             "headers": {
               "Set-Cookie": {
-                "description": "`devflow_access` (Path=/api/v1) and `devflow_refresh` (Path=/api/v1/auth); both HttpOnly, Secure, SameSite=Lax.",
+                "description": "`devflow_access` (Path=/api/v2) and `devflow_refresh` (Path=/api/v2/auth); both HttpOnly, Secure, SameSite=Lax.",
                 "schema": {
                   "type": "string"
                 }
@@ -3010,7 +3136,7 @@
             "description": "New cookies set.",
             "headers": {
               "Set-Cookie": {
-                "description": "`devflow_access` (Path=/api/v1) and `devflow_refresh` (Path=/api/v1/auth); both HttpOnly, Secure, SameSite=Lax.",
+                "description": "`devflow_access` (Path=/api/v2) and `devflow_refresh` (Path=/api/v2/auth); both HttpOnly, Secure, SameSite=Lax.",
                 "schema": {
                   "type": "string"
                 }
@@ -3297,7 +3423,7 @@
           "Auth"
         ],
         "summary": "OAuth callback (called by the provider)",
-        "description": "Registered with GitHub and Google as {API_URL}/api/v1/auth/oauth/{provider}/callback. Always redirects to the frontend.",
+        "description": "Registered with GitHub and Google as {API_URL}/api/auth/oauth/{provider}/callback, outside /api/v2 so new API versions keep the registered URL. Always redirects to the frontend.",
         "parameters": [
           {
             "schema": {
@@ -3319,7 +3445,7 @@
             "description": "Redirect to the frontend.",
             "headers": {
               "Set-Cookie": {
-                "description": "`devflow_access` (Path=/api/v1) and `devflow_refresh` (Path=/api/v1/auth); both HttpOnly, Secure, SameSite=Lax.",
+                "description": "`devflow_access` (Path=/api/v2) and `devflow_refresh` (Path=/api/v2/auth); both HttpOnly, Secure, SameSite=Lax.",
                 "schema": {
                   "type": "string"
                 }
@@ -3361,7 +3487,13 @@
             }
           }
         }
-      }
+      },
+      "servers": [
+        {
+          "url": "/api",
+          "description": "Version-free: the URL registered with the provider."
+        }
+      ]
     },
     "/auth/me": {
       "get": {
@@ -3500,7 +3632,7 @@
           "Profile"
         ],
         "summary": "Update your profile",
-        "description": "Any of name (max 48), gradient (one of the frontend AVATAR_GRADIENTS), timezone (IANA) and bio (max 280). Send If-Match with the ETag you read to get 412 CONFLICT_STALE instead of overwriting a newer change. Session only: 403 FORBIDDEN with a bearer token.",
+        "description": "Any of name (max 48), gradient (one of the frontend AVATAR_GRADIENTS), timezone (IANA) and bio (max 280). Send If-Match with the ETag you read to get 412 CONFLICT_STALE instead of overwriting a newer change. Session only: 403 FORBIDDEN with a bearer token. 403 DEMO_ACCOUNT_LOCKED for the shared demo accounts.",
         "security": [
           {
             "cookieAuth": []
@@ -3669,7 +3801,7 @@
           "Access tokens"
         ],
         "summary": "Generate a token",
-        "description": "The secret is returned once and never again; only its hash and last four characters are stored. expiresInDays: 1 to 365, or null for no expiry. Session only.",
+        "description": "The secret is returned once and never again; only its hash and last four characters are stored. The token works in `workspace` only (422 if you are not a member). expiresInDays: 1 to 365, or null for no expiry. Session only. 403 DEMO_ACCOUNT_LOCKED for the shared demo accounts.",
         "security": [
           {
             "cookieAuth": []
@@ -3738,7 +3870,7 @@
           "Access tokens"
         ],
         "summary": "Revoke a token",
-        "description": "Takes effect immediately. 404 NOT_FOUND if it is not one of your tokens. Session only.",
+        "description": "Takes effect immediately. 404 NOT_FOUND if it is not one of your tokens. Session only. 403 DEMO_ACCOUNT_LOCKED for the shared demo accounts.",
         "security": [
           {
             "cookieAuth": []
@@ -3796,81 +3928,16 @@
         }
       }
     },
-    "/workspace": {
+    "/workspaces": {
       "get": {
         "tags": [
           "Workspace"
         ],
-        "summary": "The workspace and your role in it",
+        "summary": "Your workspaces",
+        "description": "Every workspace you belong to, with your role in each, oldest membership first (GET /auth/me has the same list unpaginated). Signed-in session only.",
         "security": [
           {
             "cookieAuth": []
-          },
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The workspace.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Workspace"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
-            "headers": {
-              "Retry-After": {
-                "description": "Seconds until the limit resets.",
-                "schema": {
-                  "type": "integer"
-                }
-              },
-              "RateLimit": {
-                "description": "Remaining quota (IETF draft-7 RateLimit header).",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error, as RFC 9457 problem details.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/workspace/members": {
-      "get": {
-        "tags": [
-          "Workspace"
-        ],
-        "summary": "Members and pending invites",
-        "description": "Oldest first. Pending invites have status `invited` and lastActiveAt null. Any role.",
-        "security": [
-          {
-            "cookieAuth": []
-          },
-          {
-            "bearerAuth": []
           }
         ],
         "parameters": [
@@ -3897,91 +3964,11 @@
         ],
         "responses": {
           "200": {
-            "description": "A page of members.",
+            "description": "A page of workspaces.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TeamMemberPage"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
-            "headers": {
-              "Retry-After": {
-                "description": "Seconds until the limit resets.",
-                "schema": {
-                  "type": "integer"
-                }
-              },
-              "RateLimit": {
-                "description": "Remaining quota (IETF draft-7 RateLimit header).",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error, as RFC 9457 problem details.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/workspace/members/{id}": {
-      "patch": {
-        "tags": [
-          "Workspace"
-        ],
-        "summary": "Change a member's or invite's role",
-        "description": "Admins only, signed-in session only. Errors: 403 CANNOT_CHANGE_OWN_ROLE, 409 LAST_ADMIN (demoting the last active admin), 404 NOT_FOUND. Last write wins: no If-Match.",
-        "security": [
-          {
-            "cookieAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "required": true,
-            "name": "id",
-            "in": "path"
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ChangeRoleRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "The updated member.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TeamMember"
+                  "$ref": "#/components/schemas/WorkspacePage"
                 }
               }
             }
@@ -4022,76 +4009,12 @@
           }
         }
       },
-      "delete": {
-        "tags": [
-          "Workspace"
-        ],
-        "summary": "Remove a member or revoke an invite",
-        "description": "Admins only, signed-in session only. Removing a member deletes their account, sessions and access tokens immediately; there is no undo. Errors: 403 CANNOT_REMOVE_SELF, 409 LAST_ADMIN, 404 NOT_FOUND.",
-        "security": [
-          {
-            "cookieAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "required": true,
-            "name": "id",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Removed."
-          },
-          "429": {
-            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
-            "headers": {
-              "Retry-After": {
-                "description": "Seconds until the limit resets.",
-                "schema": {
-                  "type": "integer"
-                }
-              },
-              "RateLimit": {
-                "description": "Remaining quota (IETF draft-7 RateLimit header).",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error, as RFC 9457 problem details.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/workspace/invites": {
       "post": {
         "tags": [
           "Workspace"
         ],
-        "summary": "Invite someone by email",
-        "description": "Admins only, signed-in session only. Emails a single-use link to {CORS_ORIGIN}/invite?token=… that expires after 7 days. Errors: 409 ALREADY_MEMBER (already a member or already invited), 502 EMAIL_DELIVERY_FAILED (the invite is kept; use resend).",
+        "summary": "Create a workspace",
+        "description": "You become its admin. With sampleData (the default) it starts with a copy of the sample projects DEV, BIL and MOB: the demo admin's issues are yours, the rest unassigned, no comments. The slug comes from the name and gets a short suffix when taken. Signed-in session only. 403 DEMO_ACCOUNT_LOCKED for the shared demo accounts.",
         "security": [
           {
             "cookieAuth": []
@@ -4101,145 +4024,21 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/InviteRequest"
+                "$ref": "#/components/schemas/CreateWorkspaceRequest"
               }
             }
           }
         },
         "responses": {
           "201": {
-            "description": "The pending invite.",
+            "description": "The new workspace.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TeamMember"
+                  "$ref": "#/components/schemas/Workspace"
                 }
               }
             }
-          },
-          "429": {
-            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
-            "headers": {
-              "Retry-After": {
-                "description": "Seconds until the limit resets.",
-                "schema": {
-                  "type": "integer"
-                }
-              },
-              "RateLimit": {
-                "description": "Remaining quota (IETF draft-7 RateLimit header).",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error, as RFC 9457 problem details.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/workspace/invites/{id}/resend": {
-      "post": {
-        "tags": [
-          "Workspace"
-        ],
-        "summary": "Re-send an invite",
-        "description": "Admins only. Sends a new link valid for 7 days; earlier links stop working. 404 NOT_FOUND if the invite was accepted or revoked; 502 EMAIL_DELIVERY_FAILED.",
-        "security": [
-          {
-            "cookieAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "required": true,
-            "name": "id",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The pending invite.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TeamMember"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
-            "headers": {
-              "Retry-After": {
-                "description": "Seconds until the limit resets.",
-                "schema": {
-                  "type": "integer"
-                }
-              },
-              "RateLimit": {
-                "description": "Remaining quota (IETF draft-7 RateLimit header).",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error, as RFC 9457 problem details.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/workspace/demo/reset": {
-      "post": {
-        "tags": [
-          "Workspace"
-        ],
-        "summary": "Restore the demo projects",
-        "description": "Admins only, signed-in session only. Replaces every project, sprint and issue with a fresh copy of the demo data (DEV, BIL, MOB), dated relative to now; accounts are untouched. 404 NOT_FOUND unless the server runs with SEED_DEMO_DATA=true. Re-fetch /bootstrap afterwards.",
-        "security": [
-          {
-            "cookieAuth": []
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Demo data restored."
           },
           "429": {
             "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
@@ -4425,7 +4224,961 @@
         }
       }
     },
-    "/projects": {
+    "/integrations/github/webhook": {
+      "post": {
+        "tags": [
+          "GitHub"
+        ],
+        "summary": "GitHub App webhook",
+        "description": "Called by GitHub, not by the frontend. Authenticated by `X-Hub-Signature-256` (HMAC-SHA256 of the raw body with GITHUB_WEBHOOK_SECRET); returns 404 when the integration is not configured. Issue keys (DEV-104) are read from PR titles, branch names and commit messages. A pull request links itself to those issues (`git.kind = pr`), a merged one moves them to the project's first done status, and one closed without merging removes its link. A commit links issues that have no pull request link. Changes are broadcast over Live Sync with `actorId: null`. Handles `ping`, `pull_request` and `push`; other events are acknowledged with 202.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "pull_request"
+            },
+            "required": true,
+            "name": "x-github-event",
+            "in": "header"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "example": "sha256=<hex>"
+            },
+            "required": true,
+            "name": "x-hub-signature-256",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Delivery handled.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitHubWebhookResult"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Event or action ignored.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitHubWebhookResult"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "servers": [
+        {
+          "url": "/api",
+          "description": "Version-free: the URL registered with the provider."
+        }
+      ]
+    },
+    "/workspaces/{workspace}": {
+      "get": {
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "The workspace and your role in it",
+        "description": "404 NOT_FOUND when you are not a member, exactly as for a workspace that does not exist.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The workspace.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Workspace"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "Rename the workspace",
+        "description": "Admins only, signed-in session only. The slug does not change, so links keep working. 403 DEMO_WORKSPACE_LOCKED in the demo workspace.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameWorkspaceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The renamed workspace.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Workspace"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "Delete the workspace",
+        "description": "Admins only, signed-in session only. Deletes its projects, issues, sprints, invites and access tokens, and every membership, immediately; there is no undo. The accounts themselves are kept. 403 DEMO_WORKSPACE_LOCKED in the demo workspace.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted."
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspaces/{workspace}/leave": {
+      "post": {
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "Leave the workspace",
+        "description": "Any role, signed-in session only. Your access tokens for it are deleted and your issues and project leads in it are unassigned. 409 LAST_ADMIN when you are its last admin: promote someone first, or delete the workspace if you are its only member. 403 DEMO_WORKSPACE_LOCKED in the demo workspace.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Left."
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspaces/{workspace}/members": {
+      "get": {
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "Members and pending invites",
+        "description": "Oldest first. Pending invites have status `invited` and lastActiveAt null. Any role.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of members.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamMemberPage"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspaces/{workspace}/members/{id}": {
+      "patch": {
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "Change a member's or invite's role",
+        "description": "Admins only, signed-in session only. Errors: 403 CANNOT_CHANGE_OWN_ROLE, 409 LAST_ADMIN (demoting the last active admin), 404 NOT_FOUND. Last write wins: no If-Match. 403 DEMO_WORKSPACE_LOCKED in the demo workspace.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeRoleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated member.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamMember"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "Remove a member or revoke an invite",
+        "description": "Admins only, signed-in session only. Removing a member ends their access immediately and deletes their access tokens for this workspace; their account and other workspaces are kept, and their issues and project leads here are unassigned. Errors: 403 CANNOT_REMOVE_SELF, 409 LAST_ADMIN, 404 NOT_FOUND. 403 DEMO_WORKSPACE_LOCKED in the demo workspace.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed."
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspaces/{workspace}/invites": {
+      "post": {
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "Invite someone by email",
+        "description": "Admins only, signed-in session only. Emails a single-use link to {CORS_ORIGIN}/invite?token=… that expires after 7 days. Errors: 409 ALREADY_MEMBER (already a member or already invited), 502 EMAIL_DELIVERY_FAILED (the invite is kept; use resend). 403 DEMO_WORKSPACE_LOCKED in the demo workspace.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The pending invite.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamMember"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspaces/{workspace}/invites/{id}/resend": {
+      "post": {
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "Re-send an invite",
+        "description": "Admins only. Sends a new link valid for 7 days; earlier links stop working. 404 NOT_FOUND if the invite was accepted or revoked; 502 EMAIL_DELIVERY_FAILED. 403 DEMO_WORKSPACE_LOCKED in the demo workspace.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The pending invite.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamMember"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspaces/{workspace}/demo/reset": {
+      "post": {
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "Restore the sample projects",
+        "description": "Admins only, signed-in session only. Replaces the sample projects (DEV, BIL, MOB, the ones created with the workspace) with fresh copies dated relative to now, assigned as when the workspace was created; projects you created are kept, and a sample whose key one of them uses is skipped. In the demo workspace every project is replaced, with the demo team's assignments and comments. Members are untouched. Re-fetch /bootstrap afterwards.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Sample data restored."
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspaces/{workspace}/bootstrap": {
+      "get": {
+        "tags": [
+          "Bootstrap"
+        ],
+        "summary": "Everything the app shell needs after sign-in",
+        "description": "The signed-in user, the workspace with your role, the feature flags and every project with its summary, in one call. Any role; tokens need issues:read.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The bootstrap payload.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Bootstrap"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspaces/{workspace}/projects": {
       "get": {
         "tags": [
           "Projects"
@@ -4441,6 +5194,17 @@
           }
         ],
         "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          },
           {
             "schema": {
               "type": "integer",
@@ -4523,6 +5287,19 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -4588,7 +5365,7 @@
         }
       }
     },
-    "/projects/{key}": {
+    "/workspaces/{workspace}/projects/{key}": {
       "get": {
         "tags": [
           "Projects"
@@ -4603,6 +5380,17 @@
           }
         ],
         "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          },
           {
             "schema": {
               "type": "string",
@@ -4685,6 +5473,17 @@
           }
         ],
         "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          },
           {
             "schema": {
               "type": "string",
@@ -4787,6 +5586,17 @@
           {
             "schema": {
               "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
               "description": "Project key, any case.",
               "example": "DEV"
             },
@@ -4837,7 +5647,7 @@
         }
       }
     },
-    "/projects/{key}/snapshot": {
+    "/workspaces/{workspace}/projects/{key}/snapshot": {
       "get": {
         "tags": [
           "Projects"
@@ -4853,6 +5663,17 @@
           }
         ],
         "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          },
           {
             "schema": {
               "type": "string",
@@ -4913,7 +5734,7 @@
         }
       }
     },
-    "/projects/{key}/issues": {
+    "/workspaces/{workspace}/projects/{key}/issues": {
       "get": {
         "tags": [
           "Issues"
@@ -4929,6 +5750,17 @@
           }
         ],
         "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          },
           {
             "schema": {
               "type": "string",
@@ -5125,6 +5957,17 @@
           {
             "schema": {
               "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
               "example": "DEV"
             },
             "required": true,
@@ -5197,7 +6040,7 @@
         }
       }
     },
-    "/issues/{issueKey}": {
+    "/workspaces/{workspace}/issues/{issueKey}": {
       "get": {
         "tags": [
           "Issues"
@@ -5213,6 +6056,17 @@
           }
         ],
         "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          },
           {
             "schema": {
               "type": "string",
@@ -5305,6 +6159,17 @@
           }
         ],
         "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          },
           {
             "schema": {
               "type": "string",
@@ -5417,6 +6282,17 @@
           {
             "schema": {
               "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
               "description": "DEV-104 (any case), or 104 with ?project=DEV.",
               "example": "DEV-104"
             },
@@ -5477,7 +6353,7 @@
         }
       }
     },
-    "/issues/{issueKey}/move": {
+    "/workspaces/{workspace}/issues/{issueKey}/move": {
       "post": {
         "tags": [
           "Issues"
@@ -5493,6 +6369,17 @@
           }
         ],
         "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          },
           {
             "schema": {
               "type": "string",
@@ -5580,7 +6467,7 @@
         }
       }
     },
-    "/projects/{key}/statuses": {
+    "/workspaces/{workspace}/projects/{key}/statuses": {
       "post": {
         "tags": [
           "Workflow"
@@ -5596,6 +6483,17 @@
           }
         ],
         "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          },
           {
             "schema": {
               "type": "string",
@@ -5663,7 +6561,7 @@
         }
       }
     },
-    "/projects/{key}/statuses/{id}": {
+    "/workspaces/{workspace}/projects/{key}/statuses/{id}": {
       "patch": {
         "tags": [
           "Workflow"
@@ -5679,6 +6577,17 @@
           }
         ],
         "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          },
           {
             "schema": {
               "type": "string",
@@ -5772,6 +6681,17 @@
           {
             "schema": {
               "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
               "example": "DEV"
             },
             "required": true,
@@ -5847,7 +6767,7 @@
         }
       }
     },
-    "/projects/{key}/statuses/order": {
+    "/workspaces/{workspace}/projects/{key}/statuses/order": {
       "put": {
         "tags": [
           "Workflow"
@@ -5863,6 +6783,17 @@
           }
         ],
         "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          },
           {
             "schema": {
               "type": "string",
@@ -5930,7 +6861,7 @@
         }
       }
     },
-    "/issues/{issueKey}/comments": {
+    "/workspaces/{workspace}/issues/{issueKey}/comments": {
       "get": {
         "tags": [
           "Comments"
@@ -5946,6 +6877,17 @@
           }
         ],
         "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          },
           {
             "schema": {
               "type": "string",
@@ -6051,6 +6993,17 @@
           {
             "schema": {
               "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
               "example": "DEV-104"
             },
             "required": true,
@@ -6125,7 +7078,7 @@
         }
       }
     },
-    "/projects/{key}/sprints": {
+    "/workspaces/{workspace}/projects/{key}/sprints": {
       "get": {
         "tags": [
           "Sprints"
@@ -6141,6 +7094,17 @@
           }
         ],
         "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          },
           {
             "schema": {
               "type": "string",
@@ -6247,6 +7211,17 @@
           {
             "schema": {
               "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
               "example": "DEV"
             },
             "required": true,
@@ -6302,7 +7277,7 @@
         }
       }
     },
-    "/sprints/{id}": {
+    "/workspaces/{workspace}/sprints/{id}": {
       "patch": {
         "tags": [
           "Sprints"
@@ -6318,6 +7293,17 @@
           }
         ],
         "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          },
           {
             "schema": {
               "type": "string",
@@ -6402,6 +7388,17 @@
           {
             "schema": {
               "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
               "format": "uuid"
             },
             "required": true,
@@ -6450,7 +7447,7 @@
         }
       }
     },
-    "/sprints/{id}/start": {
+    "/workspaces/{workspace}/sprints/{id}/start": {
       "post": {
         "tags": [
           "Sprints"
@@ -6466,6 +7463,17 @@
           }
         ],
         "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          },
           {
             "schema": {
               "type": "string",
@@ -6533,7 +7541,7 @@
         }
       }
     },
-    "/sprints/{id}/complete": {
+    "/workspaces/{workspace}/sprints/{id}/complete": {
       "post": {
         "tags": [
           "Sprints"
@@ -6549,6 +7557,17 @@
           }
         ],
         "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          },
           {
             "schema": {
               "type": "string",
@@ -6616,7 +7635,7 @@
         }
       }
     },
-    "/sprints/{id}/burndown": {
+    "/workspaces/{workspace}/sprints/{id}/burndown": {
       "get": {
         "tags": [
           "Reports"
@@ -6632,6 +7651,17 @@
           }
         ],
         "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          },
           {
             "schema": {
               "type": "string",
@@ -6690,7 +7720,7 @@
         }
       }
     },
-    "/projects/{key}/reports/velocity": {
+    "/workspaces/{workspace}/projects/{key}/reports/velocity": {
       "get": {
         "tags": [
           "Reports"
@@ -6706,6 +7736,17 @@
           }
         ],
         "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          },
           {
             "schema": {
               "type": "string",
@@ -6777,7 +7818,7 @@
         }
       }
     },
-    "/projects/{key}/reports/history": {
+    "/workspaces/{workspace}/projects/{key}/reports/history": {
       "get": {
         "tags": [
           "Reports"
@@ -6793,6 +7834,17 @@
           }
         ],
         "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          },
           {
             "schema": {
               "type": "string",
@@ -6830,165 +7882,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SprintHistory"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
-            "headers": {
-              "Retry-After": {
-                "description": "Seconds until the limit resets.",
-                "schema": {
-                  "type": "integer"
-                }
-              },
-              "RateLimit": {
-                "description": "Remaining quota (IETF draft-7 RateLimit header).",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error, as RFC 9457 problem details.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/bootstrap": {
-      "get": {
-        "tags": [
-          "Bootstrap"
-        ],
-        "summary": "Everything the app shell needs after sign-in",
-        "description": "The signed-in user, the workspace with your role, the feature flags and every project with its summary, in one call. Any role; tokens need issues:read.",
-        "security": [
-          {
-            "cookieAuth": []
-          },
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The bootstrap payload.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Bootstrap"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
-            "headers": {
-              "Retry-After": {
-                "description": "Seconds until the limit resets.",
-                "schema": {
-                  "type": "integer"
-                }
-              },
-              "RateLimit": {
-                "description": "Remaining quota (IETF draft-7 RateLimit header).",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error, as RFC 9457 problem details.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/integrations/github/webhook": {
-      "post": {
-        "tags": [
-          "GitHub"
-        ],
-        "summary": "GitHub App webhook",
-        "description": "Called by GitHub, not by the frontend. Authenticated by `X-Hub-Signature-256` (HMAC-SHA256 of the raw body with GITHUB_WEBHOOK_SECRET); returns 404 when the integration is not configured. Issue keys (DEV-104) are read from PR titles, branch names and commit messages. A pull request links itself to those issues (`git.kind = pr`), a merged one moves them to the project's first done status, and one closed without merging removes its link. A commit links issues that have no pull request link. Changes are broadcast over Live Sync with `actorId: null`. Handles `ping`, `pull_request` and `push`; other events are acknowledged with 202.",
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "example": "pull_request"
-            },
-            "required": true,
-            "name": "x-github-event",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "example": "sha256=<hex>"
-            },
-            "required": true,
-            "name": "x-hub-signature-256",
-            "in": "header"
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {},
-                "additionalProperties": {}
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Delivery handled.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GitHubWebhookResult"
-                }
-              }
-            }
-          },
-          "202": {
-            "description": "Event or action ignored.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GitHubWebhookResult"
                 }
               }
             }

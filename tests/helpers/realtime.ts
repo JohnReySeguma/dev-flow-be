@@ -30,6 +30,7 @@ export async function startRealtimeTestServer(options: { env?: Partial<Env> } = 
     auth: services.auth,
     tokens: services.tokens,
     projects: services.projects,
+    workspace: services.workspace,
     events: services.events,
   });
   await new Promise<void>((resolve) => {
@@ -95,8 +96,13 @@ export function connected(socket: Socket): Promise<void> {
   });
 }
 
-export function join(socket: Socket, key: string): Promise<{ ok: boolean; code?: string; projectKey?: string }> {
-  return socket.emitWithAck("project:join", key);
+/** Joins a project room in the demo workspace unless another workspace slug is given. */
+export function join(
+  socket: Socket,
+  projectKey: string,
+  workspace = "acme-inc",
+): Promise<{ ok: boolean; code?: string; workspace?: string; projectKey?: string }> {
+  return socket.emitWithAck("project:join", { workspace, projectKey });
 }
 
 /** Resolves with the first `event` payload that satisfies `match`, ignoring earlier ones. */

@@ -25,7 +25,7 @@ const app = createApp({
 
 describe("createApp", () => {
   it("answers unknown API routes with a problem+json 404", async () => {
-    const res = await request(app).get("/api/v1/nope");
+    const res = await request(app).get("/api/v2/nope");
 
     expect(res.status).toBe(404);
     expect(res.headers["content-type"]).toMatch(/^application\/problem\+json/);
@@ -33,8 +33,8 @@ describe("createApp", () => {
   });
 
   it("allows credentialed CORS requests from the frontend origin only", async () => {
-    const allowed = await request(app).options("/api/v1/nope").set("Origin", "http://localhost:3000");
-    const other = await request(app).options("/api/v1/nope").set("Origin", "https://evil.example");
+    const allowed = await request(app).options("/api/v2/nope").set("Origin", "http://localhost:3000");
+    const other = await request(app).options("/api/v2/nope").set("Origin", "https://evil.example");
 
     expect(allowed.headers["access-control-allow-origin"]).toBe("http://localhost:3000");
     expect(allowed.headers["access-control-allow-credentials"]).toBe("true");
@@ -42,7 +42,7 @@ describe("createApp", () => {
   });
 
   it("lets the frontend read the ETag, request id and rate-limit headers of cross-origin responses", async () => {
-    const res = await request(app).get("/api/v1/nope").set("Origin", "http://localhost:3000");
+    const res = await request(app).get("/api/v2/nope").set("Origin", "http://localhost:3000");
 
     expect(res.headers["access-control-expose-headers"]).toBe(
       "ETag,X-Request-Id,Retry-After,RateLimit,RateLimit-Policy",
@@ -50,8 +50,8 @@ describe("createApp", () => {
   });
 
   it("serves the OpenAPI document and Swagger UI", async () => {
-    const spec = await request(app).get("/api/v1/openapi.json");
-    const docs = await request(app).get("/api/v1/docs/");
+    const spec = await request(app).get("/api/v2/openapi.json");
+    const docs = await request(app).get("/api/v2/docs/");
 
     expect(spec.status).toBe(200);
     expect(spec.body.openapi).toBe("3.1.0");
@@ -60,7 +60,7 @@ describe("createApp", () => {
   });
 
   it("sets security headers and hides the framework", async () => {
-    const res = await request(app).get("/api/v1/nope");
+    const res = await request(app).get("/api/v2/nope");
 
     expect(res.headers["x-content-type-options"]).toBe("nosniff");
     expect(res.headers["x-powered-by"]).toBeUndefined();

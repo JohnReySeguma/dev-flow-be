@@ -15,6 +15,8 @@ export const ERROR_CATALOGUE = {
   FORBIDDEN: { status: 403, title: "Not allowed" },
   CANNOT_CHANGE_OWN_ROLE: { status: 403, title: "You cannot change your own role" },
   CANNOT_REMOVE_SELF: { status: 403, title: "You cannot remove yourself" },
+  DEMO_WORKSPACE_LOCKED: { status: 403, title: "Locked in the demo workspace" },
+  DEMO_ACCOUNT_LOCKED: { status: 403, title: "Locked for demo accounts" },
   NOT_FOUND: { status: 404, title: "Resource not found" },
   EMAIL_TAKEN: { status: 409, title: "Email already registered" },
   PROJECT_KEY_TAKEN: { status: 409, title: "Project key already in use" },

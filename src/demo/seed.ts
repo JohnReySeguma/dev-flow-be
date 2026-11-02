@@ -9,20 +9,32 @@ import { DEMO_COMMENTS, DEMO_ISSUES, DEMO_PROJECTS, DEMO_SPRINTS } from "./track
 const DAY = 24 * 60 * 60 * 1000;
 const SPRINT_LENGTH_DAYS = 14;
 
+type TrackerContext = {
+  workspaceId: string;
+  /** Who plays each of the frontend's team members; anyone missing leaves their work unassigned. */
+  users: Partial<Record<MemberRef, string>>;
+  now: number;
+  /**
+   * A sample copy for someone's own workspace: `owner` leads every project and there are no
+   * comments, since the demo team are not members there.
+   */
+  owner?: string;
+  /** Only these project keys (e.g. the ones still free in a workspace); all of them by default. */
+  keys?: ReadonlySet<string>;
+};
+
 /**
  * Creates the demo projects, sprints, issues and comments in an existing workspace, with every
  * date relative to `now`. Issue history is recorded the way the API would have recorded it, so
  * burndown has real data: active-sprint issues join at sprint start; done issues resolve at
  * their resolvedAt.
  */
-export async function seedTracker(
-  tx: Prisma.TransactionClient,
-  context: { workspaceId: string; users: Partial<Record<MemberRef, string>>; now: number },
-): Promise<void> {
+export async function seedTracker(tx: Prisma.TransactionClient, context: TrackerContext): Promise<void> {
   const at = (days: number) => new Date(context.now + days * DAY);
   const team = Object.values(context.users);
+  const withComments = context.owner === undefined;
 
-  for (const demo of DEMO_PROJECTS) {
+  for (const demo of DEMO_PROJECTS.filter((p) => context.keys?.has(p.key) ?? true)) {
     const project = await tx.project.create({
       data: {
         workspaceId: context.workspaceId,
@@ -30,8 +42,9 @@ export async function seedTracker(
         name: demo.name,
         description: demo.description,
         color: demo.color,
-        leadId: context.users[demo.lead] ?? null,
+        leadId: context.owner ?? context.users[demo.lead] ?? null,
         nextIssueNumber: demo.nextIssueNumber,
+        isSample: true,
         createdAt: at(demo.created),
       },
     });
@@ -107,7 +120,7 @@ export async function seedTracker(
           tags: demoIssue.tags,
           git: demoIssue.git ?? Prisma.DbNull,
           estimate: demoIssue.estimate,
-          commentCount: demoIssue.comments,
+          commentCount: withComments ? demoIssue.comments : 0,
           rank: ranks[index] ?? "a0",
           dueAt: demoIssue.due === undefined ? null : at(demoIssue.due),
           resolvedAt,
@@ -136,6 +149,7 @@ export async function seedTracker(
       });
 
       // As many comments as the frontend shows, spread between creation and the last update.
+      if (!withComments) continue;
       await tx.issueComment.createMany({
         data: Array.from({ length: demoIssue.comments }, (_, n) => ({
           issueId: issue.id,
@@ -177,6 +191,69 @@ export async function seedDemo(
     { workspace: DEMO_WORKSPACE_NAME, members: DEMO_MEMBERS.length, projects: DEMO_PROJECTS.length },
     "seeded demo data",
   );
+  return true;
+}
+
+/**
+ * Copies the sample projects (DEV, BIL, MOB) into a new workspace for `ownerId`: the issues the
+ * demo admin works on are theirs, everything else is unassigned, and there are no comments.
+ */
+export async function copySampleTracker(
+  prisma: PrismaClient,
+  workspaceId: string,
+  ownerId: string,
+  now = Date.now(),
+): Promise<void> {
+  await prisma.$transaction((tx) => seedTracker(tx, { workspaceId, users: { "u-jr": ownerId }, owner: ownerId, now }), {
+    timeout: 60_000,
+  });
+}
+
+/**
+ * Replaces a workspace's sample projects with fresh copies for `ownerId`, dated relative to now.
+ * Projects people created stay; a sample whose key one of them now uses is skipped.
+ */
+export async function resetSampleTracker(
+  prisma: PrismaClient,
+  workspaceId: string,
+  ownerId: string,
+  now = Date.now(),
+): Promise<void> {
+  await prisma.$transaction(
+    async (tx) => {
+      await tx.project.deleteMany({ where: { workspaceId, isSample: true } });
+      const taken = await tx.project.findMany({ where: { workspaceId }, select: { key: true } });
+      const keys = new Set(DEMO_PROJECTS.map((p) => p.key).filter((key) => !taken.some((p) => p.key === key)));
+      await seedTracker(tx, { workspaceId, users: { "u-jr": ownerId }, owner: ownerId, now, keys });
+    },
+    { timeout: 60_000 },
+  );
+}
+
+/**
+ * Restores the public demo workspace, for a nightly job: its name, the demo team's memberships and
+ * roles, no pending invites, and a fresh tracker. Other members stay. Returns false when the
+ * database has no demo workspace.
+ */
+export async function restoreDemoWorkspace(prisma: PrismaClient, logger: Logger, now = Date.now()): Promise<boolean> {
+  const workspace = await prisma.workspace.findFirst({ where: { isDemo: true }, orderBy: { createdAt: "asc" } });
+  if (!workspace) return false;
+  await prisma.$transaction(async (tx) => {
+    await tx.workspace.update({ where: { id: workspace.id }, data: { name: DEMO_WORKSPACE_NAME } });
+    await tx.workspaceInvite.deleteMany({ where: { workspaceId: workspace.id } });
+    const accounts = await tx.user.findMany({ where: { isDemo: true }, select: { id: true, email: true } });
+    for (const member of DEMO_MEMBERS) {
+      const user = accounts.find((account) => account.email === member.email);
+      if (!user) continue;
+      await tx.workspaceMember.upsert({
+        where: { workspaceId_userId: { workspaceId: workspace.id, userId: user.id } },
+        create: { workspaceId: workspace.id, userId: user.id, role: member.role },
+        update: { role: member.role },
+      });
+    }
+  });
+  await resetDemoTracker(prisma, workspace.id, now);
+  logger.info({ workspace: workspace.slug }, "demo workspace restored");
   return true;
 }
 

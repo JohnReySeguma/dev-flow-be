@@ -18,8 +18,8 @@ const PR_ACTIONS = new Set([
 const shortSha = (sha: string) => sha.slice(0, 7);
 
 /**
- * Turns verified GitHub deliveries into issue changes. DevFlow is single-workspace, so every
- * delivery applies to the default workspace.
+ * Turns verified GitHub deliveries into issue changes. Until installations are linked to
+ * workspaces, every delivery applies to the demo workspace.
  */
 export function createGitHubService(deps: { issues: IssuesService; workspaces: WorkspaceRepository }) {
   const { issues, workspaces } = deps;
@@ -30,7 +30,7 @@ export function createGitHubService(deps: { issues: IssuesService; workspaces: W
     const { action, pull_request: pr } = parsed.data;
     if (!PR_ACTIONS.has(action)) return { event: "pull_request", handled: false, issues: [] };
 
-    const workspace = await workspaces.findDefault();
+    const workspace = await workspaces.findDemo();
     const refs = extractIssueRefs(pr.title, pr.head.ref);
     const changed = workspace
       ? await issues.applyGitActivity(workspace.id, refs, {
@@ -49,7 +49,7 @@ export function createGitHubService(deps: { issues: IssuesService; workspaces: W
     const { ref, deleted, commits, head_commit: head } = parsed.data;
     if (deleted) return { event: "push", handled: false, issues: [] };
 
-    const workspace = await workspaces.findDefault();
+    const workspace = await workspaces.findDemo();
     if (!workspace) return { event: "push", handled: true, issues: [] };
     const changed = new Set<string>();
     const apply = async (text: string | undefined, sha: string) => {

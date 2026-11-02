@@ -5,10 +5,46 @@ import { roleSchema } from "../users/users.schemas.js";
 export const workspaceResponse = z
   .object({
     id: z.uuid(),
+    slug: z
+      .string()
+      .meta({ description: "Used in URLs: /workspaces/{slug}/…. Set at creation, unchanged by renames." }),
     name: z.string(),
     role: roleSchema.meta({ description: "The signed-in user's role in this workspace." }),
+    isDemo: z.boolean().meta({
+      description: "The public demo workspace: renaming, deleting, leaving, invites and member changes are locked.",
+    }),
   })
-  .meta({ id: "Workspace", example: { id: "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e00", name: "Acme Inc", role: "admin" } });
+  .meta({
+    id: "Workspace",
+    example: {
+      id: "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e00",
+      slug: "acme-inc",
+      name: "Acme Inc",
+      role: "admin",
+      isDemo: true,
+    },
+  });
+
+export const workspacePage = pageOf(workspaceResponse).meta({
+  id: "WorkspacePage",
+  example: { items: [workspaceResponse.meta()?.example], nextCursor: null },
+});
+
+const workspaceName = z.string().trim().min(1, "Name the workspace.").max(48, "Use at most 48 characters.");
+
+export const createWorkspaceBody = z
+  .object({
+    name: workspaceName,
+    sampleData: z
+      .boolean()
+      .default(true)
+      .meta({ description: "Copy the sample projects (DEV, BIL, MOB) into it, so it is not empty. Default true." }),
+  })
+  .meta({ id: "CreateWorkspaceRequest", example: { name: "Globex", sampleData: true } });
+
+export const renameWorkspaceBody = z
+  .object({ name: workspaceName })
+  .meta({ id: "RenameWorkspaceRequest", description: "The slug stays the same.", example: { name: "Globex Corp" } });
 
 /** The frontend's TeamMember (lib/account-data.ts): active members and pending invites in one list. */
 export const teamMember = z
@@ -83,6 +119,8 @@ export const acceptInviteBody = z
   .meta({ id: "AcceptInviteRequest", example: { name: "Grace Hopper", password: "YOUR_PASSWORD" } });
 
 export type WorkspaceView = z.infer<typeof workspaceResponse>;
+export type CreateWorkspaceInput = z.infer<typeof createWorkspaceBody>;
+export type RenameWorkspaceInput = z.infer<typeof renameWorkspaceBody>;
 export type InvitePreview = z.infer<typeof invitePreviewResponse>;
 export type AcceptInviteInput = z.infer<typeof acceptInviteBody>;
 export type InviteInput = z.infer<typeof inviteBody>;

@@ -5,7 +5,7 @@ type Db = PrismaClient | Prisma.TransactionClient;
 
 /** A sprint with the project it belongs to: routes address sprints by id, so the workspace check needs it. */
 export type SprintWithProject = Prisma.SprintGetPayload<{
-  include: { project: { select: { workspaceId: true; key: true } } };
+  include: { project: { select: { id: true; workspaceId: true; key: true } } };
 }>;
 
 function repository(db: Db) {
@@ -33,7 +33,10 @@ function repository(db: Db) {
       }),
 
     findWithProject: (id: string): Promise<SprintWithProject | null> =>
-      db.sprint.findUnique({ where: { id }, include: { project: { select: { workspaceId: true, key: true } } } }),
+      db.sprint.findUnique({
+        where: { id },
+        include: { project: { select: { id: true, workspaceId: true, key: true } } },
+      }),
 
     findInProject: (projectId: string, id: string): Promise<Sprint | null> =>
       db.sprint.findFirst({ where: { id, projectId } }),
@@ -72,7 +75,10 @@ function repository(db: Db) {
       db.issue.findMany({
         where: { id: { in: ids } },
         orderBy: [{ rank: "asc" }, { id: "asc" }],
-        include: { project: { select: { key: true } }, status: { select: { category: true } } },
+        include: {
+          project: { select: { id: true, workspaceId: true, key: true } },
+          status: { select: { category: true } },
+        },
       }),
 
     recordEvents: (

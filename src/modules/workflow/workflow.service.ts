@@ -35,8 +35,7 @@ export function createWorkflowService(deps: {
       await tx.touchProject(project.id);
     });
     const updated = await projects.get(auth, key);
-    events.publish(project.id, "workflow.updated", {
-      projectKey: project.key,
+    events.publish(project, "workflow.updated", {
       actorId: auth.userId,
       project: updated.project,
     });

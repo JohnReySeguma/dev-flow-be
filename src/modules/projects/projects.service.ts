@@ -143,8 +143,7 @@ export function createProjectsService(deps: { projects: ProjectsRepository; even
       const updated = await projects.update(current.id, data, ifMatch === undefined ? undefined : current.updatedAt);
       if (!updated) throw stale();
       const result = versioned(updated);
-      events.publish(current.id, "project.updated", {
-        projectKey: current.key,
+      events.publish(current, "project.updated", {
         actorId: auth.userId,
         project: result.project,
       });
@@ -154,7 +153,7 @@ export function createProjectsService(deps: { projects: ProjectsRepository; even
     async remove(auth: AuthContext, key: string): Promise<void> {
       const project = await find(auth, key);
       await projects.delete(project.id);
-      events.publish(project.id, "project.deleted", { projectKey: project.key, actorId: auth.userId });
+      events.publish(project, "project.deleted", { actorId: auth.userId });
     },
   };
 }

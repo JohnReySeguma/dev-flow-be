@@ -1,5 +1,6 @@
 import { Router, type RequestHandler } from "express";
 import { paginationQuery } from "../../lib/pagination.js";
+import { lockedForDemoAccounts } from "../../middleware/demo-locks.js";
 import { validate } from "../../middleware/validate.js";
 import { createTokensController } from "./tokens.controller.js";
 import { createTokenBody } from "./tokens.schemas.js";
@@ -16,7 +17,7 @@ export function createTokensRouter(deps: {
   const router = Router();
   router.use(deps.requireAuth, deps.requireSession);
   router.get("/", validate({ query: paginationQuery }), controller.list);
-  router.post("/", validate({ body: createTokenBody }), controller.create);
-  router.delete("/:id", controller.revoke);
+  router.post("/", lockedForDemoAccounts, validate({ body: createTokenBody }), controller.create);
+  router.delete("/:id", lockedForDemoAccounts, controller.revoke);
   return router;
 }

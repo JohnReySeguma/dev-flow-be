@@ -7,15 +7,17 @@ import { errorHandler } from "./error-handler.js";
 import { hasRole, requireRole, requireScope } from "./permissions.js";
 import { requestLogger } from "./request-logger.js";
 
-const caller = { userId: "u", workspaceId: "w" };
+const workspace = { id: "w", slug: "acme-inc", name: "Acme Inc", isDemo: false };
+const caller = { userId: "u", isDemo: false, workspaceId: "w", workspace };
 const session = (role: AuthContext["role"]): AuthContext => ({ ...caller, role, via: "session", sessionId: "s" });
 const token = (scopes: string[]): AuthContext =>
-  ({ ...caller, role: "admin", via: "token", tokenId: "t", scopes }) as AuthContext;
+  ({ ...caller, role: "admin", via: "token", tokenId: "t", scopes, tokenWorkspaceId: "w" }) as AuthContext;
 
 function appWith(auth: AuthContext, guard: RequestHandler) {
   const app = express();
   app.use(requestLogger(createLogger({ NODE_ENV: "test" })));
   app.use((req, _res, next) => {
+    req.identity = auth;
     req.auth = auth;
     next();
   });

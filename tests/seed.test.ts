@@ -41,13 +41,15 @@ describe("seed", () => {
     await seed(prisma, logger);
 
     const res = await request(app)
-      .post("/api/v1/auth/login")
+      .post("/api/v2/auth/login")
       .set("Origin", FRONTEND_ORIGIN)
       .send({ email, password: DEMO_PASSWORD });
 
     expect(res.status).toBe(200);
-    expect(res.body.user).toMatchObject({ role, name });
-    expect(res.body.workspace.name).toBe(DEMO_WORKSPACE_NAME);
+    expect(res.body.user).toMatchObject({ name });
+    expect(res.body.workspaces).toEqual([
+      expect.objectContaining({ name: DEMO_WORKSPACE_NAME, slug: DEMO_WORKSPACE_SLUG, role, isDemo: true }),
+    ]);
   });
 
   it("gives the admin the frontend's example access tokens", async () => {
@@ -75,7 +77,7 @@ describe("demo tracker", () => {
   const snapshot = async (key: string) =>
     (
       await request(app)
-        .get(`/api/v1/projects/${key}/snapshot`)
+        .get(`/api/v2/workspaces/acme-inc/projects/${key}/snapshot`)
         .set("Cookie", await signIn(app, "demo@devflow.local"))
     ).body;
 
@@ -95,6 +97,7 @@ describe("demo tracker", () => {
       "Released",
     ]);
     expect((await snapshot("MOB")).issues).toHaveLength(5);
+    expect(await prisma.project.count({ where: { isSample: true } })).toBe(3);
   });
 
   it("keeps every issue's fields, including git links and due dates", async () => {
@@ -148,24 +151,24 @@ describe("test isolation", () => {
   });
 });
 
-describe("POST /api/v1/workspace/demo/reset", () => {
+describe("POST /api/v2/workspaces/acme-inc/demo/reset", () => {
   beforeEach(async () => {
     await seed(prisma, logger);
   });
 
-  it("restores the demo projects without touching accounts", async () => {
+  it("replaces every project in the demo workspace, without touching accounts", async () => {
     const admin = asBrowser(app, await signIn(app, "demo@devflow.local"));
-    await admin.delete("/api/v1/projects/MOB");
-    await admin.post("/api/v1/projects").send({ name: "Scratch", key: "TMP" });
-    await admin.patch("/api/v1/issues/DEV-104").send({ title: "Edited during the demo" });
+    await admin.delete("/api/v2/workspaces/acme-inc/projects/MOB");
+    await admin.post("/api/v2/workspaces/acme-inc/projects").send({ name: "Scratch", key: "TMP" });
+    await admin.patch("/api/v2/workspaces/acme-inc/issues/DEV-104").send({ title: "Edited during the demo" });
     const users = await prisma.user.count();
 
-    const res = await admin.post("/api/v1/workspace/demo/reset");
+    const res = await admin.post("/api/v2/workspaces/acme-inc/demo/reset");
 
     expect(res.status).toBe(204);
-    const projects = await admin.get("/api/v1/projects");
+    const projects = await admin.get("/api/v2/workspaces/acme-inc/projects");
     expect(projects.body.items.map((p: { key: string }) => p.key)).toEqual(["DEV", "BIL", "MOB"]);
-    expect((await admin.get("/api/v1/issues/DEV-104")).body.title).toBe(
+    expect((await admin.get("/api/v2/workspaces/acme-inc/issues/DEV-104")).body.title).toBe(
       "OAuth refresh token rotation fails on concurrent tabs",
     );
     expect(await prisma.user.count()).toBe(users);
@@ -174,16 +177,16 @@ describe("POST /api/v1/workspace/demo/reset", () => {
   it("is admin-only", async () => {
     const member = asBrowser(app, await signIn(app, "member@devflow.local"));
 
-    expect((await member.post("/api/v1/workspace/demo/reset")).status).toBe(403);
+    expect((await member.post("/api/v2/workspaces/acme-inc/demo/reset")).status).toBe(403);
   });
 
-  it("is not available without SEED_DEMO_DATA", async () => {
+  it("works whether or not the server seeds demo data", async () => {
     const production = createTestApp({ env: { SEED_DEMO_DATA: false } });
     const admin = asBrowser(production.app, await signIn(production.app, "demo@devflow.local"));
 
-    const res = await admin.post("/api/v1/workspace/demo/reset");
+    const res = await admin.post("/api/v2/workspaces/acme-inc/demo/reset");
 
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(204);
     await production.close();
   });
 });

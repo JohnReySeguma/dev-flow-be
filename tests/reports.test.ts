@@ -18,9 +18,9 @@ beforeEach(async () => {
   viewer = asBrowser(app, await signIn(app, "viewer@devflow.local"));
 });
 
-describe("GET /api/v1/sprints/:id/burndown", () => {
+describe("GET /api/v2/workspaces/acme-inc/sprints/:id/burndown", () => {
   it("burns down the demo's active sprint from its issue history", async () => {
-    const res = await viewer.get(`/api/v1/sprints/${await sprintId("DEV", 25)}/burndown`);
+    const res = await viewer.get(`/api/v2/workspaces/acme-inc/sprints/${await sprintId("DEV", 25)}/burndown`);
 
     expect(res.status).toBe(200);
     expect(res.body.committedPoints).toBe(45);
@@ -48,7 +48,7 @@ describe("GET /api/v1/sprints/:id/burndown", () => {
   });
 
   it("has no days for a sprint that has not started", async () => {
-    const res = await viewer.get(`/api/v1/sprints/${await sprintId("DEV", 26)}/burndown`);
+    const res = await viewer.get(`/api/v2/workspaces/acme-inc/sprints/${await sprintId("DEV", 26)}/burndown`);
 
     expect(res.body).toMatchObject({ committedPoints: null, days: [] });
   });
@@ -57,8 +57,8 @@ describe("GET /api/v1/sprints/:id/burndown", () => {
     const member = asBrowser(app, await signIn(app, "member@devflow.local"));
     const id = await sprintId("BIL", 8);
 
-    await member.post(`/api/v1/sprints/${id}/complete`).send({ carryOver: { kind: "backlog" } });
-    const res = await viewer.get(`/api/v1/sprints/${id}/burndown`);
+    await member.post(`/api/v2/workspaces/acme-inc/sprints/${id}/complete`).send({ carryOver: { kind: "backlog" } });
+    const res = await viewer.get(`/api/v2/workspaces/acme-inc/sprints/${id}/burndown`);
 
     const remaining = res.body.days.map((d: { remaining: number | null }) => d.remaining);
     expect(remaining.every((r: number | null) => r !== null)).toBe(true);
@@ -66,9 +66,9 @@ describe("GET /api/v1/sprints/:id/burndown", () => {
   });
 });
 
-describe("GET /api/v1/projects/:key/reports/velocity", () => {
+describe("GET /api/v2/workspaces/acme-inc/projects/:key/reports/velocity", () => {
   it("returns committed against completed points, oldest first", async () => {
-    const res = await viewer.get("/api/v1/projects/DEV/reports/velocity");
+    const res = await viewer.get("/api/v2/workspaces/acme-inc/projects/DEV/reports/velocity");
 
     expect(
       res.body.map((s: { name: string; committed: number; completed: number }) => [s.name, s.committed, s.completed]),
@@ -81,16 +81,18 @@ describe("GET /api/v1/projects/:key/reports/velocity", () => {
   });
 
   it("limits to the most recent sprints", async () => {
-    const res = await viewer.get("/api/v1/projects/DEV/reports/velocity?limit=2");
+    const res = await viewer.get("/api/v2/workspaces/acme-inc/projects/DEV/reports/velocity?limit=2");
 
     expect(res.body.map((s: { name: string }) => s.name)).toEqual(["Sprint 23", "Sprint 24"]);
   });
 });
 
-describe("GET /api/v1/projects/:key/reports/history", () => {
+describe("GET /api/v2/workspaces/acme-inc/projects/:key/reports/history", () => {
   it("lists completed sprints newest first, with their reports, page by page", async () => {
-    const page1 = await viewer.get("/api/v1/projects/DEV/reports/history?limit=3");
-    const page2 = await viewer.get(`/api/v1/projects/DEV/reports/history?limit=3&cursor=${page1.body.nextCursor}`);
+    const page1 = await viewer.get("/api/v2/workspaces/acme-inc/projects/DEV/reports/history?limit=3");
+    const page2 = await viewer.get(
+      `/api/v2/workspaces/acme-inc/projects/DEV/reports/history?limit=3&cursor=${page1.body.nextCursor}`,
+    );
 
     const all = [...page1.body.items, ...page2.body.items];
     expect(all.map((s: { number: number }) => s.number)).toEqual([24, 23, 22, 21]);

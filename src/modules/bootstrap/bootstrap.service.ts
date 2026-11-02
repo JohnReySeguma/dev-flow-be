@@ -14,12 +14,11 @@ export function createBootstrapService(deps: {
 }) {
   return {
     async load(auth: AuthContext): Promise<Bootstrap> {
-      const [{ profile }, workspace, projects] = await Promise.all([
+      const [{ profile }, projects] = await Promise.all([
         deps.users.getProfile(auth.userId),
-        deps.workspace.get(auth),
         deps.projects.summaries(auth),
       ]);
-      return { me: profile, workspace, config: deps.config.getPublicConfig(), projects };
+      return { me: profile, workspace: deps.workspace.get(auth), config: deps.config.getPublicConfig(), projects };
     },
   };
 }

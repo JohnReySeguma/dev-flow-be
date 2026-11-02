@@ -44,9 +44,11 @@ beforeAll(async () => {
     await admin.query(`DROP DATABASE IF EXISTS ${SCRATCH_DB} WITH (FORCE)`);
     await admin.query(`CREATE DATABASE ${SCRATCH_DB}`);
   });
-  const v1 = readdirSync(MIGRATIONS)
-    .filter((name) => /^\d{14}_/.test(name) && name < MEMBERSHIPS)
+  const migrations = readdirSync(MIGRATIONS)
+    .filter((name) => /^\d{14}_/.test(name))
     .sort();
+  const v1 = migrations.filter((name) => name < MEMBERSHIPS);
+  const later = migrations.filter((name) => name >= MEMBERSHIPS);
   const passwordHash = await hashPassword("correct-horse");
 
   await withClient(scratchUrl, async (db) => {
@@ -92,7 +94,8 @@ beforeAll(async () => {
        VALUES ('0193f1c2-0000-7000-8000-0000000a0001', $1, 1, $2, 'task', 'medium', 'Survives the migration', 'a0', $3, now())`,
       [ids.project, ids.status, ids.bob],
     );
-    await db.query(migrationSql(MEMBERSHIPS));
+    // The memberships migration and every one after it, as `migrate deploy` would on upgrade.
+    for (const name of later) await db.query(migrationSql(name));
   });
 }, 60_000);
 
@@ -133,6 +136,15 @@ describe(`migration ${MEMBERSHIPS}`, () => {
     expect(token).toEqual({ workspace_id: ids.acme });
   });
 
+  it("flags the demo workspace's demo accounts, and only those", async () => {
+    const rows = await withClient(
+      scratchUrl,
+      async (db) => (await db.query(`SELECT email FROM users WHERE is_demo ORDER BY email`)).rows,
+    );
+
+    expect(rows).toEqual([{ email: "demo@devflow.local" }]);
+  });
+
   it("treats existing accounts as verified and drops the old columns", async () => {
     const [verified, columns] = await withClient(scratchUrl, async (db) => [
       (await db.query(`SELECT count(*)::int AS n FROM users WHERE email_verified_at IS NOT NULL`)).rows[0],
@@ -152,7 +164,10 @@ describe(`migration ${MEMBERSHIPS}`, () => {
     const migrated = createTestApp({ env: { DATABASE_URL: scratchUrl } });
     const ada = asBrowser(migrated.app, await signIn(migrated.app, "ada@acme.dev", "correct-horse"));
 
-    const [members, issue] = await Promise.all([ada.get("/api/v1/workspace/members"), ada.get("/api/v1/issues/DEV-1")]);
+    const [members, issue] = await Promise.all([
+      ada.get("/api/v2/workspaces/acme-inc/members"),
+      ada.get("/api/v2/workspaces/acme-inc/issues/DEV-1"),
+    ]);
 
     expect(
       members.body.items.map((m: { email: string; role: string; status: string }) => [m.email, m.role, m.status]),

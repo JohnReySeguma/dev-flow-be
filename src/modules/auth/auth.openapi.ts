@@ -6,7 +6,7 @@ import { authMeResponse, forgotPasswordBody, loginBody, resetPasswordBody, signu
 const setsSessionCookies = {
   "Set-Cookie": {
     description:
-      "`devflow_access` (Path=/api/v1) and `devflow_refresh` (Path=/api/v1/auth); both HttpOnly, Secure, SameSite=Lax.",
+      "`devflow_access` (Path=/api/v2) and `devflow_refresh` (Path=/api/v2/auth); both HttpOnly, Secure, SameSite=Lax.",
     schema: { type: "string" as const },
   },
 };
@@ -110,7 +110,7 @@ export function registerAuthDocs(registry: OpenAPIRegistry) {
     tags: ["Auth"],
     summary: "OAuth callback (called by the provider)",
     description:
-      "Registered with GitHub and Google as {API_URL}/api/v1/auth/oauth/{provider}/callback. Always redirects to the frontend.",
+      "Registered with GitHub and Google as {API_URL}/api/auth/oauth/{provider}/callback, outside /api/v2 so new API versions keep the registered URL. Always redirects to the frontend.",
     request: { params: z.object({ provider }) },
     responses: {
       302: { description: "Redirect to the frontend.", headers: setsSessionCookies },

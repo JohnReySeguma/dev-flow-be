@@ -5,7 +5,7 @@ import { FRONTEND_ORIGIN, sessionCookieHeader } from "./cookies.js";
 
 /** Signs in and returns the Cookie header for later requests. Throws if sign-in fails. */
 export async function signIn(app: Express, email: string, password = DEMO_PASSWORD): Promise<string> {
-  const res = await request(app).post("/api/v1/auth/login").set("Origin", FRONTEND_ORIGIN).send({ email, password });
+  const res = await request(app).post("/api/v2/auth/login").set("Origin", FRONTEND_ORIGIN).send({ email, password });
   if (res.status !== 200) throw new Error(`sign-in as ${email} failed with ${res.status}`);
   return sessionCookieHeader(res);
 }

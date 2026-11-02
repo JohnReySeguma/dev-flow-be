@@ -6,7 +6,7 @@ import { ifMatchSatisfied, versionTag } from "../../lib/etag.js";
 import type { Page } from "../../lib/pagination.js";
 import { Prisma } from "../../generated/prisma/client.js";
 import type { IssueRef } from "../../integrations/github/webhook.js";
-import type { EventBus } from "../../realtime/events.js";
+import type { EventBus, EventProject } from "../../realtime/events.js";
 import type { AuthContext } from "../auth/auth.types.js";
 import type { ProjectsService } from "../projects/projects.service.js";
 import { issueKeyOf, toIssueView } from "./issues.mapper.js";
@@ -73,10 +73,10 @@ export function createIssuesService(deps: { issues: IssuesRepository; projects: 
   const announce = (
     event: "issue.created" | "issue.updated",
     result: VersionedIssue,
-    projectKey: string,
+    project: EventProject,
     actorId: string | null,
   ) => {
-    events.publish(result.issue.projectId, event, { projectKey, actorId, issue: result.issue });
+    events.publish(project, event, { actorId, issue: result.issue });
   };
 
   /**
@@ -85,8 +85,7 @@ export function createIssuesService(deps: { issues: IssuesRepository; projects: 
    */
   async function announceMoved(moved: IssueWithContext, actorId: string | null) {
     const after = await issues.issueAfter(moved.projectId, moved);
-    events.publish(moved.projectId, "issue.moved", {
-      projectKey: moved.project.key,
+    events.publish(moved.project, "issue.moved", {
       actorId,
       issue: versioned(moved).issue,
       beforeIssueKey: after ? `${moved.project.key}-${after.number}` : null,
@@ -228,7 +227,7 @@ export function createIssuesService(deps: { issues: IssuesRepository; projects: 
         await record(tx, issue, "created", auth.userId);
         return versioned(issue);
       });
-      announce("issue.created", result, project.key, auth.userId);
+      announce("issue.created", result, project, auth.userId);
       return result;
     },
 
@@ -269,7 +268,7 @@ export function createIssuesService(deps: { issues: IssuesRepository; projects: 
         if (updated.estimate !== current.estimate) await record(tx, updated, "estimate", auth.userId);
         return versioned(updated);
       });
-      announce("issue.updated", result, current.project.key, auth.userId);
+      announce("issue.updated", result, current.project, auth.userId);
       return result;
     },
 
@@ -329,8 +328,7 @@ export function createIssuesService(deps: { issues: IssuesRepository; projects: 
     async remove(auth: AuthContext, issueKey: string, projectKey?: string): Promise<void> {
       const issue = await find(auth, issueKey, projectKey);
       await issues.delete(issue.id);
-      events.publish(issue.projectId, "issue.deleted", {
-        projectKey: issue.project.key,
+      events.publish(issue.project, "issue.deleted", {
         actorId: auth.userId,
         issueKey: issueKeyOf(issue),
       });
@@ -376,8 +374,7 @@ export function createIssuesService(deps: { issues: IssuesRepository; projects: 
           return updated;
         });
         if (!result) continue;
-        if (result.statusId === current.statusId)
-          announce("issue.updated", versioned(result), result.project.key, null);
+        if (result.statusId === current.statusId) announce("issue.updated", versioned(result), result.project, null);
         else await announceMoved(result, null);
         changed.push(issueKeyOf(result));
       }
@@ -387,7 +384,7 @@ export function createIssuesService(deps: { issues: IssuesRepository; projects: 
     /** Re-reads an issue another module changed (e.g. its comment count) and announces it. */
     async announceUpdated(issue: IssueWithContext, actorId: string | null): Promise<void> {
       const fresh = await issues.findByNumber(issue.projectId, issue.number);
-      if (fresh) announce("issue.updated", versioned(fresh), fresh.project.key, actorId);
+      if (fresh) announce("issue.updated", versioned(fresh), fresh.project, actorId);
     },
   };
 }

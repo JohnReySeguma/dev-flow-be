@@ -14,7 +14,8 @@ export function createAuthRepository(prisma: PrismaClient) {
         },
       }),
 
-    findSession: (id: string) => prisma.session.findUnique({ where: { id } }),
+    findSession: (id: string) =>
+      prisma.session.findUnique({ where: { id }, include: { user: { select: { isDemo: true } } } }),
 
     findSessionIdByRefreshHash: async (tokenHash: string) =>
       (await prisma.refreshToken.findUnique({ where: { tokenHash }, select: { sessionId: true } }))?.sessionId ?? null,
