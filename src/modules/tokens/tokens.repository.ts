@@ -1,6 +1,8 @@
-import type { AccessToken } from "../../generated/prisma/client.js";
+import type { AccessToken, Workspace } from "../../generated/prisma/client.js";
 import { afterCursor, type Cursor } from "../../lib/pagination.js";
 import type { PrismaClient } from "../../lib/prisma.js";
+
+export type TokenWithWorkspace = AccessToken & { workspace: Workspace };
 
 /** lastUsedAt is refreshed at most once a minute, so busy scripts do not write on every request. */
 const LAST_USED_RESOLUTION_MS = 60_000;
@@ -15,21 +17,22 @@ export function createTokensRepository(prisma: PrismaClient) {
       lastFour: string;
       scopes: string[];
       expiresAt: Date | null;
-    }): Promise<AccessToken> => prisma.accessToken.create({ data }),
+    }): Promise<TokenWithWorkspace> => prisma.accessToken.create({ data, include: { workspace: true } }),
 
     /** Newest first; fetches `limit + 1` rows so the caller can tell whether another page exists. */
-    listForUser: (userId: string, limit: number, cursor?: Cursor): Promise<AccessToken[]> =>
+    listForUser: (userId: string, limit: number, cursor?: Cursor): Promise<TokenWithWorkspace[]> =>
       prisma.accessToken.findMany({
         where: { userId, ...(cursor && afterCursor(cursor)) },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: limit + 1,
+        include: { workspace: true },
       }),
 
     findByHash: (tokenHash: string) => prisma.accessToken.findUnique({ where: { tokenHash } }),
 
-    /** The owner's role in the token's workspace, or null once they are no longer a member. */
-    findOwnerMembership: (workspaceId: string, userId: string) =>
-      prisma.workspaceMember.findUnique({ where: { workspaceId_userId: { workspaceId, userId } } }),
+    /** The workspace with this slug, if the user is a member of it. */
+    findMemberWorkspace: (userId: string, slug: string): Promise<Workspace | null> =>
+      prisma.workspace.findFirst({ where: { slug, members: { some: { userId } } } }),
 
     /** Returns false when no token with that id belongs to the user. */
     deleteForUser: async (userId: string, id: string): Promise<boolean> =>

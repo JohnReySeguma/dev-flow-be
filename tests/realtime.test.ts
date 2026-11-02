@@ -25,7 +25,9 @@ describe("connecting", () => {
   it("accepts a personal access token", async () => {
     const admin = asBrowser(app, await signIn(app, "demo@devflow.local"));
     const { secret } = (
-      await admin.post("/api/v2/me/tokens").send({ name: "cli", scopes: ["issues:read"], expiresInDays: null })
+      await admin
+        .post("/api/v2/me/tokens")
+        .send({ name: "cli", scopes: ["issues:read"], expiresInDays: null, workspace: "acme-inc" })
     ).body;
 
     await expect(connected(client({ token: secret }))).resolves.toBeUndefined();
@@ -57,7 +59,7 @@ describe("project rooms and presence", () => {
     await connected(socket);
     const presence = nextEvent<{ projectKey: string; online: string[] }>(socket, "presence.updated");
 
-    expect(await join(socket, "dev")).toEqual({ ok: true, projectKey: "DEV" });
+    expect(await join(socket, "dev")).toEqual({ ok: true, workspace: "acme-inc", projectKey: "DEV" });
     const dmitri = await prisma.user.findUniqueOrThrow({ where: { email: "member@devflow.local" } });
     expect(await presence).toMatchObject({ projectKey: "DEV", online: [dmitri.id] });
   });
@@ -67,6 +69,32 @@ describe("project rooms and presence", () => {
     await connected(socket);
 
     expect(await join(socket, "NOPE")).toMatchObject({ ok: false, code: "NOT_FOUND" });
+  });
+
+  it("refuses a workspace the caller is not a member of, like an unknown one", async () => {
+    await prisma.workspace.create({ data: { name: "Globex", slug: "globex" } });
+    const socket = client({ cookie, origin: FRONTEND_ORIGIN });
+    await connected(socket);
+
+    expect(await join(socket, "DEV", "globex")).toMatchObject({ ok: false, code: "NOT_FOUND" });
+    expect(await join(socket, "DEV", "no-such-workspace")).toMatchObject({ ok: false, code: "NOT_FOUND" });
+  });
+
+  it("asks for { workspace, projectKey } instead of a bare project key", async () => {
+    const socket = client({ cookie, origin: FRONTEND_ORIGIN });
+    await connected(socket);
+
+    expect(await socket.emitWithAck("project:join", "DEV")).toMatchObject({ ok: false, code: "VALIDATION_FAILED" });
+  });
+
+  it("names the workspace in every event", async () => {
+    const socket = client({ cookie, origin: FRONTEND_ORIGIN });
+    await connected(socket);
+    const presence = nextEvent<{ workspaceId: string }>(socket, "presence.updated");
+    await join(socket, "DEV");
+
+    const acme = await prisma.workspace.findUniqueOrThrow({ where: { slug: "acme-inc" } });
+    expect((await presence).workspaceId).toBe(acme.id);
   });
 
   it("tells the room when someone leaves", async () => {
@@ -124,20 +152,20 @@ describe("Live Sync events", () => {
     const socket = await joinedTo("DEV");
 
     const created = nextEvent<Payload>(socket, "issue.created");
-    await member.post("/api/v2/projects/DEV/issues").send({ title: "Live!" });
+    await member.post("/api/v2/workspaces/acme-inc/projects/DEV/issues").send({ title: "Live!" });
     expect(await created).toMatchObject({ projectKey: "DEV", actorId, issue: { id: "DEV-134", title: "Live!" } });
 
     const moved = nextEvent<Payload>(socket, "issue.moved");
-    await member.post("/api/v2/issues/DEV-134/move").send({ beforeIssueKey: "DEV-104" });
+    await member.post("/api/v2/workspaces/acme-inc/issues/DEV-134/move").send({ beforeIssueKey: "DEV-104" });
     expect(await moved).toMatchObject({ issue: { id: "DEV-134" }, beforeIssueKey: "DEV-104" });
 
     const commented = nextEvent<Payload>(socket, "issue.updated");
-    await member.post("/api/v2/issues/DEV-134/comments").send({ body: "On it." });
+    await member.post("/api/v2/workspaces/acme-inc/issues/DEV-134/comments").send({ body: "On it." });
     expect((await commented).issue.comments).toBe(1);
 
     const deleted = nextEvent<Payload>(socket, "issue.deleted");
-    await member.delete("/api/v2/issues/DEV-134");
-    expect(await deleted).toEqual({ projectKey: "DEV", actorId, issueKey: "DEV-134" });
+    await member.delete("/api/v2/workspaces/acme-inc/issues/DEV-134");
+    expect(await deleted).toEqual({ workspaceId: expect.any(String), projectKey: "DEV", actorId, issueKey: "DEV-134" });
   });
 
   it("only reaches clients in that project's room", async () => {
@@ -149,7 +177,7 @@ describe("Live Sync events", () => {
     const here = await joinedTo("DEV");
 
     const created = nextEvent(here, "issue.created");
-    await member.post("/api/v2/projects/DEV/issues").send({ title: "Only DEV hears this" });
+    await member.post("/api/v2/workspaces/acme-inc/projects/DEV/issues").send({ title: "Only DEV hears this" });
     await created;
 
     expect(received).toBe(false);
@@ -160,7 +188,9 @@ describe("Live Sync events", () => {
     const sprint8 = (await prisma.sprint.findFirstOrThrow({ where: { number: 8, project: { key: "BIL" } } })).id;
 
     const completed = nextEvent<Payload>(socket, "sprint.completed");
-    await member.post(`/api/v2/sprints/${sprint8}/complete`).send({ carryOver: { kind: "new-sprint" } });
+    await member
+      .post(`/api/v2/workspaces/acme-inc/sprints/${sprint8}/complete`)
+      .send({ carryOver: { kind: "new-sprint" } });
     const payload = await completed;
 
     expect(payload.sprint).toMatchObject({ number: 8, status: "completed" });
@@ -175,7 +205,9 @@ describe("Live Sync events", () => {
     expect(payload.issues.every((i: { sprintId: string }) => i.sprintId === payload.carriedOverTo.id)).toBe(true);
 
     const started = nextEvent<Payload>(socket, "sprint.started");
-    await member.post(`/api/v2/sprints/${payload.carriedOverTo.id}/start`).send({ name: "Sprint 9", durationDays: 14 });
+    await member
+      .post(`/api/v2/workspaces/acme-inc/sprints/${payload.carriedOverTo.id}/start`)
+      .send({ name: "Sprint 9", durationDays: 14 });
     expect((await started).sprint).toMatchObject({ number: 9, status: "active" });
   });
 
@@ -184,11 +216,11 @@ describe("Live Sync events", () => {
     const admin = asBrowser(app, await signIn(app, "demo@devflow.local"));
 
     const workflow = nextEvent<Payload>(socket, "workflow.updated");
-    await admin.post("/api/v2/projects/DEV/statuses").send({ name: "QA", category: "in_progress" });
+    await admin.post("/api/v2/workspaces/acme-inc/projects/DEV/statuses").send({ name: "QA", category: "in_progress" });
     expect((await workflow).project.workflow.map((s: { name: string }) => s.name)).toContain("QA");
 
     const project = nextEvent<Payload>(socket, "project.updated");
-    await admin.patch("/api/v2/projects/DEV").send({ description: "Live." });
+    await admin.patch("/api/v2/workspaces/acme-inc/projects/DEV").send({ description: "Live." });
     expect((await project).project.description).toBe("Live.");
   });
 });

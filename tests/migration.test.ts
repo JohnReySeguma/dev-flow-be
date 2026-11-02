@@ -152,7 +152,10 @@ describe(`migration ${MEMBERSHIPS}`, () => {
     const migrated = createTestApp({ env: { DATABASE_URL: scratchUrl } });
     const ada = asBrowser(migrated.app, await signIn(migrated.app, "ada@acme.dev", "correct-horse"));
 
-    const [members, issue] = await Promise.all([ada.get("/api/v2/workspace/members"), ada.get("/api/v2/issues/DEV-1")]);
+    const [members, issue] = await Promise.all([
+      ada.get("/api/v2/workspaces/acme-inc/members"),
+      ada.get("/api/v2/workspaces/acme-inc/issues/DEV-1"),
+    ]);
 
     expect(
       members.body.items.map((m: { email: string; role: string; status: string }) => [m.email, m.role, m.status]),

@@ -8,6 +8,7 @@ import { originCheck } from "./middleware/origin-check.js";
 import { createRateLimiters, type RATE_LIMITS } from "./middleware/rate-limit.js";
 import { requestLogger } from "./middleware/request-logger.js";
 import { requireAuth, requireSession } from "./middleware/require-auth.js";
+import { requireMember, requireMembership } from "./middleware/require-membership.js";
 import { createAuthRouter, createOAuthCallbackRouter } from "./modules/auth/auth.routes.js";
 import { createBootstrapRouter } from "./modules/bootstrap/bootstrap.routes.js";
 import { createCommentsRouter } from "./modules/comments/comments.routes.js";
@@ -98,24 +99,31 @@ export function createApp(deps: AppDeps): Express {
   api.post(["/auth/signup", "/auth/password/forgot", "/auth/password/reset"], limit.auth);
   api.get("/auth/oauth/:provider", limit.auth);
   api.post("/auth/refresh", limit.refresh);
-  api.post(["/workspace/invites", "/workspace/invites/:id/resend"], limit.invites);
+  api.post(["/workspaces/:ws/invites", "/workspaces/:ws/invites/:id/resend"], limit.invites);
   api.use("/invites", limit.inviteTokens);
   api.use("/config", createConfigRouter({ config: services.config }));
-  api.use("/bootstrap", createBootstrapRouter({ bootstrap: services.bootstrap, ...withAuth }));
-  api.use("/projects/:key/issues", createProjectIssuesRouter({ issues: services.issues, ...withAuth }));
-  api.use("/projects/:key/sprints", createProjectSprintsRouter({ sprints: services.sprints, ...withAuth }));
-  api.use("/projects/:key/reports", createProjectReportsRouter({ reports: services.reports, ...withAuth }));
-  api.use("/projects/:key/statuses", createWorkflowRouter({ workflow: services.workflow, ...withAuth }));
-  api.use("/projects", createProjectsRouter({ projects: services.projects, ...withAuth }));
-  api.use("/sprints/:id/burndown", createBurndownRouter({ reports: services.reports, ...withAuth }));
-  api.use("/sprints", createSprintsRouter({ sprints: services.sprints, ...withAuth }));
-  api.use("/issues/:issueKey/comments", createCommentsRouter({ comments: services.comments, ...withAuth }));
-  api.use("/issues", createIssuesRouter({ issues: services.issues, ...withAuth }));
   api.use("/invites", createInviteAcceptRouter({ invites: services.invites }));
-  api.use(
-    "/workspace",
-    createWorkspaceRouter({ workspace: services.workspace, invites: services.invites, ...withAuth, requireSession }),
+
+  // Everything that belongs to one workspace. Membership is resolved once, here: routers below
+  // read the caller's role in this workspace from req.auth.
+  const workspace = express.Router({ mergeParams: true });
+  workspace.use(authenticated, requireMembership({ workspace: services.workspace }));
+  const inWorkspace = { requireAuth: requireMember };
+  workspace.use("/bootstrap", createBootstrapRouter({ bootstrap: services.bootstrap, ...inWorkspace }));
+  workspace.use("/projects/:key/issues", createProjectIssuesRouter({ issues: services.issues, ...inWorkspace }));
+  workspace.use("/projects/:key/sprints", createProjectSprintsRouter({ sprints: services.sprints, ...inWorkspace }));
+  workspace.use("/projects/:key/reports", createProjectReportsRouter({ reports: services.reports, ...inWorkspace }));
+  workspace.use("/projects/:key/statuses", createWorkflowRouter({ workflow: services.workflow, ...inWorkspace }));
+  workspace.use("/projects", createProjectsRouter({ projects: services.projects, ...inWorkspace }));
+  workspace.use("/sprints/:id/burndown", createBurndownRouter({ reports: services.reports, ...inWorkspace }));
+  workspace.use("/sprints", createSprintsRouter({ sprints: services.sprints, ...inWorkspace }));
+  workspace.use("/issues/:issueKey/comments", createCommentsRouter({ comments: services.comments, ...inWorkspace }));
+  workspace.use("/issues", createIssuesRouter({ issues: services.issues, ...inWorkspace }));
+  workspace.use(
+    "/",
+    createWorkspaceRouter({ workspace: services.workspace, invites: services.invites, ...inWorkspace, requireSession }),
   );
+  api.use("/workspaces/:ws", workspace);
   api.use("/me/tokens", createTokensRouter({ tokens: services.tokens, ...withAuth, requireSession }));
   api.use("/me", createMeRouter({ users: services.users, ...withAuth, requireSession }));
   api.use("/auth", createAuthRouter(authDeps));

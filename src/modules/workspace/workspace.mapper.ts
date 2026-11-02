@@ -1,7 +1,14 @@
-import type { WorkspaceInvite } from "../../generated/prisma/client.js";
+import type { Role, Workspace, WorkspaceInvite } from "../../generated/prisma/client.js";
 import { initialsOf } from "../users/users.mapper.js";
 import type { Member } from "./workspace.repository.js";
-import type { TeamMember } from "./workspace.schemas.js";
+import type { TeamMember, WorkspaceView } from "./workspace.schemas.js";
+
+export function toWorkspaceView(
+  workspace: Pick<Workspace, "id" | "slug" | "name" | "isDemo">,
+  role: Role,
+): WorkspaceView {
+  return { id: workspace.id, slug: workspace.slug, name: workspace.name, role, isDemo: workspace.isDemo };
+}
 
 /** The neutral avatar the frontend shows for pending invites. */
 export const INVITE_GRADIENT = "from-zinc-600 to-zinc-700";

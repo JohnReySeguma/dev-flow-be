@@ -41,6 +41,7 @@ const realtime = createRealtimeServer({
   auth: services.auth,
   tokens: services.tokens,
   projects: services.projects,
+  workspace: services.workspace,
   events: services.events,
 });
 

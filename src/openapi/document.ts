@@ -14,6 +14,7 @@ import { registerTokensDocs } from "../modules/tokens/tokens.openapi.js";
 import { registerUsersDocs } from "../modules/users/users.openapi.js";
 import { registerWorkflowDocs } from "../modules/workflow/workflow.openapi.js";
 import { registerWorkspaceDocs } from "../modules/workspace/workspace.openapi.js";
+import { WorkspaceRegistry } from "./workspace-registry.js";
 
 /** Assembles the OpenAPI 3.1 document from every module's Zod schemas. */
 export function buildOpenApiDocument() {
@@ -31,22 +32,24 @@ export function buildOpenApiDocument() {
     description: "Personal access token (dfp_…) from POST /me/tokens, for the CLI and scripts.",
   });
 
+  // Routes mounted under /workspaces/:ws register their paths relative to it.
+  const workspace = new WorkspaceRegistry();
   registerHealthDocs(registry);
   registerConfigDocs(registry);
   registerAuthDocs(registry);
   registerUsersDocs(registry);
   registerTokensDocs(registry);
-  registerWorkspaceDocs(registry);
-  registerProjectsDocs(registry);
-  registerIssuesDocs(registry);
-  registerWorkflowDocs(registry);
-  registerCommentsDocs(registry);
-  registerSprintsDocs(registry);
-  registerReportsDocs(registry);
-  registerBootstrapDocs(registry);
+  registerWorkspaceDocs(registry, workspace);
+  registerBootstrapDocs(workspace);
+  registerProjectsDocs(workspace);
+  registerIssuesDocs(workspace);
+  registerWorkflowDocs(workspace);
+  registerCommentsDocs(workspace);
+  registerSprintsDocs(workspace);
+  registerReportsDocs(workspace);
   registerGitHubDocs(registry);
 
-  const document = new OpenApiGeneratorV31(registry.definitions).generateDocument({
+  const document = new OpenApiGeneratorV31([...registry.definitions, ...workspace.definitions]).generateDocument({
     openapi: "3.1.0",
     info: {
       title: "DevFlow API",

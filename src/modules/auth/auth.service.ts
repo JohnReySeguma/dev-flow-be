@@ -10,13 +10,14 @@ import type { WorkspaceRepository } from "../workspace/workspace.repository.js";
 import type { AccessTokens } from "./access-token.js";
 import type { AuthRepository } from "./auth.repository.js";
 import type { AuthMe, LoginInput, SignupInput } from "./auth.schemas.js";
-import type { AuthContext, IssuedSession, RequestMeta } from "./auth.types.js";
+import { toWorkspaceView } from "../workspace/workspace.mapper.js";
+import type { Identity, IssuedSession, RequestMeta } from "./auth.types.js";
 
 /** Absolute session lifetime: after this the user signs in again, however active they are. */
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
-/** Used only when no workspace exists yet (a deployment without demo data). */
-const DEFAULT_WORKSPACE_NAME = "DevFlow";
+/** "Ada Lovelace" → "Ada Lovelace's workspace". */
+export const personalWorkspaceName = (name: string) => `${name}'s workspace`;
 
 type Deps = {
   users: UsersRepository;
@@ -39,30 +40,31 @@ export function createAuthService({ users, workspaces, sessions, accessTokens, l
   }
 
   /**
-   * Adds a user to the workspace. Without an explicit role (an invite sets one), the first user
-   * of an empty workspace becomes its admin and everyone after that joins as a member.
+   * Creates an account. With `membership` (an accepted invite) it joins that workspace only;
+   * otherwise it gets its own workspace, as admin.
    */
   async function createUser(input: {
     name: string;
     email: string;
     passwordHash: string | null;
-    role?: Role;
+    membership?: { workspaceId: string; role: Role };
   }): Promise<User> {
-    const workspace = (await workspaces.findDefault()) ?? (await workspaces.create(DEFAULT_WORKSPACE_NAME));
-    const role: Role = input.role ?? ((await workspaces.countMembers(workspace.id)) === 0 ? "admin" : "member");
+    let user: User;
     try {
-      return await users.create({
+      user = await users.create({
         email: input.email,
         name: input.name,
         handle: await uniqueHandle(input.email),
         gradient: gradientFor(input.email),
         passwordHash: input.passwordHash,
-        membership: { workspaceId: workspace.id, role },
+        ...(input.membership && { membership: input.membership }),
       });
     } catch (error) {
       if (isUniqueViolation(error)) throw new AppError("EMAIL_TAKEN", undefined, { cause: error });
       throw error;
     }
+    if (!input.membership) await workspaces.create(personalWorkspaceName(user.name), { ownerId: user.id });
+    return user;
   }
 
   async function issueSession(user: User, meta: RequestMeta): Promise<IssuedSession> {
@@ -80,10 +82,9 @@ export function createAuthService({ users, workspaces, sessions, accessTokens, l
   }
 
   async function me(userId: string): Promise<AuthMe> {
-    const [user, membership] = await Promise.all([users.findById(userId), users.primaryMembership(userId)]);
-    if (!user || !membership) throw new AppError("UNAUTHENTICATED");
-    const { workspace } = membership;
-    return { user: toProfile(user, membership.role), workspace: { id: workspace.id, name: workspace.name } };
+    const [user, memberships] = await Promise.all([users.findById(userId), workspaces.listMemberships(userId)]);
+    if (!user) throw new AppError("UNAUTHENTICATED");
+    return { user: toProfile(user), workspaces: memberships.map((m) => toWorkspaceView(m.workspace, m.role)) };
   }
 
   return {
@@ -149,21 +150,13 @@ export function createAuthService({ users, workspaces, sessions, accessTokens, l
     },
 
     /** Resolves an access token to the caller, rejecting revoked or expired sessions. */
-    async authenticate(accessToken: string): Promise<AuthContext> {
+    async authenticate(accessToken: string): Promise<Identity> {
       const { userId, sessionId } = accessTokens.verify(accessToken);
       const session = await sessions.findSession(sessionId);
       if (session?.userId !== userId || session.revokedAt || session.expiresAt <= new Date()) {
         throw new AppError("UNAUTHENTICATED");
       }
-      const membership = await users.primaryMembership(userId);
-      if (!membership) throw new AppError("UNAUTHENTICATED");
-      return {
-        userId,
-        workspaceId: membership.workspaceId,
-        role: membership.role,
-        via: "session",
-        sessionId,
-      };
+      return { userId, via: "session", sessionId };
     },
   };
 }

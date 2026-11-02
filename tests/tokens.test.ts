@@ -7,22 +7,32 @@ import { truncateAll } from "./helpers/db.js";
 const { app, prisma, close } = createTestApp();
 afterAll(close);
 
-async function signUp(email: string) {
+type Account = { cookie: string; slug: string };
+
+/** Signs up and returns the session cookie and the slug of the account's workspace. */
+async function signUp(email: string): Promise<Account> {
   const res = await request(app)
     .post("/api/v2/auth/signup")
     .set("Origin", FRONTEND_ORIGIN)
     .send({ name: "Ada Lovelace", email, password: "correct horse battery" });
-  return sessionCookieHeader(res);
+  return { cookie: sessionCookieHeader(res), slug: res.body.workspaces[0].slug };
 }
 
+let ada: Account;
 let cookie = "";
 beforeEach(async () => {
   await truncateAll(prisma);
-  cookie = await signUp("ada@acme.dev");
+  ada = await signUp("ada@acme.dev");
+  cookie = ada.cookie;
 });
 
-const createToken = (body: object, as = cookie) =>
-  request(app).post("/api/v2/me/tokens").set("Origin", FRONTEND_ORIGIN).set("Cookie", as).send(body);
+/** Creates a token in the account's own workspace unless the body names another. */
+const createToken = (body: object, as = ada) =>
+  request(app)
+    .post("/api/v2/me/tokens")
+    .set("Origin", FRONTEND_ORIGIN)
+    .set("Cookie", as.cookie)
+    .send({ workspace: as.slug, ...body });
 const cli = { name: "devflow-cli · MacBook Pro", scopes: ["issues:read", "issues:write"], expiresInDays: null };
 
 describe("POST /api/v2/me/tokens", () => {
@@ -35,6 +45,7 @@ describe("POST /api/v2/me/tokens", () => {
       name: cli.name,
       scopes: cli.scopes,
       lastFour: res.body.secret.slice(-4),
+      workspace: { slug: ada.slug, name: expect.any(String), id: expect.any(String) },
       lastUsedAt: null,
       expiresAt: null,
     });
@@ -56,11 +67,38 @@ describe("POST /api/v2/me/tokens", () => {
     [{ ...cli, scopes: ["admin:everything"] }, "scopes.0"],
     [{ ...cli, expiresInDays: 0 }, "expiresInDays"],
     [{ ...cli, name: "" }, "name"],
+    [{ ...cli, workspace: "" }, "workspace"],
   ])("rejects %j", async (body, field) => {
     const res = await createToken(body);
 
     expect(res.status).toBe(422);
     expect(res.body.errors[0].field).toBe(field);
+  });
+});
+
+describe("POST /api/v2/me/tokens workspace", () => {
+  it("only accepts a workspace you are a member of", async () => {
+    const grace = await signUp("grace@acme.dev");
+
+    const theirs = await createToken({ ...cli, workspace: grace.slug });
+    const unknown = await createToken({ ...cli, workspace: "no-such-workspace" });
+
+    for (const res of [theirs, unknown]) {
+      expect(res.status).toBe(422);
+      expect(res.body.errors).toEqual([{ field: "workspace", message: "You are not a member of that workspace." }]);
+    }
+  });
+
+  it("works in its own workspace only, and only while the owner is a member", async () => {
+    const grace = await signUp("grace@acme.dev");
+    const { secret } = (await createToken(cli)).body;
+    const bearer = { Authorization: `Bearer ${secret}` };
+
+    expect((await request(app).get(`/api/v2/workspaces/${ada.slug}/bootstrap`).set(bearer)).status).toBe(200);
+    expect((await request(app).get(`/api/v2/workspaces/${grace.slug}/bootstrap`).set(bearer)).status).toBe(404);
+
+    await prisma.workspaceMember.deleteMany({ where: { workspace: { slug: ada.slug } } });
+    expect((await request(app).get(`/api/v2/workspaces/${ada.slug}/bootstrap`).set(bearer)).status).toBe(404);
   });
 });
 

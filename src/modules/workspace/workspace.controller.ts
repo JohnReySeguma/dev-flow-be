@@ -8,8 +8,8 @@ import type { WorkspaceService } from "./workspace.service.js";
 const validatedQuery = (req: Request) => req.query as unknown as PaginationQuery;
 
 export function createWorkspaceController(workspace: WorkspaceService) {
-  const get: RequestHandler = async (req, res) => {
-    res.set("Cache-Control", "no-store").json(await workspace.get(authOf(req)));
+  const get: RequestHandler = (req, res) => {
+    res.set("Cache-Control", "no-store").json(workspace.get(authOf(req)));
   };
 
   const listMembers: RequestHandler = async (req, res) => {

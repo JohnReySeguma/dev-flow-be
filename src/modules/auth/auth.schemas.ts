@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { userProfile } from "../users/users.schemas.js";
+import { workspaceResponse } from "../workspace/workspace.schemas.js";
 
 const email = z
   .string()
@@ -38,14 +39,13 @@ export const resetPasswordBody = z
 export const authMeResponse = z
   .object({
     user: userProfile,
-    workspace: z.object({ id: z.uuid(), name: z.string() }),
+    workspaces: z.array(workspaceResponse).meta({
+      description: "Every workspace the user belongs to, with their role in each, oldest membership first.",
+    }),
   })
   .meta({
     id: "AuthMe",
-    example: {
-      user: userProfile.meta()?.example,
-      workspace: { id: "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e00", name: "Acme Inc" },
-    },
+    example: { user: userProfile.meta()?.example, workspaces: [workspaceResponse.meta()?.example] },
   });
 
 export type SignupInput = z.infer<typeof signupBody>;

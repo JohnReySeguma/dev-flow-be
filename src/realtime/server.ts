@@ -7,17 +7,35 @@ import type { Logger } from "../lib/logger.js";
 import type { Redis } from "../lib/redis.js";
 import { ACCESS_COOKIE } from "../modules/auth/auth.cookies.js";
 import type { AuthService } from "../modules/auth/auth.service.js";
-import type { AuthContext } from "../modules/auth/auth.types.js";
+import type { Identity } from "../modules/auth/auth.types.js";
 import type { ProjectsService } from "../modules/projects/projects.service.js";
 import type { TokensService } from "../modules/tokens/tokens.service.js";
+import type { WorkspaceService } from "../modules/workspace/workspace.service.js";
 import { projectRoom, type EventBus } from "./events.js";
 
 /** Under /api/v2 so the browser sends the /api/v2-scoped session cookie with the handshake. */
 export const SOCKET_PATH = "/api/v2/socket.io";
 export const REALTIME_NAMESPACE = "/realtime";
 
-type SocketData = { auth: AuthContext; projects: Map<string, string> };
-type Ack = (response: { ok: true; projectKey: string } | { ok: false; code: string; message: string }) => void;
+/** A joined project room, by project id. */
+type JoinedProject = { workspaceId: string; workspace: string; projectKey: string };
+type SocketData = { identity: Identity; projects: Map<string, JoinedProject> };
+type Ack = (
+  response: { ok: true; workspace: string; projectKey: string } | { ok: false; code: string; message: string },
+) => void;
+
+/** `{ workspace: "acme-inc", projectKey: "DEV" }`: the payload of project:join and project:leave. */
+function roomRequest(payload: unknown): { workspace: string; projectKey: string } {
+  const fields = (typeof payload === "object" && payload !== null ? payload : {}) as Record<string, unknown>;
+  const { workspace, projectKey } = fields;
+  if (typeof workspace !== "string" || typeof projectKey !== "string") {
+    throw new AppError(
+      "VALIDATION_FAILED",
+      'Send { workspace, projectKey }, e.g. { workspace: "acme-inc", projectKey: "DEV" }.',
+    );
+  }
+  return { workspace, projectKey: projectKey.toUpperCase() };
+}
 
 function cookieValue(header: string | undefined, name: string): string | undefined {
   for (const part of header?.split(";") ?? []) {
@@ -46,6 +64,7 @@ export function createRealtimeServer(deps: {
   auth: AuthService;
   tokens: TokensService;
   projects: ProjectsService;
+  workspace: WorkspaceService;
   events: EventBus;
 }) {
   const { env, logger } = deps;
@@ -76,8 +95,8 @@ export function createRealtimeServer(deps: {
           ? deps.auth.authenticate(accessToken)
           : Promise.reject(new AppError("UNAUTHENTICATED"));
     authenticate.then(
-      (auth) => {
-        socket.data = { auth, projects: new Map() } satisfies SocketData;
+      (identity) => {
+        socket.data = { identity, projects: new Map() } satisfies SocketData;
         next();
       },
       (error: unknown) => {
@@ -88,45 +107,60 @@ export function createRealtimeServer(deps: {
   });
 
   /** Everyone currently in a project's room, across API instances. */
-  async function broadcastPresence(projectId: string, projectKey: string, actorId: string | null) {
+  async function broadcastPresence(projectId: string, room: JoinedProject, actorId: string | null) {
     const sockets = await realtime.in(projectRoom(projectId)).fetchSockets();
-    const online = [...new Set(sockets.map((s) => (s.data as SocketData).auth.userId))];
-    realtime.to(projectRoom(projectId)).emit("presence.updated", { projectKey, actorId, online });
+    const online = [...new Set(sockets.map((s) => (s.data as SocketData).identity.userId))];
+    realtime
+      .to(projectRoom(projectId))
+      .emit("presence.updated", { workspaceId: room.workspaceId, projectKey: room.projectKey, actorId, online });
   }
 
   realtime.on("connection", (socket) => {
-    const { auth, projects } = dataOf(socket);
+    const { identity, projects } = dataOf(socket);
+    const fail = (ack: Ack | undefined, error: unknown) => {
+      const appError = error instanceof AppError ? error : new AppError("INTERNAL_ERROR");
+      ack?.({ ok: false, code: appError.code, message: appError.message });
+    };
 
-    socket.on("project:join", async (key: unknown, ack?: Ack) => {
+    // Membership is checked here, as on /workspaces/:ws routes: non-members get NOT_FOUND.
+    socket.on("project:join", async (payload: unknown, ack?: Ack) => {
       try {
-        if (typeof key !== "string") throw new AppError("VALIDATION_FAILED", "Send the project key, e.g. DEV.");
-        if (auth.via === "token" && !auth.scopes.includes("issues:read")) {
+        const request = roomRequest(payload);
+        if (identity.via === "token" && !identity.scopes.includes("issues:read")) {
           throw new AppError("FORBIDDEN", "This access token lacks the issues:read scope.");
         }
-        const project = await deps.projects.find(auth, key);
+        const auth = await deps.workspace.enter(identity, request.workspace);
+        const project = await deps.projects.find(auth, request.projectKey);
+        const room = { workspaceId: auth.workspaceId, workspace: auth.workspace.slug, projectKey: project.key };
         await socket.join(projectRoom(project.id));
-        projects.set(project.id, project.key);
-        ack?.({ ok: true, projectKey: project.key });
-        await broadcastPresence(project.id, project.key, auth.userId);
+        projects.set(project.id, room);
+        ack?.({ ok: true, workspace: room.workspace, projectKey: room.projectKey });
+        await broadcastPresence(project.id, room, identity.userId);
       } catch (error) {
-        const appError = error instanceof AppError ? error : new AppError("INTERNAL_ERROR");
-        ack?.({ ok: false, code: appError.code, message: appError.message });
+        fail(ack, error);
       }
     });
 
-    socket.on("project:leave", async (key: unknown, ack?: Ack) => {
-      const entry = [...projects].find(([, projectKey]) => projectKey === String(key).toUpperCase());
-      if (entry) {
-        await socket.leave(projectRoom(entry[0]));
-        projects.delete(entry[0]);
-        await broadcastPresence(entry[0], entry[1], auth.userId);
+    socket.on("project:leave", async (payload: unknown, ack?: Ack) => {
+      try {
+        const request = roomRequest(payload);
+        const entry = [...projects].find(
+          ([, room]) => room.workspace === request.workspace && room.projectKey === request.projectKey,
+        );
+        if (entry) {
+          await socket.leave(projectRoom(entry[0]));
+          projects.delete(entry[0]);
+          await broadcastPresence(entry[0], entry[1], identity.userId);
+        }
+        ack?.({ ok: true, ...request });
+      } catch (error) {
+        fail(ack, error);
       }
-      ack?.({ ok: true, projectKey: String(key).toUpperCase() });
     });
 
     socket.on("disconnect", () => {
-      for (const [projectId, projectKey] of projects) {
-        void broadcastPresence(projectId, projectKey, auth.userId).catch((error: unknown) => {
+      for (const [projectId, room] of projects) {
+        void broadcastPresence(projectId, room, identity.userId).catch((error: unknown) => {
           logger.warn({ err: error }, "presence broadcast failed");
         });
       }

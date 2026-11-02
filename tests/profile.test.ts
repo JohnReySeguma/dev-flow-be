@@ -28,7 +28,8 @@ describe("GET /api/v2/me", () => {
     const res = await getMe();
 
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ name: "Ada Lovelace", handle: "ada", initials: "AL", role: "admin" });
+    expect(res.body).toMatchObject({ name: "Ada Lovelace", handle: "ada", initials: "AL" });
+    expect(res.body).not.toHaveProperty("role");
     expect(res.headers.etag).toMatch(/^"[0-9a-f]{20}"$/);
   });
 
@@ -60,9 +61,9 @@ describe("PATCH /api/v2/me", () => {
   });
 
   it("ignores fields that cannot be changed here", async () => {
-    const res = await patchMe({ bio: "Hi", role: "viewer", email: "evil@acme.dev" });
+    const res = await patchMe({ bio: "Hi", handle: "evil", email: "evil@acme.dev" });
 
-    expect(res.body).toMatchObject({ role: "admin", email: "ada@acme.dev", bio: "Hi" });
+    expect(res.body).toMatchObject({ handle: "ada", email: "ada@acme.dev", bio: "Hi" });
   });
 
   it.each([

@@ -1,5 +1,5 @@
 /**
- * Live Sync events. Every payload names the project and the actor (null for changes made by the
+ * Live Sync events. Every payload names the workspace, the project and the actor (null for changes made by the
  * system, e.g. a GitHub webhook) so a client can ignore echoes of its own changes.
  */
 export const REALTIME_EVENTS = [
@@ -20,10 +20,13 @@ export const REALTIME_EVENTS = [
 
 export type RealtimeEvent = (typeof REALTIME_EVENTS)[number];
 
-export type EventEnvelope = { projectKey: string; actorId: string | null };
+export type EventEnvelope = { workspaceId: string; projectKey: string; actorId: string | null };
 
 /** Room every client of a project joins. Keyed by id because keys are only unique per workspace. */
 export const projectRoom = (projectId: string) => `project:${projectId}`;
+
+/** The project an event is about: its room and the payload's workspaceId and projectKey come from it. */
+export type EventProject = { id: string; workspaceId: string; key: string };
 
 type Emit = (room: string, event: RealtimeEvent, payload: EventEnvelope & Record<string, unknown>) => void;
 
@@ -38,8 +41,12 @@ export function createEventBus() {
     attach(emitter: Emit) {
       emit = emitter;
     },
-    publish(projectId: string, event: RealtimeEvent, payload: EventEnvelope & Record<string, unknown>) {
-      emit?.(projectRoom(projectId), event, payload);
+    publish(
+      project: EventProject,
+      event: RealtimeEvent,
+      payload: { actorId: string | null } & Record<string, unknown>,
+    ) {
+      emit?.(projectRoom(project.id), event, { workspaceId: project.workspaceId, projectKey: project.key, ...payload });
     },
   };
 }

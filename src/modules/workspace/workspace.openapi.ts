@@ -16,18 +16,19 @@ import {
 const json = <T>(schema: T) => ({ content: { "application/json": { schema } } });
 const anyCaller = [{ cookieAuth: [] }, { bearerAuth: [] }];
 
-export function registerWorkspaceDocs(registry: OpenAPIRegistry) {
-  registry.registerPath({
+/** `workspace` registers under /workspaces/{workspace}; the invite links are global. */
+export function registerWorkspaceDocs(registry: OpenAPIRegistry, workspace: OpenAPIRegistry) {
+  workspace.registerPath({
     method: "get",
-    path: "/workspace",
+    path: "/",
     tags: ["Workspace"],
     summary: "The workspace and your role in it",
     security: anyCaller,
     responses: { 200: { description: "The workspace.", ...json(workspaceResponse) }, default: problemResponse },
   });
-  registry.registerPath({
+  workspace.registerPath({
     method: "get",
-    path: "/workspace/members",
+    path: "/members",
     tags: ["Workspace"],
     summary: "Members and pending invites",
     description: "Oldest first. Pending invites have status `invited` and lastActiveAt null. Any role.",
@@ -35,9 +36,9 @@ export function registerWorkspaceDocs(registry: OpenAPIRegistry) {
     request: { query: paginationQuery },
     responses: { 200: { description: "A page of members.", ...json(teamMemberPage) }, default: problemResponse },
   });
-  registry.registerPath({
+  workspace.registerPath({
     method: "patch",
-    path: "/workspace/members/{id}",
+    path: "/members/{id}",
     tags: ["Workspace"],
     summary: "Change a member's or invite's role",
     description:
@@ -47,9 +48,9 @@ export function registerWorkspaceDocs(registry: OpenAPIRegistry) {
     request: { params: z.object({ id: z.uuid() }), body: json(changeRoleBody) },
     responses: { 200: { description: "The updated member.", ...json(teamMember) }, default: problemResponse },
   });
-  registry.registerPath({
+  workspace.registerPath({
     method: "delete",
-    path: "/workspace/members/{id}",
+    path: "/members/{id}",
     tags: ["Workspace"],
     summary: "Remove a member or revoke an invite",
     description:
@@ -59,9 +60,9 @@ export function registerWorkspaceDocs(registry: OpenAPIRegistry) {
     request: { params: z.object({ id: z.uuid() }) },
     responses: { 204: { description: "Removed." }, default: problemResponse },
   });
-  registry.registerPath({
+  workspace.registerPath({
     method: "post",
-    path: "/workspace/invites",
+    path: "/invites",
     tags: ["Workspace"],
     summary: "Invite someone by email",
     description:
@@ -72,9 +73,9 @@ export function registerWorkspaceDocs(registry: OpenAPIRegistry) {
     request: { body: json(inviteBody) },
     responses: { 201: { description: "The pending invite.", ...json(teamMember) }, default: problemResponse },
   });
-  registry.registerPath({
+  workspace.registerPath({
     method: "post",
-    path: "/workspace/invites/{id}/resend",
+    path: "/invites/{id}/resend",
     tags: ["Workspace"],
     summary: "Re-send an invite",
     description:
@@ -84,9 +85,9 @@ export function registerWorkspaceDocs(registry: OpenAPIRegistry) {
     request: { params: z.object({ id: z.uuid() }) },
     responses: { 200: { description: "The pending invite.", ...json(teamMember) }, default: problemResponse },
   });
-  registry.registerPath({
+  workspace.registerPath({
     method: "post",
-    path: "/workspace/demo/reset",
+    path: "/demo/reset",
     tags: ["Workspace"],
     summary: "Restore the demo projects",
     description:

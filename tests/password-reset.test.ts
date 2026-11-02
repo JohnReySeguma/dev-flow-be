@@ -12,10 +12,13 @@ const post = (path: string, body: object) =>
   request(app).post(`/api/v2/auth${path}`).set("Origin", FRONTEND_ORIGIN).send(body);
 
 let session = "";
+let workspace = "";
 beforeEach(async () => {
   await truncateAll(prisma);
   email.sent.length = 0;
-  session = sessionCookieHeader(await post("/signup", ada));
+  const signup = await post("/signup", ada);
+  session = sessionCookieHeader(signup);
+  workspace = signup.body.workspaces[0].slug;
 });
 
 /** Requests a reset and returns the token from the emailed link. */
@@ -62,7 +65,7 @@ describe("POST /api/v2/auth/password/reset", () => {
       .post("/api/v2/me/tokens")
       .set("Origin", FRONTEND_ORIGIN)
       .set("Cookie", session)
-      .send({ name: "cli", scopes: ["issues:read"], expiresInDays: null });
+      .send({ name: "cli", scopes: ["issues:read"], expiresInDays: null, workspace });
     const bearer = `Bearer ${created.body.secret as string}`;
     expect((await request(app).get("/api/v2/auth/me").set("Authorization", bearer)).status).toBe(200);
     const token = await requestResetToken();

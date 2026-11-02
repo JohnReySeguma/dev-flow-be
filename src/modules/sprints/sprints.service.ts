@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { AppError } from "../../lib/errors.js";
 import { decodeNumberCursor, encodeNumberCursor, type Page } from "../../lib/pagination.js";
-import type { EventBus } from "../../realtime/events.js";
+import type { EventBus, EventProject } from "../../realtime/events.js";
 import type { AuthContext } from "../auth/auth.types.js";
 import { toIssueView } from "../issues/issues.mapper.js";
 import type { ProjectsService } from "../projects/projects.service.js";
@@ -29,10 +29,10 @@ export function createSprintsService(deps: {
   const announce = (
     event: "sprint.created" | "sprint.updated" | "sprint.started",
     sprint: SprintView,
-    projectKey: string,
+    project: EventProject,
     actorId: string,
   ) => {
-    events.publish(sprint.projectId, event, { projectKey, actorId, sprint });
+    events.publish(project, event, { actorId, sprint });
   };
 
   /** Resolves a sprint id within the caller's workspace, or 404. */
@@ -65,7 +65,7 @@ export function createSprintsService(deps: {
         const number = (await tx.highestNumber(project.id)) + 1;
         return toSprintView(await tx.create({ projectId: project.id, number, name: `Sprint ${number}` }));
       });
-      announce("sprint.created", sprint, project.key, auth.userId);
+      announce("sprint.created", sprint, project, auth.userId);
       return sprint;
     },
 
@@ -77,7 +77,7 @@ export function createSprintsService(deps: {
           ...(input.goal !== undefined && { goal: input.goal }),
         }),
       );
-      announce("sprint.updated", updated, sprint.project.key, auth.userId);
+      announce("sprint.updated", updated, sprint.project, auth.userId);
       return updated;
     },
 
@@ -108,7 +108,7 @@ export function createSprintsService(deps: {
           }),
         );
       });
-      announce("sprint.started", started, found.project.key, auth.userId);
+      announce("sprint.started", started, found.project, auth.userId);
       return started;
     },
 
@@ -177,8 +177,7 @@ export function createSprintsService(deps: {
       });
       const { carriedOverIds, ...completion } = result;
       const carried = await sprints.issuesWithContext(carriedOverIds);
-      events.publish(found.projectId, "sprint.completed", {
-        projectKey: found.project.key,
+      events.publish(found.project, "sprint.completed", {
         actorId: auth.userId,
         ...completion,
         issues: carried.map(toIssueView),
@@ -215,8 +214,7 @@ export function createSprintsService(deps: {
         return issues.map((i) => i.id);
       });
       const moved = await sprints.issuesWithContext(movedIds);
-      events.publish(found.projectId, "sprint.deleted", {
-        projectKey: found.project.key,
+      events.publish(found.project, "sprint.deleted", {
         actorId: auth.userId,
         sprintId: found.id,
         issues: moved.map(toIssueView),

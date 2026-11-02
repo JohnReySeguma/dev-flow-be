@@ -46,16 +46,13 @@ export function createInvitesService({ workspaces, auth: accounts, users, email,
 
   /** Emails the link. The invite is kept if delivery fails, so the admin can resend it. */
   async function sendInvite(auth: AuthContext, invite: WorkspaceInvite, token: string): Promise<void> {
-    const [workspace, inviter] = await Promise.all([
-      workspaces.findById(auth.workspaceId),
-      users.findById(auth.userId),
-    ]);
+    const inviter = await users.findById(auth.userId);
     try {
       await email.send(
         inviteEmail({
           to: invite.email,
           inviterName: inviter?.name ?? null,
-          workspaceName: workspace?.name ?? "DevFlow",
+          workspaceName: auth.workspace.name,
           role: invite.role,
           link: `${frontendUrl}/invite?token=${encodeURIComponent(token)}`,
           expiresInDays: INVITE_TTL_DAYS,
@@ -125,7 +122,7 @@ export function createInvitesService({ workspaces, auth: accounts, users, email,
         name: input.name,
         email: invite.email,
         passwordHash: await hashPassword(input.password),
-        role: invite.role,
+        membership: { workspaceId: invite.workspaceId, role: invite.role },
       });
       return { session: await accounts.issueSession(user, meta), me: await accounts.me(user.id) };
     },

@@ -2,7 +2,7 @@ import type { RequestHandler } from "express";
 import type { Role } from "../generated/prisma/client.js";
 import { AppError } from "../lib/errors.js";
 import type { TokenScope } from "../modules/tokens/tokens.schemas.js";
-import { authOf } from "./require-auth.js";
+import { authOf, identityOf } from "./require-auth.js";
 
 const RANK: Record<Role, number> = { viewer: 0, member: 1, admin: 2 };
 
@@ -27,7 +27,7 @@ export function requireRole(minimum: Role): RequestHandler {
 /** Limits personal access tokens to their scopes; signed-in sessions are not scoped. */
 export function requireScope(scope: TokenScope): RequestHandler {
   return (req, _res, next) => {
-    const auth = authOf(req);
+    const auth = identityOf(req);
     if (auth.via === "token" && !auth.scopes.includes(scope)) {
       throw new AppError("FORBIDDEN", `This access token lacks the ${scope} scope.`);
     }

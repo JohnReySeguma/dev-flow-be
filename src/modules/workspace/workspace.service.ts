@@ -2,8 +2,8 @@ import { z } from "zod";
 import type { Role } from "../../generated/prisma/client.js";
 import { AppError } from "../../lib/errors.js";
 import { byCreatedAsc, decodeCursor, toPage, type Page, type PaginationQuery } from "../../lib/pagination.js";
-import type { AuthContext } from "../auth/auth.types.js";
-import { memberFromInvite, memberFromMembership } from "./workspace.mapper.js";
+import type { AuthContext, Identity } from "../auth/auth.types.js";
+import { memberFromInvite, memberFromMembership, toWorkspaceView } from "./workspace.mapper.js";
 import type { WorkspaceRepository } from "./workspace.repository.js";
 import type { TeamMember, WorkspaceView } from "./workspace.schemas.js";
 
@@ -19,10 +19,31 @@ export function createWorkspaceService(deps: {
   const { workspaces, resetDemo } = deps;
 
   return {
-    async get(auth: AuthContext): Promise<WorkspaceView> {
-      const workspace = await workspaces.findById(auth.workspaceId);
-      if (!workspace) throw new AppError("NOT_FOUND", "Workspace not found.");
-      return { id: workspace.id, name: workspace.name, role: auth.role };
+    /**
+     * The caller inside the workspace with this slug. Non-members, and access tokens bound to
+     * another workspace, get the same 404 as an unknown slug.
+     */
+    async enter(identity: Identity, slug: string): Promise<AuthContext> {
+      const membership = await workspaces.findMembershipBySlug(identity.userId, slug);
+      if (!membership || (identity.via === "token" && identity.tokenWorkspaceId !== membership.workspaceId)) {
+        throw new AppError("NOT_FOUND", "Workspace not found.");
+      }
+      const { workspace } = membership;
+      return {
+        ...identity,
+        workspaceId: workspace.id,
+        role: membership.role,
+        workspace: { id: workspace.id, slug: workspace.slug, name: workspace.name, isDemo: workspace.isDemo },
+      };
+    },
+
+    /** Every workspace the user belongs to, with their role in each, oldest first. */
+    async listMine(userId: string): Promise<WorkspaceView[]> {
+      return (await workspaces.listMemberships(userId)).map((m) => toWorkspaceView(m.workspace, m.role));
+    },
+
+    get(auth: AuthContext): WorkspaceView {
+      return toWorkspaceView(auth.workspace, auth.role);
     },
 
     /**

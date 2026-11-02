@@ -41,13 +41,29 @@ describe("POST /api/v2/auth/signup", () => {
     expect(session.body.user.email).toBe("ada@acme.dev");
   });
 
-  it("makes the first user of an empty workspace its admin and later users members", async () => {
+  it("gives every new account its own workspace, as admin", async () => {
     const first = await signup();
     const second = await signup({ name: "Grace Hopper", email: "grace@acme.dev", password: "compiler-1952" });
 
-    expect(first.body.user.role).toBe("admin");
-    expect(second.body.user.role).toBe("member");
-    expect(second.body.workspace).toEqual(first.body.workspace);
+    expect(first.body.workspaces).toEqual([
+      {
+        id: expect.any(String),
+        slug: "ada-lovelaces-workspace",
+        name: "Ada Lovelace's workspace",
+        role: "admin",
+        isDemo: false,
+      },
+    ]);
+    expect(second.body.workspaces).toEqual([
+      expect.objectContaining({ slug: "grace-hoppers-workspace", name: "Grace Hopper's workspace", role: "admin" }),
+    ]);
+  });
+
+  it("suffixes the workspace slug when the plain one is taken", async () => {
+    await signup();
+    const twin = await signup({ name: "Ada Lovelace", email: "ada@other.dev", password: "compiler-1952" });
+
+    expect(twin.body.workspaces[0].slug).toMatch(/^ada-lovelaces-workspace-[a-z0-9]{4}$/);
   });
 
   it("rejects an email that is already registered, whatever its case", async () => {

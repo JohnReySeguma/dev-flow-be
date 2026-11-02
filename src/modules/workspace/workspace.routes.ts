@@ -8,7 +8,7 @@ import { createWorkspaceController } from "./workspace.controller.js";
 import { changeRoleBody, inviteBody } from "./workspace.schemas.js";
 import type { WorkspaceService } from "./workspace.service.js";
 
-/** Mounted at /workspace. Every role can read; managing members needs an admin's signed-in session. */
+/** Mounted at /workspaces/:ws. Every role can read; managing members needs an admin's signed-in session. */
 export function createWorkspaceRouter(deps: {
   workspace: WorkspaceService;
   invites: InvitesService;

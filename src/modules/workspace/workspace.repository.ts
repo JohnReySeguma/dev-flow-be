@@ -22,16 +22,27 @@ const inviteListArgs = (workspaceId: string, limit: number, cursor?: Cursor) => 
 function repository(db: Db) {
   return {
     findById: (id: string): Promise<Workspace | null> => db.workspace.findUnique({ where: { id } }),
-    /** The oldest workspace, which v1 deliveries such as GitHub webhooks apply to. */
-    findDefault: (): Promise<Workspace | null> => db.workspace.findFirst({ orderBy: { createdAt: "asc" } }),
+    /** The seeded demo workspace, which GitHub deliveries apply to until installations are linked per workspace. */
+    findDemo: (): Promise<Workspace | null> =>
+      db.workspace.findFirst({ where: { isDemo: true }, orderBy: { createdAt: "asc" } }),
 
-    /** Creates a workspace with a slug from its name, suffixed when that slug is taken. */
-    create: async (name: string, options: { isDemo?: boolean } = {}): Promise<Workspace> => {
+    /**
+     * Creates a workspace with a slug from its name, suffixed when that slug is taken, and makes
+     * `ownerId` its admin.
+     */
+    create: async (name: string, options: { ownerId?: string; isDemo?: boolean } = {}): Promise<Workspace> => {
       const base = slugBase(name);
       for (let attempt = 0; ; attempt++) {
         const slug = attempt === 0 ? base : slugWithSuffix(base);
         try {
-          return await db.workspace.create({ data: { name, slug, isDemo: options.isDemo ?? false } });
+          return await db.workspace.create({
+            data: {
+              name,
+              slug,
+              isDemo: options.isDemo ?? false,
+              ...(options.ownerId && { members: { create: { userId: options.ownerId, role: "admin" } } }),
+            },
+          });
         } catch (error) {
           if (!isUniqueViolation(error) || attempt + 1 >= SLUG_ATTEMPTS) throw error;
         }
@@ -62,6 +73,18 @@ function repository(db: Db) {
       }),
 
     countMembers: (workspaceId: string) => db.workspaceMember.count({ where: { workspaceId } }),
+
+    /** The caller's membership in the workspace with this slug, or null when they are not a member. */
+    findMembershipBySlug: (userId: string, slug: string) =>
+      db.workspaceMember.findFirst({ where: { userId, workspace: { slug } }, include: { workspace: true } }),
+
+    /** Every workspace the user belongs to, oldest membership first. */
+    listMemberships: (userId: string) =>
+      db.workspaceMember.findMany({
+        where: { userId },
+        orderBy: [{ createdAt: "asc" }, { workspaceId: "asc" }],
+        include: { workspace: true },
+      }),
 
     findInvite: (workspaceId: string, id: string): Promise<WorkspaceInvite | null> =>
       db.workspaceInvite.findFirst({ where: { id, workspaceId } }),

@@ -5,7 +5,8 @@ describe("slug", () => {
   it.each([
     ["Acme Inc", "acme-inc"],
     ["  Acme   Inc. ", "acme-inc"],
-    ["John Rey's workspace", "john-rey-s-workspace"],
+    ["John Rey's workspace", "john-reys-workspace"],
+    ["Ada’s team", "adas-team"],
     ["Café Ünïcode", "cafe-unicode"],
     ["日本語", "workspace"],
     ["---", "workspace"],

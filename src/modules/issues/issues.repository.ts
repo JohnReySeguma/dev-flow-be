@@ -11,7 +11,10 @@ import type { PrismaClient } from "../../lib/prisma.js";
 type Db = PrismaClient | Prisma.TransactionClient;
 
 /** What the API returns for an issue needs the project key (for `id`) and the status category. */
-const withContext = { project: { select: { key: true } }, status: { select: { category: true } } } as const;
+const withContext = {
+  project: { select: { id: true, workspaceId: true, key: true } },
+  status: { select: { category: true } },
+} as const;
 
 export type IssueWithContext = Prisma.IssueGetPayload<{ include: typeof withContext }>;
 

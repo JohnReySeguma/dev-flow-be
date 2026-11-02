@@ -1,6 +1,6 @@
 import type { Request, RequestHandler } from "express";
 import { AppError } from "../../lib/errors.js";
-import { authOf } from "../../middleware/require-auth.js";
+import { identityOf } from "../../middleware/require-auth.js";
 import {
   clearOAuthStateCookie,
   clearSessionCookies,
@@ -97,7 +97,7 @@ export function createAuthController(deps: {
   };
 
   const me: RequestHandler = async (req, res) => {
-    res.set("Cache-Control", "no-store").json(await auth.me(authOf(req).userId));
+    res.set("Cache-Control", "no-store").json(await auth.me(identityOf(req).userId));
   };
 
   return { signup, login, refresh, logout, forgotPassword, resetPassword, startOAuth, finishOAuth, me };

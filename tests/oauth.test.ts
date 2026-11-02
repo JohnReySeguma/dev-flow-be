@@ -76,7 +76,8 @@ describe("GET /api/v2/auth/oauth/:provider/callback", () => {
     expect(callback.status).toBe(302);
     expect(callback.headers.location).toBe(`${FRONTEND_ORIGIN}/projects/DEV`);
     const me = await request(app).get("/api/v2/auth/me").set("Cookie", sessionCookieHeader(callback));
-    expect(me.body.user).toMatchObject({ name: "Ada Lovelace", email: "ada@acme.dev", role: "admin" });
+    expect(me.body.user).toMatchObject({ name: "Ada Lovelace", email: "ada@acme.dev" });
+    expect(me.body.workspaces).toEqual([expect.objectContaining({ name: "Ada Lovelace's workspace", role: "admin" })]);
     expect(setCookies(callback).devflow_oauth?.value).toBe("");
   });
 
@@ -114,7 +115,7 @@ describe("GET /api/v2/auth/oauth/:provider/callback", () => {
       .post("/api/v2/me/tokens")
       .set("Origin", FRONTEND_ORIGIN)
       .set("Cookie", squatter)
-      .send({ name: "keep", scopes: ["issues:read"], expiresInDays: null });
+      .send({ name: "keep", scopes: ["issues:read"], expiresInDays: null, workspace: signup.body.workspaces[0].slug });
 
     const { callback } = await signInWithGitHub();
 
