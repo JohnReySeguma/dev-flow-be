@@ -1,6 +1,6 @@
 {
   "name": "devflow-be",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "REST and realtime API for DevFlow, a sprint-based issue tracker",
   "license": "UNLICENSED",

@@ -6,6 +6,54 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-02
+
+Projects, workflow statuses, issues with ranking and comments, bootstrap and snapshots, and the demo tracker.
+
+### Frontend impact
+
+- **Can connect now** (details in `docs/INTEGRATION.md` §6): every `lib/tracker/store.ts` function except the sprint
+  ones.
+  - Load with `GET /bootstrap` and `GET /projects/:key/snapshot` instead of the seed.
+  - Projects: `GET`/`POST /projects`, `GET`/`PATCH`/`DELETE /projects/:key`; `GET /projects` adds each project's
+    active-sprint progress, backlog count and lead.
+  - Issues: `POST /projects/:key/issues`, `GET`/`PATCH`/`DELETE /issues/:issueKey`, and
+    `POST /issues/:issueKey/move` for board drops and backlog ranking.
+  - Workflow: `POST /projects/:key/statuses`, `PATCH`/`DELETE …/:id` and `PUT …/order` (send the full order).
+  - Comments: `GET`/`POST /issues/:issueKey/comments`.
+  - `POST /workspace/demo/reset` for "Reset demo data".
+- **Shapes:** `Issue.id` is the key (`DEV-104`); every other id is a UUID; keys are never zero-padded (`DEV-88`, not
+  `DEV-088`). `resolvedAt` is managed by the API. Workflow changes answer with the whole `Project`.
+- **Permissions:** viewers read only; members edit issues and create projects; admins edit workflows, delete projects
+  and reset demo data. Access tokens need `issues:read`, `issues:write` or `projects:admin`.
+- **New error code:** `STATUS_UPDATE_BLOCKED` (409). Now returned: `PROJECT_KEY_TAKEN`, `STATUS_DELETE_BLOCKED`.
+- **Not yet:** sprint create, edit, start and complete, and the reports (`v0.5.0`); realtime (`v0.6.0`).
+- **BREAKING:** none.
+
+### Added
+
+- Projects with a default workflow, immutable keys, colours assigned in turn and If-Match concurrency.
+- Workflow statuses: add, rename, recategorise, reorder and delete, with the frontend's guards, under a project lock.
+- Issues keyed by an atomic per-project counter, with defaults, reference checks, server-managed `resolvedAt`, key
+  lookup (including `?project=` for bare numbers), filters and If-Match.
+- Fractional-index ranking (byte-ordered `COLLATE "C"` column) and a move endpoint that never renumbers other issues.
+- Issue comments with a denormalised count.
+- Issue history (`issue_events`) for status, sprint and estimate changes, ready for burndown in `v0.5.0`.
+- Sprints table, served read-only in snapshots.
+- `GET /bootstrap`, `GET /projects/:key/snapshot` and project summaries.
+- The frontend's demo tracker in the seed (DEV, BIL, MOB) and `POST /workspace/demo/reset`.
+
+### Handoff checklist
+
+- [x] `docs/openapi.json` regenerated and valid
+- [x] `docs/INTEGRATION.md` coverage matrix updated
+- [x] New error codes added to the catalogue (`STATUS_UPDATE_BLOCKED`)
+- [x] New realtime events documented with examples (none in this release)
+- [x] **Frontend impact** section in `CHANGELOG.md`
+- [x] Seed and demo accounts still work on a fresh database (now including DEV, BIL and MOB)
+- [x] `docker compose up --build` instructions in the README still accurate
+- [x] Known limitations or stubs listed (`docs/INTEGRATION.md` §9)
+
 ## [0.3.0] - 2026-11-02
 
 Workspace: members, roles, invites and permission middleware.
@@ -174,7 +222,8 @@ Foundation: configuration, database, error format, health checks, feature flags,
 - [x] `docker compose up --build` instructions in the README still accurate
 - [x] Known limitations or stubs listed (`docs/INTEGRATION.md` §8)
 
-[Unreleased]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.1.0...v0.2.0
