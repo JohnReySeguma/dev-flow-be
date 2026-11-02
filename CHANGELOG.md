@@ -6,6 +6,63 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-02
+
+Hardening: rate limits, fixes from a security review, deployment notes. The API contract is now stable: breaking
+changes from here on need a new `/api/v2` prefix.
+
+### Frontend impact
+
+- **Can connect now:** `429 RATE_LIMITED` handling (details in `docs/INTEGRATION.md` §4.1). Show the wait from
+  `Retry-After`, keep form input, don't auto-retry; a `429` from `/auth/refresh` means "later", not "signed out".
+- **Now readable cross-origin:** `ETag` (so `If-Match` finally works from the browser), `X-Request-Id`, `Retry-After`,
+  `RateLimit`, `RateLimit-Policy`.
+- **Behaviour:**
+  - A password reset also deletes the account's access tokens; mention it on the success screen (§5.6).
+  - OAuth claiming an account first registered with a password removes that password and revokes its sessions and
+    tokens (§5.5).
+  - Access tokens need `issues:read` for `GET /workspace` and `GET /workspace/members`.
+- **New error code:** none. Now returned: `RATE_LIMITED` (429).
+- **BREAKING:** none for the frontend. For operators, `NODE_ENV=production` now requires `SEED_DEMO_DATA` and
+  `EMAIL_PROVIDER` to be set (`docker-compose.yml` sets them).
+
+### Added
+
+- Rate limits (`express-rate-limit`, Redis store when `REDIS_URL` is set) on every request, with tighter limits on
+  sign-in (per IP and email, failures only), sign-up, password reset, OAuth, refresh, invites, invite links and GitHub
+  deliveries; `429` documented on every limited operation in the OpenAPI document.
+- `TRUST_PROXY` for deployments behind a proxy or load balancer.
+- `docs/DEPLOYMENT.md`: production configuration, network, health and shutdown, and a security checklist.
+
+### Fixed
+
+- A malformed session cookie on a Socket.IO handshake crashed the process.
+- `GET /auth/oauth/constructor` (and other prototype names) answered 500 instead of 404.
+- CORS did not expose `ETag` or `X-Request-Id`, so the frontend could not read them.
+- Tokens without `issues:read` could list the workspace's members and invites.
+- A password reset left access tokens working.
+- OAuth sign-in linked to an account someone else had registered with the same, unverified, email.
+- `CORS_ORIGIN` or `API_URL` with a trailing slash broke writes, sockets and redirects.
+- Production could start with the demo seed and logged emails by default.
+- `docker-compose.yml` published PostgreSQL and Redis on every interface; now on `127.0.0.1` only.
+
+### Security
+
+- Reviewed the authentication, authorization, CSRF, OAuth, webhook, Socket.IO, logging and Docker setup; the findings
+  are fixed above, and the remaining trade-offs are listed in `docs/INTEGRATION.md` §9.
+- `npm audit --omit=dev`: no known vulnerabilities.
+
+### Handoff checklist
+
+- [x] `docs/openapi.json` regenerated and valid
+- [x] `docs/INTEGRATION.md` coverage matrix updated (no new endpoints; rate limits in §4.1)
+- [x] New error codes added to the catalogue (none; `RATE_LIMITED` is now returned)
+- [x] New realtime events documented with examples (none in this release)
+- [x] **Frontend impact** section in `CHANGELOG.md`
+- [x] Seed and demo accounts still work on a fresh database
+- [x] `docker compose up --build` instructions in the README still accurate
+- [x] Known limitations or stubs listed (`docs/INTEGRATION.md` §9)
+
 ## [0.6.0] - 2026-11-02
 
 Live Sync over Socket.IO and the GitHub integration.
@@ -310,7 +367,8 @@ Foundation: configuration, database, error format, health checks, feature flags,
 - [x] `docker compose up --build` instructions in the README still accurate
 - [x] Known limitations or stubs listed (`docs/INTEGRATION.md` §8)
 
-[Unreleased]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/JohnReySeguma/dev-flow-be/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.6.0...v1.0.0
 [0.6.0]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.3.0...v0.4.0
