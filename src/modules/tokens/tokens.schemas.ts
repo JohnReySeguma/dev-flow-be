@@ -53,7 +53,7 @@ export const createTokenResponse = z
     id: "CreatedAccessToken",
     example: {
       token: accessToken.meta()?.example,
-      secret: "dfp_4tq0fZ8kWm2Lr9XbVn3cHs7YpEo1Ju6Gd5Ka-q7Rk",
+      secret: "dfp_YOUR_ACCESS_TOKEN",
     },
   });
 
