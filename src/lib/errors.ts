@@ -11,6 +11,7 @@ export const ERROR_CATALOGUE = {
   UNAUTHENTICATED: { status: 401, title: "Authentication required" },
   TOKEN_EXPIRED: { status: 401, title: "Access token expired" },
   INVALID_CREDENTIALS: { status: 401, title: "Invalid email or password" },
+  WEBHOOK_SIGNATURE_INVALID: { status: 401, title: "Webhook signature is missing or invalid" },
   FORBIDDEN: { status: 403, title: "Not allowed" },
   CANNOT_CHANGE_OWN_ROLE: { status: 403, title: "You cannot change your own role" },
   CANNOT_REMOVE_SELF: { status: 403, title: "You cannot remove yourself" },

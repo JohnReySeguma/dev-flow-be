@@ -71,6 +71,7 @@
               "UNAUTHENTICATED",
               "TOKEN_EXPIRED",
               "INVALID_CREDENTIALS",
+              "WEBHOOK_SIGNATURE_INVALID",
               "FORBIDDEN",
               "CANNOT_CHANGE_OWN_ROLE",
               "CANNOT_REMOVE_SELF",
@@ -2680,6 +2681,38 @@
                 "gradient": "from-violet-500 to-indigo-600"
               }
             }
+          ]
+        }
+      },
+      "GitHubWebhookResult": {
+        "type": "object",
+        "properties": {
+          "event": {
+            "type": "string",
+            "description": "The X-GitHub-Event header."
+          },
+          "handled": {
+            "type": "boolean",
+            "description": "False for events and actions DevFlow ignores."
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Keys of the issues that changed."
+          }
+        },
+        "required": [
+          "event",
+          "handled",
+          "issues"
+        ],
+        "example": {
+          "event": "pull_request",
+          "handled": true,
+          "issues": [
+            "DEV-104"
           ]
         }
       }
@@ -5636,6 +5669,78 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Bootstrap"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/integrations/github/webhook": {
+      "post": {
+        "tags": [
+          "GitHub"
+        ],
+        "summary": "GitHub App webhook",
+        "description": "Called by GitHub, not by the frontend. Authenticated by `X-Hub-Signature-256` (HMAC-SHA256 of the raw body with GITHUB_WEBHOOK_SECRET); returns 404 when the integration is not configured. Issue keys (DEV-104) are read from PR titles, branch names and commit messages. A pull request links itself to those issues (`git.kind = pr`), a merged one moves them to the project's first done status, and one closed without merging removes its link. A commit links issues that have no pull request link. Changes are broadcast over Live Sync with `actorId: null`. Handles `ping`, `pull_request` and `push`; other events are acknowledged with 202.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "pull_request"
+            },
+            "required": true,
+            "name": "x-github-event",
+            "in": "header"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "example": "sha256=<hex>"
+            },
+            "required": true,
+            "name": "x-hub-signature-256",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Delivery handled.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitHubWebhookResult"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Event or action ignored.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitHubWebhookResult"
                 }
               }
             }

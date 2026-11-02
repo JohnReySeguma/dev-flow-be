@@ -11,6 +11,7 @@ import { createAuthRouter } from "./modules/auth/auth.routes.js";
 import { createBootstrapRouter } from "./modules/bootstrap/bootstrap.routes.js";
 import { createCommentsRouter } from "./modules/comments/comments.routes.js";
 import { createConfigRouter } from "./modules/config/config.routes.js";
+import { createGitHubRouter } from "./modules/github/github.routes.js";
 import { createHealthRouter } from "./modules/health/health.routes.js";
 import { createIssuesRouter, createProjectIssuesRouter } from "./modules/issues/issues.routes.js";
 import { createProjectsRouter } from "./modules/projects/projects.routes.js";
@@ -41,6 +42,14 @@ export function createApp(deps: AppDeps): Express {
   // upgrade-insecure-requests would break the Swagger UI assets when served over plain http.
   app.use(helmet({ contentSecurityPolicy: { directives: { upgradeInsecureRequests: null } } }));
   app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
+  // Before express.json: webhook signatures cover the raw body. Outside `api`: no Origin check.
+  app.use(
+    `${API_PREFIX}/integrations/github`,
+    createGitHubRouter({
+      github: services.github,
+      secret: deps.features.githubIntegration ? (env.GITHUB_WEBHOOK_SECRET ?? null) : null,
+    }),
+  );
   app.use(express.json({ limit: "100kb" }));
   app.use(cookieParser());
 

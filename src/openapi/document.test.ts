@@ -20,6 +20,7 @@ describe("OpenAPI document", () => {
       "/config",
       "/health",
       "/health/ready",
+      "/integrations/github/webhook",
       "/invites/{token}",
       "/invites/{token}/accept",
       "/issues/{issueKey}",

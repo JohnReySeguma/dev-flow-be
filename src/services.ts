@@ -29,6 +29,7 @@ import { createUsersRepository } from "./modules/users/users.repository.js";
 import { createUsersService } from "./modules/users/users.service.js";
 import { createWorkflowRepository } from "./modules/workflow/workflow.repository.js";
 import { createWorkflowService } from "./modules/workflow/workflow.service.js";
+import { createGitHubService } from "./modules/github/github.service.js";
 import { createInvitesService } from "./modules/workspace/invites.service.js";
 import { createWorkspaceRepository } from "./modules/workspace/workspace.repository.js";
 import { createWorkspaceService } from "./modules/workspace/workspace.service.js";
@@ -100,6 +101,7 @@ export function createServices(deps: ServiceDeps) {
     reports: createReportsService({ reports: createReportsRepository(prisma), sprints, projects }),
     workflow: createWorkflowService({ workflow: createWorkflowRepository(prisma), projects, events }),
     comments: createCommentsService({ comments: createCommentsRepository(prisma), issues }),
+    github: createGitHubService({ issues, workspaces }),
     bootstrap: createBootstrapService({ users: usersService, workspace, config, projects }),
   };
 }

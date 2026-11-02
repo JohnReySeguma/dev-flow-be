@@ -4,10 +4,13 @@ import type { IssueEventKind, StatusCategory } from "../../generated/prisma/clie
 import { AppError, type FieldError } from "../../lib/errors.js";
 import { ifMatchSatisfied, versionTag } from "../../lib/etag.js";
 import type { Page } from "../../lib/pagination.js";
+import { Prisma } from "../../generated/prisma/client.js";
+import type { IssueRef } from "../../integrations/github/webhook.js";
 import type { EventBus } from "../../realtime/events.js";
 import type { AuthContext } from "../auth/auth.types.js";
 import type { ProjectsService } from "../projects/projects.service.js";
 import { issueKeyOf, toIssueView } from "./issues.mapper.js";
+import { gitLink } from "./issues.schemas.js";
 import type { IssueFilters, IssuesRepository, IssueWithContext, IssueWrite, RankCursor } from "./issues.repository.js";
 import type {
   CreateIssueInput,
@@ -18,6 +21,11 @@ import type {
 } from "./issues.schemas.js";
 
 export type VersionedIssue = { issue: IssueView; etag: string };
+
+/** What happened on GitHub, reduced to what DevFlow records. */
+export type GitActivity =
+  | { kind: "pr"; number: number; state: "open" | "draft" | "merged"; closedUnmerged: boolean }
+  | { kind: "commit"; sha: string };
 
 type Tx = Parameters<Parameters<IssuesRepository["transaction"]>[0]>[0];
 
@@ -98,7 +106,7 @@ export function createIssuesService(deps: { issues: IssuesRepository; projects: 
     return status;
   }
 
-  async function record(tx: Tx, issue: IssueWithContext, kind: IssueEventKind, actorId: string) {
+  async function record(tx: Tx, issue: IssueWithContext, kind: IssueEventKind, actorId: string | null) {
     await tx.recordEvent({
       issueId: issue.id,
       projectId: issue.projectId,
@@ -312,6 +320,57 @@ export function createIssuesService(deps: { issues: IssuesRepository; projects: 
         actorId: auth.userId,
         issueKey: issueKeyOf(issue),
       });
+    },
+
+    /**
+     * Applies GitHub activity to the issues it mentions, as the system (actorId null). A pull
+     * request links (or, closed unmerged, unlinks) itself and, once merged, moves the issue to the
+     * project's first done status; a commit links only issues without a pull request link.
+     * Unknown keys are ignored. Returns the keys of the issues that changed.
+     */
+    async applyGitActivity(workspaceId: string, refs: IssueRef[], activity: GitActivity): Promise<string[]> {
+      const changed: string[] = [];
+      for (const ref of refs) {
+        const project = await projects.findInWorkspace(workspaceId, ref.projectKey);
+        const current = project ? await issues.findByNumber(project.id, ref.number) : null;
+        if (!current) continue;
+        const linked = gitLink.safeParse(current.git);
+        const currentLink = linked.success ? linked.data : null;
+
+        const data: IssueWrite = {};
+        if (activity.kind === "pr") {
+          if (activity.closedUnmerged) {
+            if (currentLink?.kind === "pr" && currentLink.number === activity.number) data.git = Prisma.DbNull;
+          } else {
+            data.git = { kind: "pr", number: activity.number, state: activity.state };
+          }
+        } else if (currentLink?.kind !== "pr") {
+          data.git = { kind: "commit", sha: activity.sha };
+        }
+
+        const result = await issues.transaction(async (tx) => {
+          if (activity.kind === "pr" && activity.state === "merged" && current.status.category !== "done") {
+            const done = await tx.firstDoneStatus(current.projectId);
+            if (done) {
+              data.statusId = done.id;
+              data.resolvedAt = nextResolvedAt(current.resolvedAt, current.status.category, done.category, new Date());
+            }
+          }
+          if (Object.keys(data).length === 0) return null;
+          const updated = await tx.update(current.id, data);
+          if (updated && updated.statusId !== current.statusId) await record(tx, updated, "status", null);
+          return updated;
+        });
+        if (!result) continue;
+        announce(
+          result.statusId === current.statusId ? "issue.updated" : "issue.moved",
+          versioned(result),
+          result.project.key,
+          null,
+        );
+        changed.push(issueKeyOf(result));
+      }
+      return changed;
     },
 
     /** Re-reads an issue another module changed (e.g. its comment count) and announces it. */

@@ -34,10 +34,15 @@ export function createProjectsService(deps: { projects: ProjectsRepository; even
   const { projects, events } = deps;
 
   /** Resolves `:key` (any case) within the caller's workspace, or 404. */
-  async function find(auth: AuthContext, key: string): Promise<ProjectWithWorkflow> {
+  /** A project by key (any case) in a workspace, or null. */
+  async function findInWorkspace(workspaceId: string, key: string): Promise<ProjectWithWorkflow | null> {
     const normalised = key.toUpperCase();
-    const project = PROJECT_KEY.test(normalised) ? await projects.findByKey(auth.workspaceId, normalised) : null;
-    if (!project) throw new AppError("NOT_FOUND", `No project with key ${normalised}.`);
+    return PROJECT_KEY.test(normalised) ? projects.findByKey(workspaceId, normalised) : null;
+  }
+
+  async function find(auth: AuthContext, key: string): Promise<ProjectWithWorkflow> {
+    const project = await findInWorkspace(auth.workspaceId, key);
+    if (!project) throw new AppError("NOT_FOUND", `No project with key ${key.toUpperCase()}.`);
     return project;
   }
 
@@ -77,6 +82,7 @@ export function createProjectsService(deps: { projects: ProjectsRepository; even
 
   return {
     find,
+    findInWorkspace,
 
     async list(auth: AuthContext, query: PaginationQuery): Promise<Page<ProjectSummary>> {
       const cursor = query.cursor === undefined ? undefined : decodeCursor(query.cursor);
