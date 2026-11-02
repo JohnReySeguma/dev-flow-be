@@ -3,7 +3,7 @@
   "info": {
     "title": "DevFlow API",
     "version": "0.6.0",
-    "description": "REST API for DevFlow, a sprint-based issue tracker. Errors use RFC 9457 problem details; see docs/INTEGRATION.md for the error catalogue and integration contract."
+    "description": "REST API for DevFlow, a sprint-based issue tracker. Errors use RFC 9457 problem details; see docs/INTEGRATION.md for the error catalogue and integration contract. Every endpoint except the health checks is rate-limited per client and answers 429 RATE_LIMITED with Retry-After when a limit is reached (limits: docs/INTEGRATION.md §4.1)."
   },
   "servers": [
     {
@@ -2817,6 +2817,30 @@
               }
             }
           },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
             "content": {
@@ -2861,6 +2885,30 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AuthMe"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -2913,6 +2961,30 @@
               }
             }
           },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
             "content": {
@@ -2945,6 +3017,30 @@
               }
             }
           },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
             "content": {
@@ -2968,6 +3064,30 @@
         "responses": {
           "204": {
             "description": "Signed out."
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
@@ -3002,6 +3122,30 @@
           "202": {
             "description": "Accepted."
           },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
             "content": {
@@ -3034,6 +3178,30 @@
         "responses": {
           "204": {
             "description": "Password changed."
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
@@ -3086,6 +3254,30 @@
           "302": {
             "description": "Redirect to the provider."
           },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
             "content": {
@@ -3134,6 +3326,30 @@
               }
             }
           },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
             "content": {
@@ -3169,6 +3385,30 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AuthMe"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -3215,6 +3455,30 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -3282,6 +3546,30 @@
               }
             }
           },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
             "content": {
@@ -3340,6 +3628,30 @@
               }
             }
           },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
             "content": {
@@ -3379,6 +3691,30 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CreatedAccessToken"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -3423,6 +3759,30 @@
           "204": {
             "description": "Revoked."
           },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
             "content": {
@@ -3457,6 +3817,30 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Workspace"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -3522,6 +3906,30 @@
               }
             }
           },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
             "content": {
@@ -3578,6 +3986,30 @@
               }
             }
           },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
             "content": {
@@ -3615,6 +4047,30 @@
         "responses": {
           "204": {
             "description": "Removed."
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
@@ -3657,6 +4113,30 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TeamMember"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -3708,6 +4188,30 @@
               }
             }
           },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
             "content": {
@@ -3736,6 +4240,30 @@
         "responses": {
           "204": {
             "description": "Demo data restored."
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
@@ -3774,6 +4302,30 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/InvitePreview"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -3832,6 +4384,30 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AuthMe"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -3897,6 +4473,30 @@
               }
             }
           },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
             "content": {
@@ -3947,6 +4547,30 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -4006,6 +4630,30 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -4085,6 +4733,30 @@
               }
             }
           },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
             "content": {
@@ -4127,6 +4799,30 @@
         "responses": {
           "204": {
             "description": "Deleted."
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
@@ -4176,6 +4872,30 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProjectSnapshot"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -4351,6 +5071,30 @@
               }
             }
           },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
             "content": {
@@ -4412,6 +5156,30 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Issue"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -4482,6 +5250,30 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Issue"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -4571,6 +5363,30 @@
               }
             }
           },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
             "content": {
@@ -4623,6 +5439,30 @@
         "responses": {
           "204": {
             "description": "Deleted."
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
@@ -4703,6 +5543,30 @@
               }
             }
           },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
             "content": {
@@ -4758,6 +5622,30 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -4830,6 +5718,30 @@
               }
             }
           },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
             "content": {
@@ -4898,6 +5810,30 @@
               }
             }
           },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
             "content": {
@@ -4953,6 +5889,30 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -5037,6 +5997,30 @@
               }
             }
           },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
             "content": {
@@ -5100,6 +6084,30 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Comment"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -5185,6 +6193,30 @@
               }
             }
           },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
             "content": {
@@ -5229,6 +6261,30 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Sprint"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -5292,6 +6348,30 @@
               }
             }
           },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
             "content": {
@@ -5332,6 +6412,30 @@
         "responses": {
           "204": {
             "description": "Deleted."
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
@@ -5388,6 +6492,30 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Sprint"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -5451,6 +6579,30 @@
               }
             }
           },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
             "content": {
@@ -5497,6 +6649,30 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Burndown"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -5560,6 +6736,30 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Velocity"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -5634,6 +6834,30 @@
               }
             }
           },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
             "content": {
@@ -5669,6 +6893,30 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Bootstrap"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -5741,6 +6989,30 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GitHubWebhookResult"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
