@@ -69,18 +69,32 @@ Workspace ── Members (admin / member / viewer)
 - **Lint/format:** ESLint + Prettier
 - Add `npm` scripts: `dev`, `build`, `start`, `typecheck`, `lint`, `test`, `db:migrate`, `db:seed`
 
-### 3.1 Development — no Docker
+### 3.1 Development — databases in Docker, API on the host
 
-You will **not** have Docker while developing. The project must run with plain Node.js:
+PostgreSQL is **not** installed on this machine. Postgres and Redis run as Docker containers; the API itself runs with
+plain Node.js on the host so code changes reload instantly.
 
-- `npm install` → `npm run db:migrate` → `npm run db:seed` → `npm run dev` must work against a **locally installed PostgreSQL** (or a free hosted Postgres) configured through `DATABASE_URL` in `.env`.
-- **Redis is optional in development.** When `REDIS_URL` is unset, fall back to in-process implementations (Socket.IO's default in-memory adapter, an in-memory rate limiter) behind the same interface.
-- **Tests must not need Docker** (no Testcontainers). Run them against a dedicated test database from `TEST_DATABASE_URL`, resetting state between suites with transactions or truncation. `npm test` runs everything.
-- Read every setting from environment variables with validated defaults. Nothing may assume container hostnames.
+- **Docker Desktop must be running** (it can be minimised to the tray). If a `docker` command fails with
+  "Cannot connect to the Docker daemon", **stop and ask the user to start Docker Desktop**. Never try to install
+  PostgreSQL or Redis on the host.
+- Add npm scripts that wrap the containers:
+  - `npm run db:up` → `docker compose up -d postgres redis` (starts only the databases, in the background)
+  - `npm run db:down` → `docker compose stop postgres redis`
+  - `npm run db:reset` → drop and recreate both databases, migrate and seed
+- Daily loop: `npm run db:up` → `npm run db:migrate` → `npm run db:seed` → `npm run dev` (API on `http://localhost:4000`).
+- `.env` for development points at the published ports: `DATABASE_URL=…@localhost:5432/devflow`,
+  `TEST_DATABASE_URL=…@localhost:5432/devflow_test`, `REDIS_URL=redis://localhost:6379`.
+- **Tests** (`npm test`) run on the host against `TEST_DATABASE_URL` in the same Postgres container, resetting state
+  between suites with transactions or truncation. Don't use Testcontainers; reuse the Compose databases.
+- **Keep the Redis fallback anyway:** when `REDIS_URL` is empty, use in-process implementations (Socket.IO's default
+  adapter, an in-memory rate limiter). CI and quick experiments rely on it.
+- Read every setting from environment variables with validated defaults. Nothing may hard-code container hostnames.
 
 ### 3.2 Delivery — Docker for review and production
 
-Each release must include working container files. You can't run them yourself, so keep them standard and simple; the reviewer verifies them at every tag (and CI builds the image, §6).
+Each release must include working container files. **Before tagging, run the full stack yourself**
+(`docker compose up --build`, then check `/health/ready`); the reviewer verifies it again at every tag, and CI builds
+the image (§6).
 
 - **`Dockerfile`** — multi-stage (`node:22-alpine`): install and build in one stage, run as a non-root user with production dependencies only. `EXPOSE 4000`. `HEALTHCHECK` against `/health`.
 - **`docker-compose.yml`** — services `api`, `postgres` (16) and `redis` (7), named volumes, health checks; `api` waits on healthy databases.
@@ -107,7 +121,7 @@ The **only** difference between development and Docker is environment variables.
 | `PORT` | no | `4000` | `4000` | |
 | `CORS_ORIGIN` | no | `http://localhost:3000` | `http://localhost:3000` | The frontend URL |
 | `SEED_DEMO_DATA` | no | `true` | `true` | Seed when the database is empty |
-| `REDIS_URL` | no | *(empty)* | `redis://redis:6379` | **Set → Redis** adapter + rate limits; **empty → in-memory** |
+| `REDIS_URL` | no | `redis://localhost:6379` | `redis://redis:6379` | **Set → Redis** adapter + rate limits; **empty → in-memory** |
 | `GITHUB_CLIENT_ID` / `_SECRET` | no | | | Empty → GitHub sign-in disabled |
 | `GOOGLE_CLIENT_ID` / `_SECRET` | no | | | Empty → Google sign-in disabled |
 | `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY_PATH`, `GITHUB_WEBHOOK_SECRET` | no | `./<file>.pem` | `/run/secrets/github-app.pem` | Empty → GitHub integration disabled |
@@ -140,11 +154,15 @@ services:
   postgres:
     image: postgres:16-alpine
     environment: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres, POSTGRES_DB: devflow }
-    volumes: [pgdata:/var/lib/postgresql/data]
+    ports: ["5432:5432"]          # published so `npm run dev` on the host can connect
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro   # creates devflow_test
     healthcheck: { test: ["CMD-SHELL", "pg_isready -U postgres"], interval: 5s, retries: 10 }
 
   redis:
     image: redis:7-alpine
+    ports: ["6379:6379"]
     healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 5s, retries: 10 }
 
 volumes:
@@ -322,7 +340,7 @@ Local testing relays webhooks with `npx smee-client --url <smee-url> --target ht
 - **Data integrity:** sprint start/complete, status delete and project delete run in transactions.
 - **Seed:** `npm run db:seed` reproduces the frontend's `lib/tracker/seed.ts` (three projects, sprints, issues) with dates relative to now.
 - **Docs:** OpenAPI spec at `/api/v1/docs`; README with setup, environment variables and architecture.
-- **CI (GitHub Actions):** on every push and pull request run typecheck, lint and tests against Postgres and Redis **service containers**, and run `docker build` so a broken Dockerfile is caught even though you can't build it locally.
+- **CI (GitHub Actions):** on every push and pull request run typecheck, lint and tests against Postgres and Redis **service containers**, and run `docker build` so a broken Dockerfile is caught on every push.
 
 ---
 
@@ -362,7 +380,7 @@ Look at `git log --graph` in the frontend repo; this repo's history must read th
 - [ ] All business rules in §5 are enforced server-side and covered by tests.
 - [ ] Response shapes match the frontend's `lib/tracker/types.ts` field-for-field.
 - [ ] OpenAPI spec published; `.env.example` complete; the seed works on a fresh database.
-- [ ] Runs locally **without Docker** (`npm run dev`, `npm test`) with a local Postgres and no Redis, and with every optional integration unset.
+- [ ] Development works with only Docker Desktop installed: `npm run db:up` → `npm run dev` / `npm test`, with every optional integration unset.
 - [ ] `docker compose up --build` from a fresh clone starts the API, Postgres and Redis, migrates, seeds and passes `/health/ready` — checked by the reviewer at every release tag.
 - [ ] Every release satisfies the handoff checklist in [`FRONTEND_HANDOFF.md`](FRONTEND_HANDOFF.md) §8.
 - [ ] History follows §7, with tags `v0.1.0` … `v1.0.0` pushed.
