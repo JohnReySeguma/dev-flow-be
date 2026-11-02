@@ -20,7 +20,8 @@ model Workspace {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  users User[]
+  users   User[]
+  invites WorkspaceInvite[]
 
   @@map("workspaces")
 }
@@ -55,6 +56,7 @@ model User {
   passwordResetTokens PasswordResetToken[]
   oauthAccounts       OAuthAccount[]
   accessTokens        AccessToken[]
+  invitesSent         WorkspaceInvite[]    @relation("InvitesSent")
 
   @@index([workspaceId])
   @@map("users")
@@ -145,4 +147,26 @@ model AccessToken {
 
   @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
   @@map("access_tokens")
+}
+
+/// A pending invitation; deleted when accepted, so one row per invited email.
+model WorkspaceInvite {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  /// Always stored lower-case.
+  email       String
+  role        Role
+  /// SHA-256 of the emailed token; rotated on every resend.
+  tokenHash   String   @unique @map("token_hash")
+  invitedById String?  @map("invited_by_id") @db.Uuid
+  expiresAt   DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  invitedBy User?     @relation("InvitesSent", fields: [invitedById], references: [id], onDelete: SetNull)
+
+  @@unique([workspaceId, email])
+  @@index([workspaceId, createdAt, id])
+  @@map("workspace_invites")
 }

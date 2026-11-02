@@ -7,11 +7,13 @@ import type { ZodError } from "zod";
 export const ERROR_CATALOGUE = {
   BAD_REQUEST: { status: 400, title: "Malformed request" },
   RESET_TOKEN_INVALID: { status: 400, title: "Reset link is invalid or has expired" },
+  INVITE_INVALID: { status: 400, title: "Invite link is invalid or has expired" },
   UNAUTHENTICATED: { status: 401, title: "Authentication required" },
   TOKEN_EXPIRED: { status: 401, title: "Access token expired" },
   INVALID_CREDENTIALS: { status: 401, title: "Invalid email or password" },
   FORBIDDEN: { status: 403, title: "Not allowed" },
   CANNOT_CHANGE_OWN_ROLE: { status: 403, title: "You cannot change your own role" },
+  CANNOT_REMOVE_SELF: { status: 403, title: "You cannot remove yourself" },
   NOT_FOUND: { status: 404, title: "Resource not found" },
   EMAIL_TAKEN: { status: 409, title: "Email already registered" },
   PROJECT_KEY_TAKEN: { status: 409, title: "Project key already in use" },
@@ -25,6 +27,7 @@ export const ERROR_CATALOGUE = {
   VALIDATION_FAILED: { status: 422, title: "Validation failed" },
   RATE_LIMITED: { status: 429, title: "Too many requests" },
   INTERNAL_ERROR: { status: 500, title: "Internal server error" },
+  EMAIL_DELIVERY_FAILED: { status: 502, title: "The email could not be sent" },
 } as const satisfies Record<string, { status: number; title: string }>;
 
 export type ErrorCode = keyof typeof ERROR_CATALOGUE;

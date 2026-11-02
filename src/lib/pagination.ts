@@ -42,6 +42,17 @@ export function afterCursor(cursor: Cursor) {
   };
 }
 
+/** Prisma `where` for rows after the cursor in (createdAt asc, id asc) order. */
+export function afterCursorAsc(cursor: Cursor) {
+  return {
+    OR: [{ createdAt: { gt: cursor.createdAt } }, { createdAt: cursor.createdAt, id: { gt: cursor.id } }],
+  };
+}
+
+/** Oldest first, ties broken by id: the order of `afterCursorAsc`. */
+export const byCreatedAsc = (a: Cursor, b: Cursor) =>
+  a.createdAt.getTime() - b.createdAt.getTime() || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
 /**
  * Builds a page from rows fetched with `take: limit + 1`: the extra row only signals that
  * another page exists.
