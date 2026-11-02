@@ -79,6 +79,7 @@
               "PROJECT_KEY_TAKEN",
               "SPRINT_ALREADY_ACTIVE",
               "SPRINT_NOT_PLANNED",
+              "SPRINT_NOT_ACTIVE",
               "STATUS_DELETE_BLOCKED",
               "STATUS_UPDATE_BLOCKED",
               "LAST_ADMIN",
@@ -2169,6 +2170,259 @@
         },
         "example": {
           "goal": "Cycle analytics v1."
+        }
+      },
+      "StartSprintRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "goal": {
+            "type": "string",
+            "maxLength": 500,
+            "default": ""
+          },
+          "durationDays": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 28
+          }
+        },
+        "required": [
+          "name",
+          "durationDays"
+        ],
+        "example": {
+          "name": "Sprint 26",
+          "goal": "Cycle analytics v1.",
+          "durationDays": 14
+        }
+      },
+      "CompletedSprint": {
+        "type": "object",
+        "properties": {
+          "sprint": {
+            "$ref": "#/components/schemas/Sprint"
+          },
+          "carriedOverTo": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "projectId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "number": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "goal": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "planned",
+                  "active",
+                  "completed"
+                ]
+              },
+              "startAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "endAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "committedPoints": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "Points in the sprint when it started."
+              },
+              "completedAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "report": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "committedPoints": {
+                    "type": "integer"
+                  },
+                  "completedPoints": {
+                    "type": "integer"
+                  },
+                  "completedIssues": {
+                    "type": "integer"
+                  },
+                  "carriedOverIssues": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "committedPoints",
+                  "completedPoints",
+                  "completedIssues",
+                  "carriedOverIssues"
+                ],
+                "example": {
+                  "committedPoints": 40,
+                  "completedPoints": 33,
+                  "completedIssues": 12,
+                  "carriedOverIssues": 3
+                },
+                "description": "Set when the sprint completes."
+              }
+            },
+            "required": [
+              "id",
+              "projectId",
+              "number",
+              "name",
+              "goal",
+              "status",
+              "startAt",
+              "endAt",
+              "committedPoints",
+              "completedAt",
+              "report"
+            ],
+            "example": {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e30",
+              "projectId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e20",
+              "number": 25,
+              "name": "Sprint 25",
+              "goal": "Ship SSO for enterprise tenants and stabilise token refresh.",
+              "status": "active",
+              "startAt": "2026-10-26T09:00:00.000Z",
+              "endAt": "2026-11-09T09:00:00.000Z",
+              "committedPoints": 50,
+              "completedAt": null,
+              "report": null
+            },
+            "description": "The sprint that received unfinished issues; null when they went to the backlog."
+          }
+        },
+        "required": [
+          "sprint",
+          "carriedOverTo"
+        ],
+        "example": {
+          "sprint": {
+            "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e30",
+            "projectId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e20",
+            "number": 25,
+            "name": "Sprint 25",
+            "goal": "Ship SSO for enterprise tenants and stabilise token refresh.",
+            "status": "completed",
+            "startAt": "2026-10-26T09:00:00.000Z",
+            "endAt": "2026-11-09T09:00:00.000Z",
+            "committedPoints": 50,
+            "completedAt": "2026-11-09T09:00:00.000Z",
+            "report": {
+              "committedPoints": 45,
+              "completedPoints": 38,
+              "completedIssues": 9,
+              "carriedOverIssues": 2
+            }
+          },
+          "carriedOverTo": null
+        }
+      },
+      "CompleteSprintRequest": {
+        "type": "object",
+        "properties": {
+          "carryOver": {
+            "$ref": "#/components/schemas/CarryOver"
+          }
+        },
+        "required": [
+          "carryOver"
+        ],
+        "example": {
+          "carryOver": {
+            "kind": "backlog"
+          }
+        }
+      },
+      "CarryOver": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "backlog"
+                ]
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "sprint"
+                ]
+              },
+              "sprintId": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "required": [
+              "kind",
+              "sprintId"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "new-sprint"
+                ]
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        ],
+        "example": {
+          "kind": "new-sprint"
         }
       },
       "Bootstrap": {
@@ -4888,6 +5142,124 @@
         "responses": {
           "204": {
             "description": "Deleted."
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sprints/{id}/start": {
+      "post": {
+        "tags": [
+          "Sprints"
+        ],
+        "summary": "Start a planned sprint",
+        "description": "Members and admins; tokens need issues:write. Starts now and ends after durationDays (1 to 28); committedPoints snapshots the points in the sprint. 409 SPRINT_ALREADY_ACTIVE when another sprint of the project is running, 409 SPRINT_NOT_PLANNED when this one is not planned.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartSprintRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The started sprint.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sprint"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sprints/{id}/complete": {
+      "post": {
+        "tags": [
+          "Sprints"
+        ],
+        "summary": "Complete the active sprint",
+        "description": "Members and admins; tokens need issues:write. In one transaction: writes the report, marks the sprint completed and moves issues not in a done status to carryOver (the backlog, a planned sprint, or a new sprint it creates). 409 SPRINT_NOT_ACTIVE when this sprint is not the active one.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteSprintRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The completed sprint and the carry-over target.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompletedSprint"
+                }
+              }
+            }
           },
           "default": {
             "description": "Error, as RFC 9457 problem details.",

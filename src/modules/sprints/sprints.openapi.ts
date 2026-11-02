@@ -1,7 +1,15 @@
 import type { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
 import { problemResponse } from "../../openapi/problem.js";
-import { listSprintsQuery, sprint, sprintPage, updateSprintBody } from "./sprints.schemas.js";
+import {
+  completeSprintBody,
+  completeSprintResponse,
+  listSprintsQuery,
+  sprint,
+  sprintPage,
+  startSprintBody,
+  updateSprintBody,
+} from "./sprints.schemas.js";
 
 export const json = <T>(schema: T) => ({ content: { "application/json": { schema } } });
 export const anyCaller = [{ cookieAuth: [] }, { bearerAuth: [] }];
@@ -50,5 +58,34 @@ export function registerSprintsDocs(registry: OpenAPIRegistry) {
     security: anyCaller,
     request: { params: sprintParam },
     responses: { 204: { description: "Deleted." }, default: problemResponse },
+  });
+  registry.registerPath({
+    method: "post",
+    path: "/sprints/{id}/start",
+    tags: ["Sprints"],
+    summary: "Start a planned sprint",
+    description:
+      "Members and admins; tokens need issues:write. Starts now and ends after durationDays (1 to 28); committedPoints " +
+      "snapshots the points in the sprint. 409 SPRINT_ALREADY_ACTIVE when another sprint of the project is running, " +
+      "409 SPRINT_NOT_PLANNED when this one is not planned.",
+    security: anyCaller,
+    request: { params: sprintParam, body: json(startSprintBody) },
+    responses: { 200: { description: "The started sprint.", ...json(sprint) }, default: problemResponse },
+  });
+  registry.registerPath({
+    method: "post",
+    path: "/sprints/{id}/complete",
+    tags: ["Sprints"],
+    summary: "Complete the active sprint",
+    description:
+      "Members and admins; tokens need issues:write. In one transaction: writes the report, marks the sprint " +
+      "completed and moves issues not in a done status to carryOver (the backlog, a planned sprint, or a new sprint " +
+      "it creates). 409 SPRINT_NOT_ACTIVE when this sprint is not the active one.",
+    security: anyCaller,
+    request: { params: sprintParam, body: json(completeSprintBody) },
+    responses: {
+      200: { description: "The completed sprint and the carry-over target.", ...json(completeSprintResponse) },
+      default: problemResponse,
+    },
   });
 }

@@ -83,3 +83,50 @@ export const updateSprintBody = z
 
 export type ListSprintsQuery = z.infer<typeof listSprintsQuery>;
 export type UpdateSprintInput = z.infer<typeof updateSprintBody>;
+
+export const startSprintBody = z
+  .object({
+    name: sprintName,
+    goal: sprintGoal.default(""),
+    durationDays: z.number().int().min(1, "At least one day.").max(28, "At most 28 days."),
+  })
+  .meta({
+    id: "StartSprintRequest",
+    example: { name: "Sprint 26", goal: "Cycle analytics v1.", durationDays: 14 },
+  });
+
+/** Where unfinished issues go (the frontend's CarryOver). */
+export const carryOver = z
+  .discriminatedUnion("kind", [
+    z.object({ kind: z.literal("backlog") }),
+    z.object({ kind: z.literal("sprint"), sprintId: z.uuid() }),
+    z.object({ kind: z.literal("new-sprint") }),
+  ])
+  .meta({ id: "CarryOver", example: { kind: "new-sprint" } });
+
+export const completeSprintBody = z
+  .object({ carryOver })
+  .meta({ id: "CompleteSprintRequest", example: { carryOver: { kind: "backlog" } } });
+
+export const completeSprintResponse = z
+  .object({
+    sprint,
+    carriedOverTo: sprint
+      .nullable()
+      .meta({ description: "The sprint that received unfinished issues; null when they went to the backlog." }),
+  })
+  .meta({
+    id: "CompletedSprint",
+    example: {
+      sprint: {
+        ...(sprint.meta()?.example as object),
+        status: "completed",
+        completedAt: "2026-11-09T09:00:00.000Z",
+        report: { committedPoints: 45, completedPoints: 38, completedIssues: 9, carriedOverIssues: 2 },
+      },
+      carriedOverTo: null,
+    },
+  });
+
+export type StartSprintInput = z.infer<typeof startSprintBody>;
+export type CompleteSprintInput = z.infer<typeof completeSprintBody>;

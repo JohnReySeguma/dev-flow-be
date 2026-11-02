@@ -1,6 +1,6 @@
 import type { Request, RequestHandler } from "express";
 import { authOf } from "../../middleware/require-auth.js";
-import type { ListSprintsQuery, UpdateSprintInput } from "./sprints.schemas.js";
+import type { CompleteSprintInput, ListSprintsQuery, StartSprintInput, UpdateSprintInput } from "./sprints.schemas.js";
 import type { SprintsService } from "./sprints.service.js";
 
 // validate({ query }) has already replaced req.query with the parsed value.
@@ -26,5 +26,13 @@ export function createSprintsController(sprints: SprintsService) {
     res.status(204).end();
   };
 
-  return { list, create, update, remove };
+  const start: RequestHandler = async (req, res) => {
+    res.json(await sprints.start(authOf(req), sprintIdOf(req), req.body as StartSprintInput));
+  };
+
+  const complete: RequestHandler = async (req, res) => {
+    res.json(await sprints.complete(authOf(req), sprintIdOf(req), req.body as CompleteSprintInput));
+  };
+
+  return { list, create, update, remove, start, complete };
 }

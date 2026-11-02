@@ -2,7 +2,7 @@ import { Router, type RequestHandler } from "express";
 import { requireRole, requireScope } from "../../middleware/permissions.js";
 import { validate } from "../../middleware/validate.js";
 import { createSprintsController } from "./sprints.controller.js";
-import { listSprintsQuery, updateSprintBody } from "./sprints.schemas.js";
+import { completeSprintBody, listSprintsQuery, startSprintBody, updateSprintBody } from "./sprints.schemas.js";
 import type { SprintsService } from "./sprints.service.js";
 
 /** Every role reads; members and admins plan and run sprints. Tokens need issues:read / issues:write. */
@@ -28,5 +28,7 @@ export function createSprintsRouter(deps: { sprints: SprintsService; requireAuth
   router.use(deps.requireAuth);
   router.patch("/:id", ...write, validate({ body: updateSprintBody }), controller.update);
   router.delete("/:id", ...write, controller.remove);
+  router.post("/:id/start", ...write, validate({ body: startSprintBody }), controller.start);
+  router.post("/:id/complete", ...write, validate({ body: completeSprintBody }), controller.complete);
   return router;
 }

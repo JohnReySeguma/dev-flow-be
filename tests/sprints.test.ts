@@ -116,3 +116,103 @@ describe("DELETE /api/v1/sprints/:id", () => {
     expect(res.body.code).toBe("SPRINT_NOT_PLANNED");
   });
 });
+
+describe("sprint lifecycle", () => {
+  let done = "";
+  beforeEach(async () => {
+    done = (await viewer.get("/api/v1/projects/DEV")).body.workflow[3].id;
+  });
+  const start = (id: string, body: object = {}) =>
+    member.post(`/api/v1/sprints/${id}/start`).send({ name: "Sprint 1", goal: "Ship it.", durationDays: 14, ...body });
+  const complete = (id: string, carryOver: object) => member.post(`/api/v1/sprints/${id}/complete`).send({ carryOver });
+
+  it("starts a planned sprint for the chosen duration and commits to its points", async () => {
+    const { id } = (await newSprint()).body;
+    await issueIn(id, { estimate: 5 });
+    await issueIn(id, { estimate: 3 });
+    await issueIn(id);
+
+    const res = await start(id, { name: "Kick-off", goal: "Ship SSO." });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ name: "Kick-off", goal: "Ship SSO.", status: "active", committedPoints: 8 });
+    expect(Date.parse(res.body.endAt) - Date.parse(res.body.startAt)).toBe(14 * 86_400_000);
+  });
+
+  it("allows only one active sprint per project, even under concurrent starts", async () => {
+    const a = (await newSprint()).body.id;
+    const b = (await newSprint()).body.id;
+
+    const results = await Promise.all([start(a), start(b)]);
+
+    expect(results.map((r) => r.status).sort()).toEqual([200, 409]);
+    expect(results.find((r) => r.status === 409)?.body.code).toBe("SPRINT_ALREADY_ACTIVE");
+    expect(await prisma.sprint.count({ where: { status: "active" } })).toBe(1);
+  });
+
+  it("refuses to start a sprint twice and validates the duration", async () => {
+    const { id } = (await newSprint()).body;
+    await start(id);
+
+    expect((await start(id)).body.code).toBe("SPRINT_NOT_PLANNED");
+    expect((await start((await newSprint()).body.id, { durationDays: 0 })).status).toBe(422);
+  });
+
+  it("completes with a report and carries unfinished work to the backlog", async () => {
+    const { id } = (await newSprint()).body;
+    await issueIn(id, { estimate: 5, statusId: done });
+    await issueIn(id, { estimate: 3 });
+    await start(id);
+    await issueIn(id, { estimate: 2 }); // added mid-sprint: not part of the commitment
+
+    const res = await complete(id, { kind: "backlog" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.sprint).toMatchObject({
+      status: "completed",
+      completedAt: expect.any(String),
+      report: { committedPoints: 8, completedPoints: 5, completedIssues: 1, carriedOverIssues: 2 },
+    });
+    expect(res.body.carriedOverTo).toBeNull();
+    const backlog = await viewer.get("/api/v1/projects/DEV/issues?sprint=backlog");
+    expect(backlog.body.items.map((i: { id: string }) => i.id).sort()).toEqual(["DEV-2", "DEV-3"]);
+    expect((await viewer.get("/api/v1/issues/DEV-1")).body.sprintId).toBe(id);
+  });
+
+  it("carries unfinished work into a planned sprint or a new one", async () => {
+    const first = (await newSprint()).body.id;
+    const next = (await newSprint()).body.id;
+    await issueIn(first);
+    await start(first);
+
+    const toPlanned = await complete(first, { kind: "sprint", sprintId: next });
+    expect(toPlanned.body.carriedOverTo.id).toBe(next);
+    expect((await viewer.get("/api/v1/issues/DEV-1")).body.sprintId).toBe(next);
+
+    await start(next);
+    const toNew = await complete(next, { kind: "new-sprint" });
+    expect(toNew.body.carriedOverTo).toMatchObject({ number: 3, name: "Sprint 3", status: "planned" });
+    expect((await viewer.get("/api/v1/issues/DEV-1")).body.sprintId).toBe(toNew.body.carriedOverTo.id);
+  });
+
+  it("only completes the active sprint, into a planned sprint of the same project", async () => {
+    const { id } = (await newSprint()).body;
+    expect((await complete(id, { kind: "backlog" })).body.code).toBe("SPRINT_NOT_ACTIVE");
+
+    await start(id);
+    const res = await complete(id, { kind: "sprint", sprintId: id });
+    expect(res.status).toBe(422);
+    expect(res.body.errors[0].field).toBe("carryOver.sprintId");
+  });
+
+  it("records the carry-over for burndown", async () => {
+    const { id } = (await newSprint()).body;
+    await issueIn(id, { estimate: 3 });
+    await start(id);
+
+    await complete(id, { kind: "backlog" });
+
+    const last = await prisma.issueEvent.findFirstOrThrow({ orderBy: { createdAt: "desc" } });
+    expect(last).toMatchObject({ kind: "sprint", sprintId: null, estimate: 3 });
+  });
+});
