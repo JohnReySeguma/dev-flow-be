@@ -208,7 +208,8 @@ revokes the whole session. If several requests hit `TOKEN_EXPIRED` together (or 
 in-flight refresh promise and retry them all after it settles.
 
 Any other `401` means signed out. `POST /auth/logout` (`204`) revokes the session and clears the cookies; it also
-succeeds when already signed out. A password reset signs the account out on every device.
+succeeds when already signed out. A password reset signs the account out on every device and deletes its access
+tokens.
 
 ### 5.4 CSRF
 
@@ -249,7 +250,9 @@ ${CORS_ORIGIN}/reset-password?token=<token>
 
 The new `/reset-password` page reads `token` and calls `POST /auth/password/reset { token, password }`:
 `204` → show "Password changed, sign in"; `400 RESET_TOKEN_INVALID` → offer to request a new link. Links work once,
-expire after 60 minutes, and only the newest one works. Passwords are 8–128 characters.
+expire after 60 minutes, and only the newest one works. Passwords are 8–128 characters. A reset also revokes every
+session and **deletes the account's personal access tokens**: say so on the success screen ("Create new access
+tokens for scripts and the CLI").
 
 ### 5.7 Invites
 

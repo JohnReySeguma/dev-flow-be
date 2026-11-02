@@ -45,7 +45,7 @@ export function createPasswordResetService({ users, sessions, email, logger, fro
       });
     },
 
-    /** Sets the new password and signs the account out everywhere. */
+    /** Sets the new password and signs the account out everywhere, access tokens included. */
     async reset(token: string, password: string): Promise<void> {
       const now = new Date();
       const record = await sessions.findPasswordResetToken(sha256(token));
@@ -61,7 +61,7 @@ export function createPasswordResetService({ users, sessions, email, logger, fro
         );
       }
       await users.setPasswordHash(record.userId, await hashPassword(password));
-      await sessions.revokeAllSessions(record.userId, now);
+      await sessions.revokeAllCredentials(record.userId, now);
     },
   };
 }
