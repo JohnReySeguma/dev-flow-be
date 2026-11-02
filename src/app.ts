@@ -27,6 +27,9 @@ import { createServices, type ServiceDeps, type Services } from "./services.js";
 
 export const API_PREFIX = "/api/v1";
 
+/** Response headers the frontend reads: ETag (for If-Match) and the request id (for error reports). */
+const EXPOSED_HEADERS = ["ETag", "X-Request-Id"];
+
 export type AppDeps = ServiceDeps & {
   /** Shared with the realtime server; built from the other deps when omitted (e.g. in tests). */
   services?: Services;
@@ -41,7 +44,8 @@ export function createApp(deps: AppDeps): Express {
   app.use(requestLogger(logger));
   // upgrade-insecure-requests would break the Swagger UI assets when served over plain http.
   app.use(helmet({ contentSecurityPolicy: { directives: { upgradeInsecureRequests: null } } }));
-  app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
+  // The frontend is cross-origin: without exposedHeaders its JavaScript could not read these.
+  app.use(cors({ origin: env.CORS_ORIGIN, credentials: true, exposedHeaders: EXPOSED_HEADERS }));
   // Before express.json: webhook signatures cover the raw body. Outside `api`: no Origin check.
   app.use(
     `${API_PREFIX}/integrations/github`,

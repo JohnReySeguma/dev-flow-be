@@ -41,6 +41,12 @@ describe("createApp", () => {
     expect(other.headers["access-control-allow-origin"]).not.toBe("https://evil.example");
   });
 
+  it("lets the frontend read the ETag and request id of cross-origin responses", async () => {
+    const res = await request(app).get("/api/v1/nope").set("Origin", "http://localhost:3000");
+
+    expect(res.headers["access-control-expose-headers"]).toBe("ETag,X-Request-Id");
+  });
+
   it("serves the OpenAPI document and Swagger UI", async () => {
     const spec = await request(app).get("/api/v1/openapi.json");
     const docs = await request(app).get("/api/v1/docs/");
