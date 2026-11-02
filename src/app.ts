@@ -23,7 +23,7 @@ import { createTokensRouter } from "./modules/tokens/tokens.routes.js";
 import { createMeRouter } from "./modules/users/users.routes.js";
 import { createWorkflowRouter } from "./modules/workflow/workflow.routes.js";
 import { createInviteAcceptRouter } from "./modules/workspace/invites.routes.js";
-import { createWorkspaceRouter } from "./modules/workspace/workspace.routes.js";
+import { createWorkspaceRouter, createWorkspacesRouter } from "./modules/workspace/workspace.routes.js";
 import { buildOpenApiDocument } from "./openapi/document.js";
 import { createServices, type ServiceDeps, type Services } from "./services.js";
 
@@ -103,6 +103,7 @@ export function createApp(deps: AppDeps): Express {
   api.use("/invites", limit.inviteTokens);
   api.use("/config", createConfigRouter({ config: services.config }));
   api.use("/invites", createInviteAcceptRouter({ invites: services.invites }));
+  api.use("/workspaces", createWorkspacesRouter({ workspace: services.workspace, ...withAuth, requireSession }));
 
   // Everything that belongs to one workspace. Membership is resolved once, here: routers below
   // read the caller's role in this workspace from req.auth.

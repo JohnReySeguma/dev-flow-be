@@ -25,12 +25,21 @@ type Deps = {
   sessions: AuthRepository;
   accessTokens: AccessTokens;
   logger: Logger;
+  /** Gives a new account that did not come through an invite its own workspace. */
+  createPersonalWorkspace: (user: User) => Promise<void>;
 };
 
 const isUniqueViolation = (error: unknown) =>
   error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 
-export function createAuthService({ users, workspaces, sessions, accessTokens, logger }: Deps) {
+export function createAuthService({
+  users,
+  workspaces,
+  sessions,
+  accessTokens,
+  logger,
+  createPersonalWorkspace,
+}: Deps) {
   async function uniqueHandle(email: string): Promise<string> {
     const base = handleBase(email);
     for (let suffix = 1; ; suffix++) {
@@ -63,7 +72,7 @@ export function createAuthService({ users, workspaces, sessions, accessTokens, l
       if (isUniqueViolation(error)) throw new AppError("EMAIL_TAKEN", undefined, { cause: error });
       throw error;
     }
-    if (!input.membership) await workspaces.create(personalWorkspaceName(user.name), { ownerId: user.id });
+    if (!input.membership) await createPersonalWorkspace(user);
     return user;
   }
 

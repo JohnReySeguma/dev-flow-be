@@ -44,9 +44,11 @@ beforeAll(async () => {
     await admin.query(`DROP DATABASE IF EXISTS ${SCRATCH_DB} WITH (FORCE)`);
     await admin.query(`CREATE DATABASE ${SCRATCH_DB}`);
   });
-  const v1 = readdirSync(MIGRATIONS)
-    .filter((name) => /^\d{14}_/.test(name) && name < MEMBERSHIPS)
+  const migrations = readdirSync(MIGRATIONS)
+    .filter((name) => /^\d{14}_/.test(name))
     .sort();
+  const v1 = migrations.filter((name) => name < MEMBERSHIPS);
+  const later = migrations.filter((name) => name >= MEMBERSHIPS);
   const passwordHash = await hashPassword("correct-horse");
 
   await withClient(scratchUrl, async (db) => {
@@ -92,7 +94,8 @@ beforeAll(async () => {
        VALUES ('0193f1c2-0000-7000-8000-0000000a0001', $1, 1, $2, 'task', 'medium', 'Survives the migration', 'a0', $3, now())`,
       [ids.project, ids.status, ids.bob],
     );
-    await db.query(migrationSql(MEMBERSHIPS));
+    // The memberships migration and every one after it, as `migrate deploy` would on upgrade.
+    for (const name of later) await db.query(migrationSql(name));
   });
 }, 60_000);
 

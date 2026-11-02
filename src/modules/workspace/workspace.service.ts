@@ -5,7 +5,7 @@ import { byCreatedAsc, decodeCursor, toPage, type Page, type PaginationQuery } f
 import type { AuthContext, Identity } from "../auth/auth.types.js";
 import { memberFromInvite, memberFromMembership, toWorkspaceView } from "./workspace.mapper.js";
 import type { WorkspaceRepository } from "./workspace.repository.js";
-import type { TeamMember, WorkspaceView } from "./workspace.schemas.js";
+import type { CreateWorkspaceInput, TeamMember, WorkspaceView } from "./workspace.schemas.js";
 
 const notFound = () => new AppError("NOT_FOUND", "No member or invite with that id.");
 const lastAdmin = () =>
@@ -13,12 +13,62 @@ const lastAdmin = () =>
 
 export function createWorkspaceService(deps: {
   workspaces: WorkspaceRepository;
+  /** Copies the sample projects into a new workspace for its owner. */
+  copySampleData: (workspaceId: string, ownerId: string) => Promise<void>;
   /** Restores the demo tracker; absent when SEED_DEMO_DATA is false. */
   resetDemo?: (workspaceId: string) => Promise<void>;
 }) {
-  const { workspaces, resetDemo } = deps;
+  const { workspaces, copySampleData, resetDemo } = deps;
 
   return {
+    /** A new workspace with `userId` as its admin, by default with a copy of the sample projects. */
+    async create(userId: string, input: CreateWorkspaceInput): Promise<WorkspaceView> {
+      const workspace = await workspaces.create(input.name, { ownerId: userId });
+      if (input.sampleData) await copySampleData(workspace.id, userId);
+      return toWorkspaceView(workspace, "admin");
+    },
+
+    /** The user's workspaces with their role in each, oldest membership first. */
+    async list(userId: string, query: PaginationQuery): Promise<Page<WorkspaceView>> {
+      const cursor = query.cursor === undefined ? undefined : decodeCursor(query.cursor);
+      const rows = await workspaces.listMembershipsPage(userId, query.limit, cursor);
+      return toPage(
+        rows.map((m) => ({ id: m.workspaceId, createdAt: m.createdAt, view: toWorkspaceView(m.workspace, m.role) })),
+        query.limit,
+        (row) => row.view,
+      );
+    },
+
+    /** Admins only (enforced by the route). The slug stays, so links keep working. */
+    async rename(auth: AuthContext, name: string): Promise<WorkspaceView> {
+      return toWorkspaceView(await workspaces.rename(auth.workspaceId, name), auth.role);
+    },
+
+    /** Admins only (enforced by the route). Deletes everything in the workspace; there is no undo. */
+    async delete(auth: AuthContext): Promise<void> {
+      await workspaces.delete(auth.workspaceId);
+    },
+
+    /**
+     * Leaves the workspace. The last admin cannot leave while others remain (promote someone
+     * first), and the only member deletes the workspace instead.
+     */
+    async leave(auth: AuthContext): Promise<void> {
+      await workspaces.transaction(async (tx) => {
+        const admins = await tx.lockAdminIds(auth.workspaceId);
+        if (auth.role === "admin" && admins.length <= 1) {
+          const alone = (await tx.countMembers(auth.workspaceId)) === 1;
+          throw new AppError(
+            "LAST_ADMIN",
+            alone
+              ? "You are the only member. Delete the workspace instead of leaving it."
+              : "The workspace needs at least one admin. Promote someone else first.",
+          );
+        }
+        await tx.removeMembership(auth.workspaceId, auth.userId);
+      });
+    },
+
     /**
      * The caller inside the workspace with this slug. Non-members, and access tokens bound to
      * another workspace, get the same 404 as an unknown slug.

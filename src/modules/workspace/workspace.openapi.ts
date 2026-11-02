@@ -6,10 +6,13 @@ import { authMeResponse } from "../auth/auth.schemas.js";
 import {
   acceptInviteBody,
   changeRoleBody,
+  createWorkspaceBody,
   inviteBody,
   invitePreviewResponse,
   teamMember,
+  renameWorkspaceBody,
   teamMemberPage,
+  workspacePage,
   workspaceResponse,
 } from "./workspace.schemas.js";
 
@@ -18,13 +21,72 @@ const anyCaller = [{ cookieAuth: [] }, { bearerAuth: [] }];
 
 /** `workspace` registers under /workspaces/{workspace}; the invite links are global. */
 export function registerWorkspaceDocs(registry: OpenAPIRegistry, workspace: OpenAPIRegistry) {
+  registry.registerPath({
+    method: "get",
+    path: "/workspaces",
+    tags: ["Workspace"],
+    summary: "Your workspaces",
+    description:
+      "Every workspace you belong to, with your role in each, oldest membership first (GET /auth/me has the " +
+      "same list unpaginated). Signed-in session only.",
+    security: [{ cookieAuth: [] }],
+    request: { query: paginationQuery },
+    responses: { 200: { description: "A page of workspaces.", ...json(workspacePage) }, default: problemResponse },
+  });
+  registry.registerPath({
+    method: "post",
+    path: "/workspaces",
+    tags: ["Workspace"],
+    summary: "Create a workspace",
+    description:
+      "You become its admin. With sampleData (the default) it starts with a copy of the sample projects DEV, BIL " +
+      "and MOB: the demo admin's issues are yours, the rest unassigned, no comments. The slug comes from the name " +
+      "and gets a short suffix when taken. Signed-in session only.",
+    security: [{ cookieAuth: [] }],
+    request: { body: json(createWorkspaceBody) },
+    responses: { 201: { description: "The new workspace.", ...json(workspaceResponse) }, default: problemResponse },
+  });
   workspace.registerPath({
     method: "get",
     path: "/",
     tags: ["Workspace"],
     summary: "The workspace and your role in it",
+    description: "404 NOT_FOUND when you are not a member, exactly as for a workspace that does not exist.",
     security: anyCaller,
     responses: { 200: { description: "The workspace.", ...json(workspaceResponse) }, default: problemResponse },
+  });
+  workspace.registerPath({
+    method: "patch",
+    path: "/",
+    tags: ["Workspace"],
+    summary: "Rename the workspace",
+    description: "Admins only, signed-in session only. The slug does not change, so links keep working.",
+    security: [{ cookieAuth: [] }],
+    request: { body: json(renameWorkspaceBody) },
+    responses: { 200: { description: "The renamed workspace.", ...json(workspaceResponse) }, default: problemResponse },
+  });
+  workspace.registerPath({
+    method: "delete",
+    path: "/",
+    tags: ["Workspace"],
+    summary: "Delete the workspace",
+    description:
+      "Admins only, signed-in session only. Deletes its projects, issues, sprints, invites and access tokens, and " +
+      "every membership, immediately; there is no undo. The accounts themselves are kept.",
+    security: [{ cookieAuth: [] }],
+    responses: { 204: { description: "Deleted." }, default: problemResponse },
+  });
+  workspace.registerPath({
+    method: "post",
+    path: "/leave",
+    tags: ["Workspace"],
+    summary: "Leave the workspace",
+    description:
+      "Any role, signed-in session only. Your access tokens for it are deleted and your issues and project leads " +
+      "in it are unassigned. 409 LAST_ADMIN when you are its last admin: promote someone first, or delete the " +
+      "workspace if you are its only member.",
+    security: [{ cookieAuth: [] }],
+    responses: { 204: { description: "Left." }, default: problemResponse },
   });
   workspace.registerPath({
     method: "get",

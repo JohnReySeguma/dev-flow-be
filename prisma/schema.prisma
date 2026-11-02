@@ -218,6 +218,8 @@ model Project {
   leadId          String?  @map("lead_id") @db.Uuid
   /// Next issue number; incremented atomically when an issue is created.
   nextIssueNumber Int      @default(1) @map("next_issue_number")
+  /// Copied from the sample data; resetting the sample data replaces these projects only.
+  isSample        Boolean  @default(false) @map("is_sample")
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 

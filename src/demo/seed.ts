@@ -9,20 +9,32 @@ import { DEMO_COMMENTS, DEMO_ISSUES, DEMO_PROJECTS, DEMO_SPRINTS } from "./track
 const DAY = 24 * 60 * 60 * 1000;
 const SPRINT_LENGTH_DAYS = 14;
 
+type TrackerContext = {
+  workspaceId: string;
+  /** Who plays each of the frontend's team members; anyone missing leaves their work unassigned. */
+  users: Partial<Record<MemberRef, string>>;
+  now: number;
+  /**
+   * A sample copy for someone's own workspace: `owner` leads every project and there are no
+   * comments, since the demo team are not members there.
+   */
+  owner?: string;
+  /** Only these project keys (e.g. the ones still free in a workspace); all of them by default. */
+  keys?: ReadonlySet<string>;
+};
+
 /**
  * Creates the demo projects, sprints, issues and comments in an existing workspace, with every
  * date relative to `now`. Issue history is recorded the way the API would have recorded it, so
  * burndown has real data: active-sprint issues join at sprint start; done issues resolve at
  * their resolvedAt.
  */
-export async function seedTracker(
-  tx: Prisma.TransactionClient,
-  context: { workspaceId: string; users: Partial<Record<MemberRef, string>>; now: number },
-): Promise<void> {
+export async function seedTracker(tx: Prisma.TransactionClient, context: TrackerContext): Promise<void> {
   const at = (days: number) => new Date(context.now + days * DAY);
   const team = Object.values(context.users);
+  const withComments = context.owner === undefined;
 
-  for (const demo of DEMO_PROJECTS) {
+  for (const demo of DEMO_PROJECTS.filter((p) => context.keys?.has(p.key) ?? true)) {
     const project = await tx.project.create({
       data: {
         workspaceId: context.workspaceId,
@@ -30,8 +42,9 @@ export async function seedTracker(
         name: demo.name,
         description: demo.description,
         color: demo.color,
-        leadId: context.users[demo.lead] ?? null,
+        leadId: context.owner ?? context.users[demo.lead] ?? null,
         nextIssueNumber: demo.nextIssueNumber,
+        isSample: true,
         createdAt: at(demo.created),
       },
     });
@@ -107,7 +120,7 @@ export async function seedTracker(
           tags: demoIssue.tags,
           git: demoIssue.git ?? Prisma.DbNull,
           estimate: demoIssue.estimate,
-          commentCount: demoIssue.comments,
+          commentCount: withComments ? demoIssue.comments : 0,
           rank: ranks[index] ?? "a0",
           dueAt: demoIssue.due === undefined ? null : at(demoIssue.due),
           resolvedAt,
@@ -136,6 +149,7 @@ export async function seedTracker(
       });
 
       // As many comments as the frontend shows, spread between creation and the last update.
+      if (!withComments) continue;
       await tx.issueComment.createMany({
         data: Array.from({ length: demoIssue.comments }, (_, n) => ({
           issueId: issue.id,
@@ -178,6 +192,21 @@ export async function seedDemo(
     "seeded demo data",
   );
   return true;
+}
+
+/**
+ * Copies the sample projects (DEV, BIL, MOB) into a new workspace for `ownerId`: the issues the
+ * demo admin works on are theirs, everything else is unassigned, and there are no comments.
+ */
+export async function copySampleTracker(
+  prisma: PrismaClient,
+  workspaceId: string,
+  ownerId: string,
+  now = Date.now(),
+): Promise<void> {
+  await prisma.$transaction((tx) => seedTracker(tx, { workspaceId, users: { "u-jr": ownerId }, owner: ownerId, now }), {
+    timeout: 60_000,
+  });
 }
 
 /**

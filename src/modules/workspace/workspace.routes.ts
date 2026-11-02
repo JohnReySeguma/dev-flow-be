@@ -5,8 +5,25 @@ import { validate } from "../../middleware/validate.js";
 import { createInvitesController } from "./invites.controller.js";
 import type { InvitesService } from "./invites.service.js";
 import { createWorkspaceController } from "./workspace.controller.js";
-import { changeRoleBody, inviteBody } from "./workspace.schemas.js";
+import { changeRoleBody, createWorkspaceBody, inviteBody, renameWorkspaceBody } from "./workspace.schemas.js";
 import type { WorkspaceService } from "./workspace.service.js";
+
+/**
+ * Mounted at /workspaces: the caller's workspaces and creating one. Signed-in sessions only:
+ * an access token works in a single workspace.
+ */
+export function createWorkspacesRouter(deps: {
+  workspace: WorkspaceService;
+  requireAuth: RequestHandler;
+  requireSession: RequestHandler;
+}): Router {
+  const controller = createWorkspaceController(deps.workspace);
+
+  const router = Router();
+  router.get("/", deps.requireAuth, deps.requireSession, validate({ query: paginationQuery }), controller.list);
+  router.post("/", deps.requireAuth, deps.requireSession, validate({ body: createWorkspaceBody }), controller.create);
+  return router;
+}
 
 /** Mounted at /workspaces/:ws. Every role can read; managing members needs an admin's signed-in session. */
 export function createWorkspaceRouter(deps: {
@@ -24,6 +41,9 @@ export function createWorkspaceRouter(deps: {
   // Tokens need issues:read, like every other read: members and invites include email addresses.
   const read = requireScope("issues:read");
   router.get("/", read, controller.get);
+  router.patch("/", ...admin, validate({ body: renameWorkspaceBody }), controller.rename);
+  router.delete("/", ...admin, controller.deleteWorkspace);
+  router.post("/leave", deps.requireSession, controller.leave);
   router.get("/members", read, validate({ query: paginationQuery }), controller.listMembers);
   router.patch("/members/:id", ...admin, validate({ body: changeRoleBody }), controller.changeRole);
   router.delete("/members/:id", ...admin, controller.remove);

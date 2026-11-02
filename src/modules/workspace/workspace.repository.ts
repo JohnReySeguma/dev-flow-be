@@ -78,6 +78,41 @@ function repository(db: Db) {
     findMembershipBySlug: (userId: string, slug: string) =>
       db.workspaceMember.findFirst({ where: { userId, workspace: { slug } }, include: { workspace: true } }),
 
+    /** A page of the user's workspaces, oldest membership first; fetches `limit + 1`. */
+    listMembershipsPage: (userId: string, limit: number, cursor?: Cursor) =>
+      db.workspaceMember.findMany({
+        where: {
+          userId,
+          ...(cursor && {
+            OR: [
+              { createdAt: { gt: cursor.createdAt } },
+              { createdAt: cursor.createdAt, workspaceId: { gt: cursor.id } },
+            ],
+          }),
+        },
+        orderBy: [{ createdAt: "asc" }, { workspaceId: "asc" }],
+        take: limit + 1,
+        include: { workspace: true },
+      }),
+
+    rename: (id: string, name: string): Promise<Workspace> => db.workspace.update({ where: { id }, data: { name } }),
+    /** Cascades to members, invites, tokens, projects and everything in them. */
+    delete: (id: string) => db.workspace.delete({ where: { id } }),
+
+    /**
+     * Ends a membership and what hung on it in this workspace: the person's access tokens for it,
+     * their issue assignments and project leads. Their comments stay, with their name.
+     */
+    removeMembership: async (workspaceId: string, userId: string): Promise<void> => {
+      await db.accessToken.deleteMany({ where: { workspaceId, userId } });
+      await db.issue.updateMany({
+        where: { assigneeId: userId, project: { workspaceId } },
+        data: { assigneeId: null },
+      });
+      await db.project.updateMany({ where: { leadId: userId, workspaceId }, data: { leadId: null } });
+      await db.workspaceMember.delete({ where: { workspaceId_userId: { workspaceId, userId } } });
+    },
+
     /** Every workspace the user belongs to, oldest membership first. */
     listMemberships: (userId: string) =>
       db.workspaceMember.findMany({

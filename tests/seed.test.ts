@@ -97,6 +97,7 @@ describe("demo tracker", () => {
       "Released",
     ]);
     expect((await snapshot("MOB")).issues).toHaveLength(5);
+    expect(await prisma.project.count({ where: { isSample: true } })).toBe(3);
   });
 
   it("keeps every issue's fields, including git links and due dates", async () => {

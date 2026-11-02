@@ -706,6 +706,62 @@
           "workspace": "acme-inc"
         }
       },
+      "WorkspacePage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Workspace"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass as ?cursor= for the next page; null on the last."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "example": {
+          "items": [
+            {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e00",
+              "slug": "acme-inc",
+              "name": "Acme Inc",
+              "role": "admin",
+              "isDemo": true
+            }
+          ],
+          "nextCursor": null
+        }
+      },
+      "CreateWorkspaceRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 48
+          },
+          "sampleData": {
+            "type": "boolean",
+            "default": true,
+            "description": "Copy the sample projects (DEV, BIL, MOB) into it, so it is not empty. Default true."
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "example": {
+          "name": "Globex",
+          "sampleData": true
+        }
+      },
       "InvitePreview": {
         "type": "object",
         "properties": {
@@ -823,6 +879,23 @@
           "issues": [
             "DEV-104"
           ]
+        }
+      },
+      "RenameWorkspaceRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 48
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "description": "The slug stays the same.",
+        "example": {
+          "name": "Globex Corp"
         }
       },
       "TeamMemberPage": {
@@ -3845,6 +3918,155 @@
         }
       }
     },
+    "/workspaces": {
+      "get": {
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "Your workspaces",
+        "description": "Every workspace you belong to, with your role in each, oldest membership first (GET /auth/me has the same list unpaginated). Signed-in session only.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of workspaces.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspacePage"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "Create a workspace",
+        "description": "You become its admin. With sampleData (the default) it starts with a copy of the sample projects DEV, BIL and MOB: the demo admin's issues are yours, the rest unassigned, no comments. The slug comes from the name and gets a short suffix when taken. Signed-in session only.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWorkspaceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The new workspace.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Workspace"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/invites/{token}": {
       "get": {
         "tags": [
@@ -4100,6 +4322,7 @@
           "Workspace"
         ],
         "summary": "The workspace and your role in it",
+        "description": "404 NOT_FOUND when you are not a member, exactly as for a workspace that does not exist.",
         "security": [
           {
             "cookieAuth": []
@@ -4131,6 +4354,216 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "Rename the workspace",
+        "description": "Admins only, signed-in session only. The slug does not change, so links keep working.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameWorkspaceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The renamed workspace.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Workspace"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "Delete the workspace",
+        "description": "Admins only, signed-in session only. Deletes its projects, issues, sprints, invites and access tokens, and every membership, immediately; there is no undo. The accounts themselves are kept.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted."
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspaces/{workspace}/leave": {
+      "post": {
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "Leave the workspace",
+        "description": "Any role, signed-in session only. Your access tokens for it are deleted and your issues and project leads in it are unassigned. 409 LAST_ADMIN when you are its last admin: promote someone first, or delete the workspace if you are its only member.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Left."
           },
           "429": {
             "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",

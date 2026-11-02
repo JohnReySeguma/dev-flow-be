@@ -1,6 +1,6 @@
 import type { Env } from "./config/env.js";
 import type { Features } from "./config/features.js";
-import { resetDemoTracker } from "./demo/seed.js";
+import { copySampleTracker, resetDemoTracker } from "./demo/seed.js";
 import type { EmailProvider } from "./integrations/email/index.js";
 import { createOAuthProviders } from "./integrations/oauth/index.js";
 import type { Logger } from "./lib/logger.js";
@@ -8,7 +8,7 @@ import type { PrismaClient } from "./lib/prisma.js";
 import type { Redis } from "./lib/redis.js";
 import { createAccessTokens } from "./modules/auth/access-token.js";
 import { createAuthRepository } from "./modules/auth/auth.repository.js";
-import { createAuthService } from "./modules/auth/auth.service.js";
+import { createAuthService, personalWorkspaceName } from "./modules/auth/auth.service.js";
 import { createOAuthService } from "./modules/auth/oauth.service.js";
 import { createPasswordResetService } from "./modules/auth/password-reset.service.js";
 import { createBootstrapService } from "./modules/bootstrap/bootstrap.service.js";
@@ -60,22 +60,27 @@ export function createServices(deps: ServiceDeps) {
   const users = createUsersRepository(prisma);
   const workspaces = createWorkspaceRepository(prisma);
   const sessions = createAuthRepository(prisma);
+  const workspace = createWorkspaceService({
+    workspaces,
+    copySampleData: (workspaceId, ownerId) => copySampleTracker(prisma, workspaceId, ownerId),
+    ...(env.SEED_DEMO_DATA && { resetDemo: (workspaceId: string) => resetDemoTracker(prisma, workspaceId) }),
+  });
   const auth = createAuthService({
     users,
     workspaces,
     sessions,
     accessTokens: createAccessTokens(env.JWT_SECRET),
     logger,
+    // Every new account starts with its own workspace, pre-filled so it isn't empty.
+    createPersonalWorkspace: async (user) => {
+      await workspace.create(user.id, { name: personalWorkspaceName(user.name), sampleData: true });
+    },
   });
   const projects = createProjectsService({ projects: createProjectsRepository(prisma), events });
   const issues = createIssuesService({ issues: createIssuesRepository(prisma), projects, events });
   const sprints = createSprintsService({ sprints: createSprintsRepository(prisma), projects, events });
   const config = createConfigService(features);
   const usersService = createUsersService(users);
-  const workspace = createWorkspaceService({
-    workspaces,
-    ...(env.SEED_DEMO_DATA && { resetDemo: (workspaceId: string) => resetDemoTracker(prisma, workspaceId) }),
-  });
 
   return {
     events,
