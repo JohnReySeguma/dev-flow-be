@@ -1,4 +1,4 @@
-import { createApp } from "../../src/app.js";
+import { createApp, type AppDeps } from "../../src/app.js";
 import type { Env } from "../../src/config/env.js";
 import { resolveFeatures } from "../../src/config/features.js";
 import { createLogger } from "../../src/lib/logger.js";
@@ -7,7 +7,12 @@ import { createRedisClient } from "../../src/lib/redis.js";
 import { createMemoryEmailProvider } from "./email.js";
 import { testEnv } from "./env.js";
 
-type TestAppOptions = { env?: Partial<Env>; fetch?: typeof fetch };
+type TestAppOptions = {
+  env?: Partial<Env>;
+  fetch?: typeof fetch;
+  /** Rate limits are off by default: tests sign in many times from one address. */
+  rateLimits?: AppDeps["rateLimits"];
+};
 
 /** The real app wired to the test database (and Redis when configured). Call `close()` in afterAll. */
 export function createTestApp(options: TestAppOptions = {}) {
@@ -23,6 +28,7 @@ export function createTestApp(options: TestAppOptions = {}) {
     prisma,
     redis,
     email,
+    rateLimits: options.rateLimits ?? false,
     ...(options.fetch && { fetch: options.fetch }),
   });
 

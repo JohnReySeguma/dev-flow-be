@@ -52,6 +52,16 @@ describe("OpenAPI document", () => {
     ]);
   });
 
+  it("documents the 429 on every rate-limited operation, i.e. all but the health checks", () => {
+    const operations = Object.entries(document.paths ?? {}).flatMap(([path, item]) =>
+      (["get", "put", "post", "delete", "patch"] as const)
+        .filter((method) => item[method])
+        .map((method) => ({ path, method, limited: "429" in (item[method]?.responses ?? {}) })),
+    );
+
+    expect(operations.filter((op) => op.limited === op.path.startsWith("/health"))).toEqual([]);
+  });
+
   it("gives every component schema an example", () => {
     const schemas = Object.entries(document.components?.schemas ?? {});
 

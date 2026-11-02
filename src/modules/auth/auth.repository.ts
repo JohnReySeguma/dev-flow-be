@@ -35,8 +35,15 @@ export function createAuthRepository(prisma: PrismaClient) {
     addRefreshToken: (sessionId: string, tokenHash: string) =>
       prisma.refreshToken.create({ data: { sessionId, tokenHash } }),
 
-    revokeAllSessions: (userId: string, at: Date) =>
-      prisma.session.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: at } }),
+    /**
+     * Signs the user out everywhere: revokes every session and deletes every access token, for when
+     * someone else may have had access (a password reset, an account claimed through OAuth).
+     */
+    revokeAllCredentials: (userId: string, at: Date) =>
+      prisma.$transaction([
+        prisma.session.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: at } }),
+        prisma.accessToken.deleteMany({ where: { userId } }),
+      ]),
 
     /** Issues a reset token and invalidates any earlier unused one, so only the newest link works. */
     createPasswordResetToken: (data: { userId: string; tokenHash: string; expiresAt: Date }) =>

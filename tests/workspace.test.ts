@@ -29,6 +29,25 @@ describe("GET /api/v1/workspace", () => {
   it("requires authentication", async () => {
     expect((await request(app).get("/api/v1/workspace")).status).toBe(401);
   });
+
+  it("needs the issues:read scope for access tokens", async () => {
+    const admin = asBrowser(app, await signIn(app, "demo@devflow.local"));
+    const tokenWith = async (scopes: string[]) =>
+      (await admin.post("/api/v1/me/tokens").send({ name: scopes.join(","), scopes, expiresInDays: null })).body
+        .secret as string;
+    const get = async (secret: string, path: string) =>
+      (await request(app).get(path).set("Authorization", `Bearer ${secret}`)).status;
+    const webhooksOnly = await tokenWith(["webhooks:manage"]);
+    const reader = await tokenWith(["issues:read"]);
+
+    expect([
+      await get(webhooksOnly, "/api/v1/workspace"),
+      await get(webhooksOnly, "/api/v1/workspace/members"),
+    ]).toEqual([403, 403]);
+    expect([await get(reader, "/api/v1/workspace"), await get(reader, "/api/v1/workspace/members")]).toEqual([
+      200, 200,
+    ]);
+  });
 });
 
 describe("GET /api/v1/workspace/members", () => {

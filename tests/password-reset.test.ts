@@ -57,13 +57,21 @@ describe("POST /api/v1/auth/password/forgot", () => {
 });
 
 describe("POST /api/v1/auth/password/reset", () => {
-  it("sets the new password and signs out every session", async () => {
+  it("sets the new password and signs out every session and access token", async () => {
+    const created = await request(app)
+      .post("/api/v1/me/tokens")
+      .set("Origin", FRONTEND_ORIGIN)
+      .set("Cookie", session)
+      .send({ name: "cli", scopes: ["issues:read"], expiresInDays: null });
+    const bearer = `Bearer ${created.body.secret as string}`;
+    expect((await request(app).get("/api/v1/auth/me").set("Authorization", bearer)).status).toBe(200);
     const token = await requestResetToken();
 
     const res = await post("/password/reset", { token, password: "a brand new password" });
 
     expect(res.status).toBe(204);
     expect((await request(app).get("/api/v1/auth/me").set("Cookie", session)).status).toBe(401);
+    expect((await request(app).get("/api/v1/auth/me").set("Authorization", bearer)).status).toBe(401);
     expect((await post("/login", { email: ada.email, password: ada.password })).status).toBe(401);
     expect((await post("/login", { email: ada.email, password: "a brand new password" })).status).toBe(200);
   });

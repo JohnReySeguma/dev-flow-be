@@ -5,6 +5,7 @@ import helmet from "helmet";
 import swaggerUi from "swagger-ui-express";
 import { errorHandler, notFoundHandler } from "./middleware/error-handler.js";
 import { originCheck } from "./middleware/origin-check.js";
+import { createRateLimiters, type RATE_LIMITS } from "./middleware/rate-limit.js";
 import { requestLogger } from "./middleware/request-logger.js";
 import { requireAuth, requireSession } from "./middleware/require-auth.js";
 import { createAuthRouter } from "./modules/auth/auth.routes.js";
@@ -27,9 +28,17 @@ import { createServices, type ServiceDeps, type Services } from "./services.js";
 
 export const API_PREFIX = "/api/v1";
 
+/**
+ * Response headers the frontend reads: ETag (for If-Match), the request id (for error reports) and
+ * when a rate-limited request may be retried.
+ */
+const EXPOSED_HEADERS = ["ETag", "X-Request-Id", "Retry-After", "RateLimit", "RateLimit-Policy"];
+
 export type AppDeps = ServiceDeps & {
   /** Shared with the realtime server; built from the other deps when omitted (e.g. in tests). */
   services?: Services;
+  /** Overrides the default rate limits; false disables them (tests that sign in many times). */
+  rateLimits?: Partial<typeof RATE_LIMITS> | false;
 };
 
 /** Builds the Express app. It never listens, so tests can drive it with Supertest. */
@@ -37,14 +46,23 @@ export function createApp(deps: AppDeps): Express {
   const { env, logger, prisma, redis } = deps;
   const services = deps.services ?? createServices(deps);
   const app = express();
+  if (env.TRUST_PROXY > 0) app.set("trust proxy", env.TRUST_PROXY);
+  const limit = createRateLimiters({
+    redis,
+    logger,
+    prefix: `devflow:${env.NODE_ENV}:rl:`,
+    ...(deps.rateLimits !== undefined && { rules: deps.rateLimits }),
+  });
 
   app.use(requestLogger(logger));
   // upgrade-insecure-requests would break the Swagger UI assets when served over plain http.
   app.use(helmet({ contentSecurityPolicy: { directives: { upgradeInsecureRequests: null } } }));
-  app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
+  // The frontend is cross-origin: without exposedHeaders its JavaScript could not read these.
+  app.use(cors({ origin: env.CORS_ORIGIN, credentials: true, exposedHeaders: EXPOSED_HEADERS }));
   // Before express.json: webhook signatures cover the raw body. Outside `api`: no Origin check.
   app.use(
     `${API_PREFIX}/integrations/github`,
+    limit.webhook,
     createGitHubRouter({
       github: services.github,
       secret: deps.features.githubIntegration ? (env.GITHUB_WEBHOOK_SECRET ?? null) : null,
@@ -58,7 +76,15 @@ export function createApp(deps: AppDeps): Express {
 
   const api = express.Router();
   api.use(originCheck(env.CORS_ORIGIN));
+  // Health checks come before the limits: probes must never be throttled.
   api.use("/health", createHealthRouter({ prisma, redis }));
+  api.use(limit.api);
+  api.post("/auth/login", limit.auth, limit.login);
+  api.post(["/auth/signup", "/auth/password/forgot", "/auth/password/reset"], limit.auth);
+  api.get("/auth/oauth/:provider", limit.auth);
+  api.post("/auth/refresh", limit.refresh);
+  api.post(["/workspace/invites", "/workspace/invites/:id/resend"], limit.invites);
+  api.use("/invites", limit.inviteTokens);
   api.use("/config", createConfigRouter({ config: services.config }));
   api.use("/bootstrap", createBootstrapRouter({ bootstrap: services.bootstrap, ...withAuth }));
   api.use("/projects/:key/issues", createProjectIssuesRouter({ issues: services.issues, ...withAuth }));

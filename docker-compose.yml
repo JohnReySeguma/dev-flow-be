@@ -14,6 +14,10 @@ services:
     environment:
       # Overrides for the container network; everything else comes from .env.
       NODE_ENV: production
+      # Production requires these to be chosen explicitly. This stack is for review, so it keeps the
+      # demo data and logged emails unless .env says otherwise.
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-console}
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/devflow
       REDIS_URL: redis://redis:6379
       GITHUB_APP_PRIVATE_KEY_PATH: /run/secrets/github-app.pem
@@ -35,7 +39,9 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: devflow
     ports:
-      - "5432:5432" # published so `npm run dev` and `npm test` on the host can connect
+      # Published on localhost only, so `npm run dev` and `npm test` on the host can connect but other
+      # machines cannot (Docker's port publishing bypasses host firewalls).
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -50,7 +56,7 @@ services:
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redisdata:/data
     healthcheck:

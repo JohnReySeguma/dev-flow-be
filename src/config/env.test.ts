@@ -35,6 +35,22 @@ describe("parseEnv", () => {
     expect(env.SEED_DEMO_DATA).toBe(false);
   });
 
+  it("normalises URLs written with a trailing slash", () => {
+    const env = parseEnv({ ...required, CORS_ORIGIN: "https://app.example/", API_URL: "https://api.example/" });
+
+    expect(env.CORS_ORIGIN).toBe("https://app.example");
+    expect(env.API_URL).toBe("https://api.example");
+  });
+
+  it("makes production choose the demo seed and email provider explicitly", () => {
+    const production = () => parseEnv({ ...required, NODE_ENV: "production" });
+    expect(production).toThrow(/SEED_DEMO_DATA: must be set/);
+    expect(production).toThrow(/EMAIL_PROVIDER: must be set/);
+
+    const env = parseEnv({ ...required, NODE_ENV: "production", SEED_DEMO_DATA: "false", EMAIL_PROVIDER: "console" });
+    expect(env).toMatchObject({ SEED_DEMO_DATA: false, EMAIL_PROVIDER: "console" });
+  });
+
   it("names every missing required variable", () => {
     expect(() => parseEnv({})).toThrow(EnvError);
     expect(() => parseEnv({})).toThrow(/DATABASE_URL: /);

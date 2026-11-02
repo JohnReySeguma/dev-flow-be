@@ -112,7 +112,7 @@ A thin `fetch` wrapper; every API call goes through it.
 | `v0.4.0` ✅ | `v1.4.0`         | `/bootstrap`, project snapshot, projects, workflow statuses, issues, ranking, comments (§4.5); keep sprint actions local until `v0.5.0`.                                                                                                                                  |
 | `v0.5.0` ✅ | `v1.5.0`         | Sprint lifecycle and reports (burndown, velocity, history).                                                                                                                                                                                                               |
 | `v0.6.0` ✅ | `v1.6.0`         | Live Sync over Socket.IO: join the project room, apply events, ignore your own `actorId`, re-fetch the snapshot after reconnecting; presence avatars; `Issue.git` badges.                                                                                                 |
-| `v1.0.0`    | `v2.0.0`         | `RATE_LIMITED` handling, final contract review; API mode becomes the default.                                                                                                                                                                                             |
+| `v1.0.0` ✅ | `v2.0.0`         | `RATE_LIMITED` handling (INTEGRATION §4.1), final contract review; API mode becomes the default.                                                                                                                                                                          |
 
 Each API release's `CHANGELOG.md` entry has a **Frontend impact** section that is the authoritative list for that
 step. Exact paths, payloads and examples are in `INTEGRATION.md` and Swagger UI.

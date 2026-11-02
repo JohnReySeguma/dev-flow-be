@@ -37,6 +37,15 @@ describe("connecting", () => {
     expect(error).toMatchObject({ data: { code: "UNAUTHENTICATED" } });
   });
 
+  it("refuses a malformed cookie without crashing, and keeps serving", async () => {
+    const error = await connected(client({ cookie: "devflow_access=%E0%A4%A", origin: FRONTEND_ORIGIN })).catch(
+      (e: unknown) => e,
+    );
+
+    expect(error).toMatchObject({ data: { code: "UNAUTHENTICATED" } });
+    await expect(connected(client({ cookie, origin: FRONTEND_ORIGIN }))).resolves.toBeUndefined();
+  });
+
   it("refuses a session cookie sent from another site", async () => {
     await expect(connected(client({ cookie, origin: "https://evil.example" }))).rejects.toBeDefined();
   });

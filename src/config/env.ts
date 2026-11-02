@@ -11,13 +11,24 @@ export const envSchema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
     PORT: z.coerce.number().int().min(1).max(65_535).default(4000),
+    /** Reduced to an origin: browsers send "https://app.example", never a trailing slash or path. */
     CORS_ORIGIN: z
       .url({ error: "must be the frontend URL, e.g. http://localhost:3000" })
-      .default("http://localhost:3000"),
+      .default("http://localhost:3000")
+      .transform((url) => new URL(url).origin),
     /** Public base URL of this API, used for OAuth callback URLs. */
-    API_URL: z.url({ error: "must be the API base URL, e.g. http://localhost:4000" }).default("http://localhost:4000"),
+    API_URL: z
+      .url({ error: "must be the API base URL, e.g. http://localhost:4000" })
+      .default("http://localhost:4000")
+      .transform((url) => url.replace(/\/+$/, "")),
+    /**
+     * Reverse proxies in front of the API (0 = none). Set it behind a load balancer or TLS proxy so
+     * rate limits and logs see the client's IP from X-Forwarded-For instead of the proxy's.
+     */
+    TRUST_PROXY: z.coerce.number().int().min(0).max(10).default(0),
     JWT_SECRET: z.string({ error: "is required" }).min(32, "must be at least 32 characters"),
-    SEED_DEMO_DATA: booleanString.default(true),
+    /** Defaults to true, except in production, where it must be set (see the check below). */
+    SEED_DEMO_DATA: booleanString.optional(),
 
     DATABASE_URL: postgresUrl,
     TEST_DATABASE_URL: postgresUrl.optional(),
@@ -33,7 +44,8 @@ export const envSchema = z
     GITHUB_APP_PRIVATE_KEY_PATH: z.string().optional(),
     GITHUB_WEBHOOK_SECRET: z.string().optional(),
 
-    EMAIL_PROVIDER: z.enum(["console", "smtp", "resend"]).default("console"),
+    /** Defaults to console, except in production, where it must be set (see the check below). */
+    EMAIL_PROVIDER: z.enum(["console", "smtp", "resend"]).optional(),
     SMTP_HOST: z.string().optional(),
     SMTP_PORT: z.coerce.number().int().min(1).max(65_535).default(465),
     SMTP_USER: z.string().optional(),
@@ -53,7 +65,31 @@ export const envSchema = z
         if (!env[key]) ctx.addIssue({ code: "custom", path: [key], message: "is required when EMAIL_PROVIDER=smtp" });
       }
     }
-  });
+    // The development defaults are unsafe on a real deployment: the demo seed creates accounts whose
+    // password is published, and the console provider logs live reset and invite links. In
+    // production they must be chosen on purpose (docker-compose.yml opts in for the review stack).
+    if (env.NODE_ENV === "production") {
+      if (env.SEED_DEMO_DATA === undefined) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["SEED_DEMO_DATA"],
+          message: "must be set when NODE_ENV=production (true seeds demo accounts with a published password)",
+        });
+      }
+      if (env.EMAIL_PROVIDER === undefined) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["EMAIL_PROVIDER"],
+          message: "must be set when NODE_ENV=production (console writes reset and invite links to the log)",
+        });
+      }
+    }
+  })
+  .transform((env) => ({
+    ...env,
+    SEED_DEMO_DATA: env.SEED_DEMO_DATA ?? true,
+    EMAIL_PROVIDER: env.EMAIL_PROVIDER ?? "console",
+  }));
 
 export type Env = z.infer<typeof envSchema>;
 
