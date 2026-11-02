@@ -88,7 +88,11 @@ export function createApp({ env, features, logger, prisma, redis, email, fetch: 
   api.use("/config", createConfigRouter({ features }));
   api.use(
     "/workspace",
-    createWorkspaceRouter({ workspace: createWorkspaceService({ workspaces }), requireAuth: authenticated }),
+    createWorkspaceRouter({
+      workspace: createWorkspaceService({ workspaces }),
+      requireAuth: authenticated,
+      requireSession,
+    }),
   );
   api.use("/me/tokens", createTokensRouter({ tokens, requireAuth: authenticated, requireSession }));
   api.use("/me", createMeRouter({ users: createUsersService(users), requireAuth: authenticated, requireSession }));

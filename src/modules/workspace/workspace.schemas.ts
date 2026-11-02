@@ -41,5 +41,10 @@ export const teamMemberPage = pageOf(teamMember).meta({
   example: { items: [teamMember.meta()?.example], nextCursor: null },
 });
 
+export const changeRoleBody = z
+  .object({ role: roleSchema })
+  .meta({ id: "ChangeRoleRequest", example: { role: "viewer" } });
+
 export type WorkspaceView = z.infer<typeof workspaceResponse>;
+export type ChangeRoleInput = z.infer<typeof changeRoleBody>;
 export type TeamMember = z.infer<typeof teamMember>;

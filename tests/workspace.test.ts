@@ -101,3 +101,108 @@ describe("GET /api/v1/workspace/members", () => {
     expect(seen.at(-1)).toBe("grace@acme.dev");
   });
 });
+
+describe("managing members", () => {
+  const idOf = (email: string) => prisma.user.findUniqueOrThrow({ where: { email } }).then((u) => u.id);
+  const admin = async () => asBrowser(app, await signIn(app, "demo@devflow.local"));
+
+  it("lets an admin change a member's role, effective on the member's next request", async () => {
+    const memberCookie = await signIn(app, "member@devflow.local");
+    const dmitri = await idOf("member@devflow.local");
+
+    const res = await (await admin()).patch(`/api/v1/workspace/members/${dmitri}`).send({ role: "viewer" });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ email: "member@devflow.local", role: "viewer", status: "active" });
+    expect((await asBrowser(app, memberCookie).get("/api/v1/workspace")).body.role).toBe("viewer");
+  });
+
+  it("forbids changing your own role", async () => {
+    const res = await (await admin()).patch(`/api/v1/workspace/members/${await idOf("demo@devflow.local")}`).send({
+      role: "member",
+    });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe("CANNOT_CHANGE_OWN_ROLE");
+  });
+
+  it("answers LAST_ADMIN when two admins race to demote each other", async () => {
+    await prisma.user.updateMany({
+      where: { role: "admin", NOT: { email: "demo@devflow.local" } },
+      data: { role: "member" },
+    });
+    await prisma.user.update({ where: { email: "aiko@acme.dev" }, data: { role: "admin" } });
+    const john = asBrowser(app, await signIn(app, "demo@devflow.local"));
+    const aiko = asBrowser(app, await signIn(app, "aiko@acme.dev"));
+
+    const results = await Promise.all([
+      john.patch(`/api/v1/workspace/members/${await idOf("aiko@acme.dev")}`).send({ role: "member" }),
+      aiko.patch(`/api/v1/workspace/members/${await idOf("demo@devflow.local")}`).send({ role: "member" }),
+    ]);
+
+    expect(results.map((r) => r.status).sort()).toEqual([200, 409]);
+    expect(await prisma.user.count({ where: { role: "admin" } })).toBe(1);
+  });
+
+  it("removes a member together with their sessions and tokens", async () => {
+    const lucasCookie = await signIn(app, "viewer@devflow.local");
+    const lucas = await idOf("viewer@devflow.local");
+
+    const res = await (await admin()).delete(`/api/v1/workspace/members/${lucas}`);
+
+    expect(res.status).toBe(204);
+    expect(await prisma.user.findUnique({ where: { id: lucas } })).toBeNull();
+    expect((await asBrowser(app, lucasCookie).get("/api/v1/workspace")).status).toBe(401);
+  });
+
+  it("forbids removing yourself", async () => {
+    const res = await (await admin()).delete(`/api/v1/workspace/members/${await idOf("demo@devflow.local")}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe("CANNOT_REMOVE_SELF");
+  });
+
+  it("changes and revokes pending invites through the same endpoints", async () => {
+    const workspace = await prisma.workspace.findFirstOrThrow();
+    const invite = await prisma.workspaceInvite.create({
+      data: {
+        workspaceId: workspace.id,
+        email: "grace@acme.dev",
+        role: "member",
+        tokenHash: "z".repeat(64),
+        expiresAt: new Date(Date.now() + 86_400_000),
+      },
+    });
+    const browser = await admin();
+
+    expect((await browser.patch(`/api/v1/workspace/members/${invite.id}`).send({ role: "viewer" })).body).toMatchObject(
+      {
+        status: "invited",
+        role: "viewer",
+      },
+    );
+    expect((await browser.delete(`/api/v1/workspace/members/${invite.id}`)).status).toBe(204);
+    expect(await prisma.workspaceInvite.count()).toBe(0);
+  });
+
+  it("is admin-only and session-only", async () => {
+    const dmitri = await idOf("member@devflow.local");
+    const asMember = asBrowser(app, await signIn(app, "member@devflow.local"));
+
+    const res = await asMember.patch(`/api/v1/workspace/members/${dmitri}`).send({ role: "admin" });
+
+    expect(res.status).toBe(403);
+    expect(res.body.detail).toBe("This action needs the admin role.");
+  });
+
+  it("is 404 for an unknown or malformed id and 422 for an unknown role", async () => {
+    const browser = await admin();
+
+    expect((await browser.delete("/api/v1/workspace/members/0193f1c2-0000-7000-8000-000000000999")).status).toBe(404);
+    expect((await browser.delete("/api/v1/workspace/members/nope")).status).toBe(404);
+    expect(
+      (await browser.patch(`/api/v1/workspace/members/${await idOf("member@devflow.local")}`).send({ role: "owner" }))
+        .status,
+    ).toBe(422);
+  });
+});

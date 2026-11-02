@@ -72,6 +72,7 @@
               "INVALID_CREDENTIALS",
               "FORBIDDEN",
               "CANNOT_CHANGE_OWN_ROLE",
+              "CANNOT_REMOVE_SELF",
               "NOT_FOUND",
               "EMAIL_TAKEN",
               "PROJECT_KEY_TAKEN",
@@ -759,6 +760,25 @@
           "role": "member",
           "status": "active",
           "lastActiveAt": "2026-10-31T22:40:00.000Z"
+        }
+      },
+      "ChangeRoleRequest": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "member",
+              "viewer"
+            ]
+          }
+        },
+        "required": [
+          "role"
+        ],
+        "example": {
+          "role": "viewer"
         }
       }
     },
@@ -1566,6 +1586,100 @@
                 }
               }
             }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspace/members/{id}": {
+      "patch": {
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "Change a member's or invite's role",
+        "description": "Admins only, signed-in session only. Errors: 403 CANNOT_CHANGE_OWN_ROLE, 409 LAST_ADMIN (demoting the last active admin), 404 NOT_FOUND. Last write wins: no If-Match.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeRoleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated member.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamMember"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "Remove a member or revoke an invite",
+        "description": "Admins only, signed-in session only. Removing a member deletes their account, sessions and access tokens immediately; there is no undo. Errors: 403 CANNOT_REMOVE_SELF, 409 LAST_ADMIN, 404 NOT_FOUND.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed."
           },
           "default": {
             "description": "Error, as RFC 9457 problem details.",

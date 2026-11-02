@@ -12,6 +12,7 @@ export const ERROR_CATALOGUE = {
   INVALID_CREDENTIALS: { status: 401, title: "Invalid email or password" },
   FORBIDDEN: { status: 403, title: "Not allowed" },
   CANNOT_CHANGE_OWN_ROLE: { status: 403, title: "You cannot change your own role" },
+  CANNOT_REMOVE_SELF: { status: 403, title: "You cannot remove yourself" },
   NOT_FOUND: { status: 404, title: "Resource not found" },
   EMAIL_TAKEN: { status: 409, title: "Email already registered" },
   PROJECT_KEY_TAKEN: { status: 409, title: "Project key already in use" },

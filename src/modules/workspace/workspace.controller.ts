@@ -1,6 +1,7 @@
 import type { Request, RequestHandler } from "express";
 import type { PaginationQuery } from "../../lib/pagination.js";
 import { authOf } from "../../middleware/require-auth.js";
+import type { ChangeRoleInput } from "./workspace.schemas.js";
 import type { WorkspaceService } from "./workspace.service.js";
 
 // validate({ query: paginationQuery }) has already replaced req.query with the parsed value.
@@ -15,5 +16,15 @@ export function createWorkspaceController(workspace: WorkspaceService) {
     res.set("Cache-Control", "no-store").json(await workspace.listMembers(authOf(req), validatedQuery(req)));
   };
 
-  return { get, listMembers };
+  const changeRole: RequestHandler = async (req, res) => {
+    const { role } = req.body as ChangeRoleInput;
+    res.json(await workspace.changeRole(authOf(req), String(req.params.id), role));
+  };
+
+  const remove: RequestHandler = async (req, res) => {
+    await workspace.remove(authOf(req), String(req.params.id));
+    res.status(204).end();
+  };
+
+  return { get, listMembers, changeRole, remove };
 }
