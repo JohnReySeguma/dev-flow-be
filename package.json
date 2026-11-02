@@ -5,10 +5,17 @@
   "description": "REST and realtime API for DevFlow, a sprint-based issue tracker",
   "license": "UNLICENSED",
   "author": "John Rey Seguma",
-  "type": "commonjs",
-  "main": "index.js",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run"
   },
   "dependencies": {
     "@octokit/app": "^16.1.4",
@@ -21,12 +28,22 @@
     "socket.io": "^4.8.4"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
-    "@types/node": "^26.6.6",
+    "@types/node": "^22.20.5",
     "@types/nodemailer": "^8.0.2",
+    "eslint": "^10.14.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.14.0",
+    "prettier": "^3.9.10",
     "tsx": "^4.23.15",
-    "typescript": "^7.0.2"
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.1",
+    "vitest": "^5.0.5"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
   }
 }
