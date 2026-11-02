@@ -66,6 +66,8 @@ curl http://localhost:4000/api/v1/health/ready   # {"status":"ok",...}
   ```
 
 - Commit `lib/api/schema.d.ts`. Bump the tag in the script whenever you integrate a new API release.
+- The frontend repo also keeps a readable snapshot of the spec at `docs/openapi.json`, refreshed from the same tag at
+  each integration step. The API repo's copy stays the source of truth.
 - Data shapes match `lib/tracker/types.ts` field for field. If a generated type and a hand-written one disagree,
   report it.
 

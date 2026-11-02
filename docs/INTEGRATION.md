@@ -175,6 +175,9 @@ API. Nothing to store in `localStorage`; just send `credentials: "include"`.
 `localhost:3000` and `localhost:4000` are the same site, so the cookies flow between them. Chrome and Firefox accept
 `Secure` cookies on `http://localhost`; if your browser does not, use one of those for local development.
 
+The access cookie is deliberately scoped to `/api/v1`, so the frontend's own server never receives it. Everything
+that needs the session therefore lives under `/api/v1`, including the realtime endpoint (§6).
+
 ### 5.3 Expiry and refresh
 
 1. A request answers `401` with `code: "TOKEN_EXPIRED"`.
@@ -243,7 +246,12 @@ the issue and project endpoints as those arrive (`v0.4.0`+).
 
 ## 6. Realtime
 
-Ships in `v0.6.0` (Socket.IO namespace `/realtime`). No events yet.
+Ships in `v0.6.0`. No events yet. Decided so far: Socket.IO is mounted at **`/api/v1/socket.io`** (not the default
+`/socket.io`) so the handshake carries the `/api/v1`-scoped session cookie. Connect with:
+
+```ts
+io("http://localhost:4000/realtime", { path: "/api/v1/socket.io", withCredentials: true });
+```
 
 ## 7. Demo data and accounts
 
