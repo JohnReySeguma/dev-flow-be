@@ -409,6 +409,39 @@
           "token": "Zq3nXl0w8bJ7r2mYc5dV1aKf9sHt4uPo6eLgQiWjNxE",
           "password": "a new long password"
         }
+      },
+      "UpdateProfileRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 48
+          },
+          "gradient": {
+            "type": "string",
+            "enum": [
+              "from-violet-500 to-indigo-600",
+              "from-rose-500 to-orange-500",
+              "from-sky-500 to-cyan-500",
+              "from-emerald-500 to-teal-600",
+              "from-amber-500 to-yellow-600",
+              "from-fuchsia-500 to-pink-600"
+            ]
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "bio": {
+            "type": "string",
+            "maxLength": 280
+          }
+        },
+        "description": "Only these fields can change; email, handle and role cannot.",
+        "example": {
+          "timezone": "Asia/Manila",
+          "bio": "Owns the board and realtime sync."
+        }
       }
     },
     "parameters": {}
@@ -860,6 +893,112 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AuthMe"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me": {
+      "get": {
+        "tags": [
+          "Profile"
+        ],
+        "summary": "Your profile",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The signed-in user.",
+            "headers": {
+              "ETag": {
+                "description": "Version of the profile; send it back as If-Match.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Profile"
+        ],
+        "summary": "Update your profile",
+        "description": "Any of name (max 48), gradient (one of the frontend AVATAR_GRADIENTS), timezone (IANA) and bio (max 280). Send If-Match with the ETag you read to get 412 CONFLICT_STALE instead of overwriting a newer change.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "ETag from GET /me."
+            },
+            "required": false,
+            "description": "ETag from GET /me.",
+            "name": "If-Match",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProfileRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated profile.",
+            "headers": {
+              "ETag": {
+                "description": "Version of the profile; send it back as If-Match.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
                 }
               }
             }

@@ -41,3 +41,22 @@ export const userProfile = z
   });
 
 export type UserProfile = z.infer<typeof userProfile>;
+
+const TIMEZONES = new Set([...Intl.supportedValuesOf("timeZone"), "UTC"]);
+
+export const updateProfileBody = z
+  .object({
+    name: z.string().trim().min(1, "Name is required.").max(48, "Use at most 48 characters."),
+    gradient: z.enum(AVATAR_GRADIENTS, { error: "Pick one of the offered avatar colours." }),
+    timezone: z.string().refine((value) => TIMEZONES.has(value), "Pick a valid IANA timezone, e.g. Asia/Manila."),
+    bio: z.string().trim().max(280, "Use at most 280 characters."),
+  })
+  .partial()
+  .refine((body) => Object.keys(body).length > 0, "Send at least one of name, gradient, timezone or bio.")
+  .meta({
+    id: "UpdateProfileRequest",
+    description: "Only these fields can change; email, handle and role cannot.",
+    example: { timezone: "Asia/Manila", bio: "Owns the board and realtime sync." },
+  });
+
+export type UpdateProfileInput = z.infer<typeof updateProfileBody>;

@@ -3,6 +3,7 @@ import pkg from "../../package.json" with { type: "json" };
 import { registerAuthDocs } from "../modules/auth/auth.openapi.js";
 import { registerConfigDocs } from "../modules/config/config.openapi.js";
 import { registerHealthDocs } from "../modules/health/health.openapi.js";
+import { registerUsersDocs } from "../modules/users/users.openapi.js";
 
 /** Assembles the OpenAPI 3.1 document from every module's Zod schemas. */
 export function buildOpenApiDocument() {
@@ -17,6 +18,7 @@ export function buildOpenApiDocument() {
   registerHealthDocs(registry);
   registerConfigDocs(registry);
   registerAuthDocs(registry);
+  registerUsersDocs(registry);
 
   return new OpenApiGeneratorV31(registry.definitions).generateDocument({
     openapi: "3.1.0",

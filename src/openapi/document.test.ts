@@ -19,6 +19,7 @@ describe("OpenAPI document", () => {
       "/config",
       "/health",
       "/health/ready",
+      "/me",
     ]);
   });
 

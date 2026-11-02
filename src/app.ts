@@ -23,6 +23,8 @@ import { createPasswordResetService } from "./modules/auth/password-reset.servic
 import { createConfigRouter } from "./modules/config/config.routes.js";
 import { createHealthRouter } from "./modules/health/health.routes.js";
 import { createUsersRepository } from "./modules/users/users.repository.js";
+import { createMeRouter } from "./modules/users/users.routes.js";
+import { createUsersService } from "./modules/users/users.service.js";
 import { createWorkspaceRepository } from "./modules/workspace/workspace.repository.js";
 import { buildOpenApiDocument } from "./openapi/document.js";
 
@@ -77,6 +79,7 @@ export function createApp({ env, features, logger, prisma, redis, email, fetch: 
   api.use(originCheck(env.CORS_ORIGIN));
   api.use("/health", createHealthRouter({ prisma, redis }));
   api.use("/config", createConfigRouter({ features }));
+  api.use("/me", createMeRouter({ users: createUsersService(users), requireAuth: authenticated }));
   api.use(
     "/auth",
     createAuthRouter({ auth, passwords, oauth, frontendUrl: env.CORS_ORIGIN, requireAuth: authenticated }),
