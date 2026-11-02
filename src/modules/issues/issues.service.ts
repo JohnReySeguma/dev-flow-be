@@ -4,9 +4,13 @@ import type { IssueEventKind, StatusCategory } from "../../generated/prisma/clie
 import { AppError, type FieldError } from "../../lib/errors.js";
 import { ifMatchSatisfied, versionTag } from "../../lib/etag.js";
 import type { Page } from "../../lib/pagination.js";
+import { Prisma } from "../../generated/prisma/client.js";
+import type { IssueRef } from "../../integrations/github/webhook.js";
+import type { EventBus } from "../../realtime/events.js";
 import type { AuthContext } from "../auth/auth.types.js";
 import type { ProjectsService } from "../projects/projects.service.js";
-import { toIssueView } from "./issues.mapper.js";
+import { issueKeyOf, toIssueView } from "./issues.mapper.js";
+import { gitLink } from "./issues.schemas.js";
 import type { IssueFilters, IssuesRepository, IssueWithContext, IssueWrite, RankCursor } from "./issues.repository.js";
 import type {
   CreateIssueInput,
@@ -17,6 +21,11 @@ import type {
 } from "./issues.schemas.js";
 
 export type VersionedIssue = { issue: IssueView; etag: string };
+
+/** What happened on GitHub, reduced to what DevFlow records. */
+export type GitActivity =
+  | { kind: "pr"; number: number; state: "open" | "draft" | "merged"; closedUnmerged: boolean }
+  | { kind: "commit"; sha: string };
 
 type Tx = Parameters<Parameters<IssuesRepository["transaction"]>[0]>[0];
 
@@ -57,8 +66,32 @@ function decodeRankCursor(cursor: string): RankCursor {
   }
 }
 
-export function createIssuesService(deps: { issues: IssuesRepository; projects: ProjectsService }) {
-  const { issues, projects } = deps;
+export function createIssuesService(deps: { issues: IssuesRepository; projects: ProjectsService; events: EventBus }) {
+  const { issues, projects, events } = deps;
+
+  /** Live Sync: tells the project's room, after the change committed. */
+  const announce = (
+    event: "issue.created" | "issue.updated",
+    result: VersionedIssue,
+    projectKey: string,
+    actorId: string | null,
+  ) => {
+    events.publish(result.issue.projectId, event, { projectKey, actorId, issue: result.issue });
+  };
+
+  /**
+   * issue.moved also says where the issue now ranks, the way a move request does: the issue it
+   * sits before, or null when it is last. Clients don't see ranks, so they need this to re-order.
+   */
+  async function announceMoved(moved: IssueWithContext, actorId: string | null) {
+    const after = await issues.issueAfter(moved.projectId, moved);
+    events.publish(moved.projectId, "issue.moved", {
+      projectKey: moved.project.key,
+      actorId,
+      issue: versioned(moved).issue,
+      beforeIssueKey: after ? `${moved.project.key}-${after.number}` : null,
+    });
+  }
 
   /** Checks that referenced statuses, sprints and assignees belong to this project and workspace. */
   async function checkReferences(
@@ -87,7 +120,7 @@ export function createIssuesService(deps: { issues: IssuesRepository; projects: 
     return status;
   }
 
-  async function record(tx: Tx, issue: IssueWithContext, kind: IssueEventKind, actorId: string) {
+  async function record(tx: Tx, issue: IssueWithContext, kind: IssueEventKind, actorId: string | null) {
     await tx.recordEvent({
       issueId: issue.id,
       projectId: issue.projectId,
@@ -168,7 +201,7 @@ export function createIssuesService(deps: { issues: IssuesRepository; projects: 
     /** New issues take the next number and go to the top of the project's ranking. */
     async create(auth: AuthContext, projectKey: string, input: CreateIssueInput): Promise<VersionedIssue> {
       const project = await projects.find(auth, projectKey);
-      return issues.transaction(async (tx) => {
+      const result = await issues.transaction(async (tx) => {
         const chosen = await checkReferences(tx, auth, project.id, {
           ...(input.statusId !== undefined && { statusId: input.statusId }),
           sprintId: input.sprintId,
@@ -195,6 +228,8 @@ export function createIssuesService(deps: { issues: IssuesRepository; projects: 
         await record(tx, issue, "created", auth.userId);
         return versioned(issue);
       });
+      announce("issue.created", result, project.key, auth.userId);
+      return result;
     },
 
     /** With `ifMatch`, rejects the change (412) if the issue changed since the client read it. */
@@ -212,7 +247,7 @@ export function createIssuesService(deps: { issues: IssuesRepository; projects: 
         throw stale();
       }
 
-      return issues.transaction(async (tx) => {
+      const result = await issues.transaction(async (tx) => {
         const status = await checkReferences(tx, auth, current.projectId, {
           ...(input.statusId !== undefined && { statusId: input.statusId }),
           ...(input.sprintId !== undefined && { sprintId: input.sprintId }),
@@ -234,6 +269,8 @@ export function createIssuesService(deps: { issues: IssuesRepository; projects: 
         if (updated.estimate !== current.estimate) await record(tx, updated, "estimate", auth.userId);
         return versioned(updated);
       });
+      announce("issue.updated", result, current.project.key, auth.userId);
+      return result;
     },
 
     /**
@@ -254,7 +291,7 @@ export function createIssuesService(deps: { issues: IssuesRepository; projects: 
         throw invalid("beforeIssueKey", "Pick another issue of the same project.");
       }
 
-      return issues.transaction(async (tx) => {
+      const moved = await issues.transaction(async (tx) => {
         await tx.lockProject(current.projectId);
         const status = await checkReferences(tx, auth, current.projectId, {
           ...(input.statusId !== undefined && { statusId: input.statusId }),
@@ -279,16 +316,78 @@ export function createIssuesService(deps: { issues: IssuesRepository; projects: 
           data.statusId = status.id;
           data.resolvedAt = nextResolvedAt(current.resolvedAt, current.status.category, status.category, new Date());
         }
-        const moved = await tx.update(current.id, data);
-        if (!moved) throw new AppError("NOT_FOUND", `No issue ${issueKey}.`);
-        if (moved.statusId !== current.statusId) await record(tx, moved, "status", auth.userId);
-        if (moved.sprintId !== current.sprintId) await record(tx, moved, "sprint", auth.userId);
-        return versioned(moved);
+        const updated = await tx.update(current.id, data);
+        if (!updated) throw new AppError("NOT_FOUND", `No issue ${issueKey}.`);
+        if (updated.statusId !== current.statusId) await record(tx, updated, "status", auth.userId);
+        if (updated.sprintId !== current.sprintId) await record(tx, updated, "sprint", auth.userId);
+        return updated;
       });
+      await announceMoved(moved, auth.userId);
+      return versioned(moved);
     },
 
     async remove(auth: AuthContext, issueKey: string, projectKey?: string): Promise<void> {
-      await issues.delete((await find(auth, issueKey, projectKey)).id);
+      const issue = await find(auth, issueKey, projectKey);
+      await issues.delete(issue.id);
+      events.publish(issue.projectId, "issue.deleted", {
+        projectKey: issue.project.key,
+        actorId: auth.userId,
+        issueKey: issueKeyOf(issue),
+      });
+    },
+
+    /**
+     * Applies GitHub activity to the issues it mentions, as the system (actorId null). A pull
+     * request links (or, closed unmerged, unlinks) itself and, once merged, moves the issue to the
+     * project's first done status; a commit links only issues without a pull request link.
+     * Unknown keys are ignored. Returns the keys of the issues that changed.
+     */
+    async applyGitActivity(workspaceId: string, refs: IssueRef[], activity: GitActivity): Promise<string[]> {
+      const changed: string[] = [];
+      for (const ref of refs) {
+        const project = await projects.findInWorkspace(workspaceId, ref.projectKey);
+        const current = project ? await issues.findByNumber(project.id, ref.number) : null;
+        if (!current) continue;
+        const linked = gitLink.safeParse(current.git);
+        const currentLink = linked.success ? linked.data : null;
+
+        const data: IssueWrite = {};
+        if (activity.kind === "pr") {
+          if (activity.closedUnmerged) {
+            if (currentLink?.kind === "pr" && currentLink.number === activity.number) data.git = Prisma.DbNull;
+          } else {
+            data.git = { kind: "pr", number: activity.number, state: activity.state };
+          }
+        } else if (currentLink?.kind !== "pr") {
+          data.git = { kind: "commit", sha: activity.sha };
+        }
+
+        const result = await issues.transaction(async (tx) => {
+          if (activity.kind === "pr" && activity.state === "merged" && current.status.category !== "done") {
+            const done = await tx.firstDoneStatus(current.projectId);
+            if (done) {
+              data.statusId = done.id;
+              data.resolvedAt = nextResolvedAt(current.resolvedAt, current.status.category, done.category, new Date());
+            }
+          }
+          if (Object.keys(data).length === 0) return null;
+          const updated = await tx.update(current.id, data);
+          if (updated && updated.statusId !== current.statusId) await record(tx, updated, "status", null);
+          return updated;
+        });
+        if (!result) continue;
+        if (result.statusId === current.statusId)
+          announce("issue.updated", versioned(result), result.project.key, null);
+        else await announceMoved(result, null);
+        changed.push(issueKeyOf(result));
+      }
+      return changed;
+    },
+
+    /** Re-reads an issue another module changed (e.g. its comment count) and announces it. */
+    async announceUpdated(issue: IssueWithContext, actorId: string | null): Promise<void> {
+      const fresh = await issues.findByNumber(issue.projectId, issue.number);
+      if (fresh) announce("issue.updated", versioned(fresh), fresh.project.key, actorId);
     },
   };
 }

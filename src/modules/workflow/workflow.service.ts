@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { AppError } from "../../lib/errors.js";
+import type { EventBus } from "../../realtime/events.js";
 import type { AuthContext } from "../auth/auth.types.js";
 import { nextResolvedAt } from "../issues/issues.service.js";
 import type { ProjectsService, VersionedProject } from "../projects/projects.service.js";
@@ -14,8 +15,12 @@ const invalid = (field: string, message: string) =>
 
 const notFound = () => new AppError("NOT_FOUND", "No status with that id in this project.");
 
-export function createWorkflowService(deps: { workflow: WorkflowRepository; projects: ProjectsService }) {
-  const { workflow, projects } = deps;
+export function createWorkflowService(deps: {
+  workflow: WorkflowRepository;
+  projects: ProjectsService;
+  events: EventBus;
+}) {
+  const { workflow, projects, events } = deps;
 
   /** Runs `change` with the project locked, then returns the project with its new workflow. */
   async function edit(
@@ -29,7 +34,13 @@ export function createWorkflowService(deps: { workflow: WorkflowRepository; proj
       await change(tx, project.id);
       await tx.touchProject(project.id);
     });
-    return projects.get(auth, key);
+    const updated = await projects.get(auth, key);
+    events.publish(project.id, "workflow.updated", {
+      projectKey: project.key,
+      actorId: auth.userId,
+      project: updated.project,
+    });
+    return updated;
   }
 
   return {

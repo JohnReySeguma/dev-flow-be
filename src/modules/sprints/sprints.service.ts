@@ -1,7 +1,9 @@
 import { z } from "zod";
 import { AppError } from "../../lib/errors.js";
 import { decodeNumberCursor, encodeNumberCursor, type Page } from "../../lib/pagination.js";
+import type { EventBus } from "../../realtime/events.js";
 import type { AuthContext } from "../auth/auth.types.js";
+import { toIssueView } from "../issues/issues.mapper.js";
 import type { ProjectsService } from "../projects/projects.service.js";
 import { toSprintView } from "./sprints.mapper.js";
 import type { SprintsRepository, SprintWithProject } from "./sprints.repository.js";
@@ -16,8 +18,22 @@ import type {
 const DAY_MS = 24 * 60 * 60 * 1000;
 const points = (issues: { estimate: number | null }[]) => issues.reduce((sum, i) => sum + (i.estimate ?? 0), 0);
 
-export function createSprintsService(deps: { sprints: SprintsRepository; projects: ProjectsService }) {
-  const { sprints, projects } = deps;
+export function createSprintsService(deps: {
+  sprints: SprintsRepository;
+  projects: ProjectsService;
+  events: EventBus;
+}) {
+  const { sprints, projects, events } = deps;
+
+  /** Live Sync: tells the project's room, after the change committed. */
+  const announce = (
+    event: "sprint.created" | "sprint.updated" | "sprint.started",
+    sprint: SprintView,
+    projectKey: string,
+    actorId: string,
+  ) => {
+    events.publish(sprint.projectId, event, { projectKey, actorId, sprint });
+  };
 
   /** Resolves a sprint id within the caller's workspace, or 404. */
   async function find(auth: AuthContext, id: string): Promise<SprintWithProject> {
@@ -44,21 +60,25 @@ export function createSprintsService(deps: { sprints: SprintsRepository; project
     /** Creates `Sprint {n+1}` in the planned state, as the backlog's "+ Sprint" does. */
     async create(auth: AuthContext, key: string): Promise<SprintView> {
       const project = await projects.find(auth, key);
-      return sprints.transaction(async (tx) => {
+      const sprint = await sprints.transaction(async (tx) => {
         await tx.lockProject(project.id);
         const number = (await tx.highestNumber(project.id)) + 1;
         return toSprintView(await tx.create({ projectId: project.id, number, name: `Sprint ${number}` }));
       });
+      announce("sprint.created", sprint, project.key, auth.userId);
+      return sprint;
     },
 
     async update(auth: AuthContext, id: string, input: UpdateSprintInput): Promise<SprintView> {
       const sprint = await find(auth, id);
-      return toSprintView(
+      const updated = toSprintView(
         await sprints.update(sprint.id, {
           ...(input.name !== undefined && { name: input.name }),
           ...(input.goal !== undefined && { goal: input.goal }),
         }),
       );
+      announce("sprint.updated", updated, sprint.project.key, auth.userId);
+      return updated;
     },
 
     /**
@@ -67,7 +87,7 @@ export function createSprintsService(deps: { sprints: SprintsRepository; project
      */
     async start(auth: AuthContext, id: string, input: StartSprintInput): Promise<SprintView> {
       const found = await find(auth, id);
-      return sprints.transaction(async (tx) => {
+      const started = await sprints.transaction(async (tx) => {
         await tx.lockProject(found.projectId);
         const sprint = await tx.findInProject(found.projectId, found.id);
         if (sprint?.status !== "planned")
@@ -88,6 +108,8 @@ export function createSprintsService(deps: { sprints: SprintsRepository; project
           }),
         );
       });
+      announce("sprint.started", started, found.project.key, auth.userId);
+      return started;
     },
 
     /**
@@ -100,7 +122,7 @@ export function createSprintsService(deps: { sprints: SprintsRepository; project
       { carryOver }: CompleteSprintInput,
     ): Promise<{ sprint: SprintView; carriedOverTo: SprintView | null }> {
       const found = await find(auth, id);
-      return sprints.transaction(async (tx) => {
+      const result = await sprints.transaction(async (tx) => {
         await tx.lockProject(found.projectId);
         const sprint = await tx.findInProject(found.projectId, found.id);
         if (sprint?.status !== "active")
@@ -147,14 +169,27 @@ export function createSprintsService(deps: { sprints: SprintsRepository; project
             done: false,
           })),
         );
-        return { sprint: toSprintView(completed), carriedOverTo: target ? toSprintView(target) : null };
+        return {
+          sprint: toSprintView(completed),
+          carriedOverTo: target ? toSprintView(target) : null,
+          carriedOverIds: open.map((i) => i.id),
+        };
       });
+      const { carriedOverIds, ...completion } = result;
+      const carried = await sprints.issuesWithContext(carriedOverIds);
+      events.publish(found.projectId, "sprint.completed", {
+        projectKey: found.project.key,
+        actorId: auth.userId,
+        ...completion,
+        issues: carried.map(toIssueView),
+      });
+      return completion;
     },
 
     /** Planned sprints only; their issues return to the backlog. */
     async remove(auth: AuthContext, id: string): Promise<void> {
       const found = await find(auth, id);
-      await sprints.transaction(async (tx) => {
+      const movedIds = await sprints.transaction(async (tx) => {
         await tx.lockProject(found.projectId);
         const sprint = await tx.findInProject(found.projectId, found.id);
         if (sprint?.status !== "planned") {
@@ -177,6 +212,14 @@ export function createSprintsService(deps: { sprints: SprintsRepository; project
           })),
         );
         await tx.delete(sprint.id);
+        return issues.map((i) => i.id);
+      });
+      const moved = await sprints.issuesWithContext(movedIds);
+      events.publish(found.projectId, "sprint.deleted", {
+        projectKey: found.project.key,
+        actorId: auth.userId,
+        sprintId: found.id,
+        issues: moved.map(toIssueView),
       });
     },
   };

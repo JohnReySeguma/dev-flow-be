@@ -3,161 +3,89 @@ import cors from "cors";
 import express, { type Express } from "express";
 import helmet from "helmet";
 import swaggerUi from "swagger-ui-express";
-import type { Env } from "./config/env.js";
-import { resetDemoTracker } from "./demo/seed.js";
-import type { Features } from "./config/features.js";
-import type { EmailProvider } from "./integrations/email/index.js";
-import { createOAuthProviders } from "./integrations/oauth/index.js";
-import type { Logger } from "./lib/logger.js";
-import type { PrismaClient } from "./lib/prisma.js";
-import type { Redis } from "./lib/redis.js";
 import { errorHandler, notFoundHandler } from "./middleware/error-handler.js";
 import { originCheck } from "./middleware/origin-check.js";
 import { requestLogger } from "./middleware/request-logger.js";
 import { requireAuth, requireSession } from "./middleware/require-auth.js";
-import { createAccessTokens } from "./modules/auth/access-token.js";
-import { createAuthRepository } from "./modules/auth/auth.repository.js";
 import { createAuthRouter } from "./modules/auth/auth.routes.js";
-import { createAuthService } from "./modules/auth/auth.service.js";
-import { createOAuthService } from "./modules/auth/oauth.service.js";
-import { createPasswordResetService } from "./modules/auth/password-reset.service.js";
 import { createBootstrapRouter } from "./modules/bootstrap/bootstrap.routes.js";
-import { createBootstrapService } from "./modules/bootstrap/bootstrap.service.js";
-import { createCommentsRepository } from "./modules/comments/comments.repository.js";
 import { createCommentsRouter } from "./modules/comments/comments.routes.js";
-import { createCommentsService } from "./modules/comments/comments.service.js";
 import { createConfigRouter } from "./modules/config/config.routes.js";
-import { createConfigService } from "./modules/config/config.service.js";
+import { createGitHubRouter } from "./modules/github/github.routes.js";
 import { createHealthRouter } from "./modules/health/health.routes.js";
-import { createUsersRepository } from "./modules/users/users.repository.js";
-import { createIssuesRepository } from "./modules/issues/issues.repository.js";
 import { createIssuesRouter, createProjectIssuesRouter } from "./modules/issues/issues.routes.js";
-import { createIssuesService } from "./modules/issues/issues.service.js";
-import { createProjectsRepository } from "./modules/projects/projects.repository.js";
 import { createProjectsRouter } from "./modules/projects/projects.routes.js";
-import { createProjectsService } from "./modules/projects/projects.service.js";
-import { createReportsRepository } from "./modules/reports/reports.repository.js";
 import { createBurndownRouter, createProjectReportsRouter } from "./modules/reports/reports.routes.js";
-import { createReportsService } from "./modules/reports/reports.service.js";
-import { createSprintsRepository } from "./modules/sprints/sprints.repository.js";
 import { createProjectSprintsRouter, createSprintsRouter } from "./modules/sprints/sprints.routes.js";
-import { createSprintsService } from "./modules/sprints/sprints.service.js";
-import { createTokensRepository } from "./modules/tokens/tokens.repository.js";
 import { createTokensRouter } from "./modules/tokens/tokens.routes.js";
-import { createTokensService } from "./modules/tokens/tokens.service.js";
 import { createMeRouter } from "./modules/users/users.routes.js";
-import { createUsersService } from "./modules/users/users.service.js";
-import { createInviteAcceptRouter } from "./modules/workspace/invites.routes.js";
-import { createInvitesService } from "./modules/workspace/invites.service.js";
-import { createWorkflowRepository } from "./modules/workflow/workflow.repository.js";
 import { createWorkflowRouter } from "./modules/workflow/workflow.routes.js";
-import { createWorkflowService } from "./modules/workflow/workflow.service.js";
-import { createWorkspaceRepository } from "./modules/workspace/workspace.repository.js";
+import { createInviteAcceptRouter } from "./modules/workspace/invites.routes.js";
 import { createWorkspaceRouter } from "./modules/workspace/workspace.routes.js";
-import { createWorkspaceService } from "./modules/workspace/workspace.service.js";
 import { buildOpenApiDocument } from "./openapi/document.js";
+import { createServices, type ServiceDeps, type Services } from "./services.js";
 
 export const API_PREFIX = "/api/v1";
 
-export type AppDeps = {
-  env: Env;
-  features: Features;
-  logger: Logger;
-  prisma: PrismaClient;
-  /** Null when REDIS_URL is not set. */
-  redis: Redis | null;
-  email: EmailProvider;
-  /** Used for OAuth provider calls; tests replace it. */
-  fetch?: typeof fetch;
+export type AppDeps = ServiceDeps & {
+  /** Shared with the realtime server; built from the other deps when omitted (e.g. in tests). */
+  services?: Services;
 };
 
 /** Builds the Express app. It never listens, so tests can drive it with Supertest. */
-export function createApp({ env, features, logger, prisma, redis, email, fetch: fetchImpl }: AppDeps): Express {
+export function createApp(deps: AppDeps): Express {
+  const { env, logger, prisma, redis } = deps;
+  const services = deps.services ?? createServices(deps);
   const app = express();
 
   app.use(requestLogger(logger));
   // upgrade-insecure-requests would break the Swagger UI assets when served over plain http.
   app.use(helmet({ contentSecurityPolicy: { directives: { upgradeInsecureRequests: null } } }));
   app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
+  // Before express.json: webhook signatures cover the raw body. Outside `api`: no Origin check.
+  app.use(
+    `${API_PREFIX}/integrations/github`,
+    createGitHubRouter({
+      github: services.github,
+      secret: deps.features.githubIntegration ? (env.GITHUB_WEBHOOK_SECRET ?? null) : null,
+    }),
+  );
   app.use(express.json({ limit: "100kb" }));
   app.use(cookieParser());
 
-  // Composition root: repositories → services, shared by the routers that need them.
-  const users = createUsersRepository(prisma);
-  const workspaces = createWorkspaceRepository(prisma);
-  const sessions = createAuthRepository(prisma);
-  const auth = createAuthService({
-    users,
-    workspaces,
-    sessions,
-    accessTokens: createAccessTokens(env.JWT_SECRET),
-    logger,
-  });
-  const passwords = createPasswordResetService({ users, sessions, email, logger, frontendUrl: env.CORS_ORIGIN });
-  const oauth = createOAuthService({
-    providers: createOAuthProviders(env, fetchImpl),
-    auth,
-    users,
-    sessions,
-    secret: env.JWT_SECRET,
-    apiUrl: env.API_URL,
-    logger,
-  });
-  const tokens = createTokensService(createTokensRepository(prisma));
-  const authenticated = requireAuth({ auth, tokens });
-
-  const config = createConfigService(features);
-  const usersService = createUsersService(users);
-  const workspace = createWorkspaceService({
-    workspaces,
-    ...(env.SEED_DEMO_DATA && { resetDemo: (workspaceId: string) => resetDemoTracker(prisma, workspaceId) }),
-  });
-  const projects = createProjectsService({ projects: createProjectsRepository(prisma) });
-  const issues = createIssuesService({ issues: createIssuesRepository(prisma), projects });
-  const sprints = createSprintsService({ sprints: createSprintsRepository(prisma), projects });
-  const reports = createReportsService({ reports: createReportsRepository(prisma), sprints, projects });
-  const invites = createInvitesService({ workspaces, auth, users, email, logger, frontendUrl: env.CORS_ORIGIN });
+  const authenticated = requireAuth({ auth: services.auth, tokens: services.tokens });
+  const withAuth = { requireAuth: authenticated };
 
   const api = express.Router();
   api.use(originCheck(env.CORS_ORIGIN));
   api.use("/health", createHealthRouter({ prisma, redis }));
-  api.use("/config", createConfigRouter({ config }));
+  api.use("/config", createConfigRouter({ config: services.config }));
+  api.use("/bootstrap", createBootstrapRouter({ bootstrap: services.bootstrap, ...withAuth }));
+  api.use("/projects/:key/issues", createProjectIssuesRouter({ issues: services.issues, ...withAuth }));
+  api.use("/projects/:key/sprints", createProjectSprintsRouter({ sprints: services.sprints, ...withAuth }));
+  api.use("/projects/:key/reports", createProjectReportsRouter({ reports: services.reports, ...withAuth }));
+  api.use("/projects/:key/statuses", createWorkflowRouter({ workflow: services.workflow, ...withAuth }));
+  api.use("/projects", createProjectsRouter({ projects: services.projects, ...withAuth }));
+  api.use("/sprints/:id/burndown", createBurndownRouter({ reports: services.reports, ...withAuth }));
+  api.use("/sprints", createSprintsRouter({ sprints: services.sprints, ...withAuth }));
+  api.use("/issues/:issueKey/comments", createCommentsRouter({ comments: services.comments, ...withAuth }));
+  api.use("/issues", createIssuesRouter({ issues: services.issues, ...withAuth }));
+  api.use("/invites", createInviteAcceptRouter({ invites: services.invites }));
   api.use(
-    "/bootstrap",
-    createBootstrapRouter({
-      bootstrap: createBootstrapService({ users: usersService, workspace, config, projects }),
-      requireAuth: authenticated,
-    }),
+    "/workspace",
+    createWorkspaceRouter({ workspace: services.workspace, invites: services.invites, ...withAuth, requireSession }),
   );
-  api.use("/projects/:key/issues", createProjectIssuesRouter({ issues, requireAuth: authenticated }));
-  api.use("/projects/:key/sprints", createProjectSprintsRouter({ sprints, requireAuth: authenticated }));
-  api.use("/projects/:key/reports", createProjectReportsRouter({ reports, requireAuth: authenticated }));
-  api.use("/sprints/:id/burndown", createBurndownRouter({ reports, requireAuth: authenticated }));
-  api.use("/sprints", createSprintsRouter({ sprints, requireAuth: authenticated }));
-  api.use(
-    "/projects/:key/statuses",
-    createWorkflowRouter({
-      workflow: createWorkflowService({ workflow: createWorkflowRepository(prisma), projects }),
-      requireAuth: authenticated,
-    }),
-  );
-  api.use("/projects", createProjectsRouter({ projects, requireAuth: authenticated }));
-  api.use(
-    "/issues/:issueKey/comments",
-    createCommentsRouter({
-      comments: createCommentsService({ comments: createCommentsRepository(prisma), issues }),
-      requireAuth: authenticated,
-    }),
-  );
-  api.use("/issues", createIssuesRouter({ issues, requireAuth: authenticated }));
-
-  api.use("/invites", createInviteAcceptRouter({ invites }));
-  api.use("/workspace", createWorkspaceRouter({ workspace, invites, requireAuth: authenticated, requireSession }));
-  api.use("/me/tokens", createTokensRouter({ tokens, requireAuth: authenticated, requireSession }));
-  api.use("/me", createMeRouter({ users: usersService, requireAuth: authenticated, requireSession }));
+  api.use("/me/tokens", createTokensRouter({ tokens: services.tokens, ...withAuth, requireSession }));
+  api.use("/me", createMeRouter({ users: services.users, ...withAuth, requireSession }));
   api.use(
     "/auth",
-    createAuthRouter({ auth, passwords, oauth, frontendUrl: env.CORS_ORIGIN, requireAuth: authenticated }),
+    createAuthRouter({
+      auth: services.auth,
+      passwords: services.passwords,
+      oauth: services.oauth,
+      frontendUrl: env.CORS_ORIGIN,
+      ...withAuth,
+    }),
   );
 
   const openApi = buildOpenApiDocument();

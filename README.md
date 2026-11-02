@@ -3,9 +3,9 @@
 REST + realtime API for [DevFlow](https://github.com/JohnReySeguma/dev-flow), a sprint-based issue tracker:
 projects with custom workflows, backlogs, sprints, reports, GitHub integration and Live Sync.
 
-> **Status:** `v0.5.0` — foundation, authentication, the workspace (members, roles, invites) and the tracker:
-> projects, workflows, issues with ranking and comments, the sprint lifecycle and reports (burndown, velocity,
-> history). Realtime, GitHub and hardening arrive milestone by milestone ([`docs/BRIEF.md` §7](docs/BRIEF.md)).
+> **Status:** `v0.6.0` — foundation, authentication, the workspace (members, roles, invites), the tracker
+> (projects, workflows, issues with ranking and comments, the sprint lifecycle and reports), Live Sync over
+> Socket.IO and GitHub webhooks. Hardening arrives in `v1.0.0` ([`docs/BRIEF.md` §7](docs/BRIEF.md)).
 > Frontend integration: the contract is [`docs/INTEGRATION.md`](docs/INTEGRATION.md); the step-by-step plan is
 > [`docs/FRONTEND_BRIEF.md`](docs/FRONTEND_BRIEF.md).
 
@@ -18,6 +18,7 @@ projects with custom workflows, backlogs, sprints, reports, GitHub integration a
 | Validation | Zod 4 — also the source of the OpenAPI 3.1 spec                 |
 | Database   | PostgreSQL 16 via Prisma 7 (node-postgres driver adapter)       |
 | Cache      | Redis 7 via ioredis — optional, in-memory fallback when unset   |
+| Realtime   | Socket.IO 4 with the Redis adapter (multi-instance fan-out)     |
 | Logging    | pino (JSON lines on stdout)                                     |
 | Tests      | Vitest + Supertest against a real Postgres test database        |
 | Tooling    | ESLint (type-aware typescript-eslint), Prettier, GitHub Actions |
@@ -105,7 +106,7 @@ with a clear message when one is invalid. Empty values count as unset, which dis
 | `REDIS_URL`                              | no          |                         | Set → Redis; empty → in-memory fallback                                                           |
 | `GITHUB_CLIENT_ID` / `_SECRET`           | no          |                         | GitHub sign-in (both required to enable)                                                          |
 | `GOOGLE_CLIENT_ID` / `_SECRET`           | no          |                         | Google sign-in (both required to enable)                                                          |
-| `GITHUB_APP_ID`, `GITHUB_WEBHOOK_SECRET` | no          |                         | GitHub App integration                                                                            |
+| `GITHUB_APP_ID`, `GITHUB_WEBHOOK_SECRET` | no          |                         | GitHub App integration (with the key below; see [GitHub integration](#github-integration))        |
 | `GITHUB_APP_PRIVATE_KEY_PATH`            | no          |                         | Path the API reads the App key from                                                               |
 | `GITHUB_APP_PRIVATE_KEY_FILE`            | Docker only |                         | `./` path of the key Compose mounts                                                               |
 | `EMAIL_PROVIDER`                         | no          | `console`               | `console` logs emails · `smtp` delivers them                                                      |
@@ -124,7 +125,8 @@ src/
   modules/<feature>/  routes → controller → service → repository, plus schemas and OpenAPI docs
                       (auth, users, tokens, workspace, projects, workflow, issues, comments, sprints, reports, …)
   middleware/         request id + logging, validation, auth, origin check, problem+json error handler
-  integrations/       email (console, smtp) and OAuth providers (GitHub, Google)
+  realtime/           Socket.IO server (rooms, presence) and the event bus services publish to
+  integrations/       email (console, smtp), OAuth providers (GitHub, Google), GitHub webhook signatures
   lib/                errors catalogue, logger, Prisma and Redis clients, hashing, pagination, ETags, shutdown
   openapi/            OpenAPI document assembly and generator
 prisma/               schema, migrations, seed entry point
@@ -136,6 +138,21 @@ docker/               entrypoint, healthcheck, Postgres init script
 Layering: routes only wire HTTP; controllers translate requests into service calls; services hold every business
 rule; repositories hold every query. Input is validated with Zod at the edge, and every error is rendered by one
 handler as RFC 9457 `application/problem+json` with a stable `code`.
+
+## GitHub integration
+
+Optional. Create a GitHub App (Settings → Developer settings → GitHub Apps) with:
+
+- **Webhook URL:** `<API_URL>/api/v1/integrations/github/webhook`. GitHub must reach it, so for local development
+  use a tunnel to port 4000.
+- **Webhook secret:** a random string, also set as `GITHUB_WEBHOOK_SECRET`.
+- **Content type** `application/json`; **permissions** Pull requests and Contents (read-only); **events** Pull request
+  and Push.
+
+Set `GITHUB_APP_ID`, download a private key into the project root (git-ignored) and point
+`GITHUB_APP_PRIVATE_KEY_PATH` (or `GITHUB_APP_PRIVATE_KEY_FILE` for Docker) at it, then restart: `GET /config`
+reports `githubIntegration: true`. Install the App on a repository and mention issue keys (`DEV-104`) in branch
+names, PR titles or commit messages; GitHub's "Recent Deliveries" tab shows each delivery and DevFlow's answer.
 
 ## Demo accounts
 

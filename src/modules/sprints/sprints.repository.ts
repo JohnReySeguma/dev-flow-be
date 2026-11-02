@@ -67,6 +67,14 @@ function repository(db: Db) {
     moveIssues: (issueIds: string[], sprintId: string | null) =>
       db.issue.updateMany({ where: { id: { in: issueIds } }, data: { sprintId } }),
 
+    /** Full issues (with project key and status category) for event payloads. */
+    issuesWithContext: (ids: string[]) =>
+      db.issue.findMany({
+        where: { id: { in: ids } },
+        orderBy: [{ rank: "asc" }, { id: "asc" }],
+        include: { project: { select: { key: true } }, status: { select: { category: true } } },
+      }),
+
     recordEvents: (
       events: {
         issueId: string;

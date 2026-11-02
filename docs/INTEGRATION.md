@@ -1,7 +1,7 @@
 # DevFlow API — Frontend Integration Guide
 
 > **For:** the frontend ([`dev-flow`](https://github.com/JohnReySeguma/dev-flow)).
-> **Accurate for:** `v0.5.0`. Updated at every release (see [`FRONTEND_HANDOFF.md`](FRONTEND_HANDOFF.md)).
+> **Accurate for:** `v0.6.0`. Updated at every release (see [`FRONTEND_HANDOFF.md`](FRONTEND_HANDOFF.md)).
 > **Machine-readable contract:** [`openapi.json`](openapi.json), also served at `/api/v1/openapi.json`, with
 > Swagger UI at `/api/v1/docs`.
 > **Step-by-step plan for the frontend:** [`FRONTEND_BRIEF.md`](FRONTEND_BRIEF.md).
@@ -25,7 +25,7 @@
 
 | Where                             | Difference                                                                                                                          |
 | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `UserProfile` (`/auth/me`, `/me`) | No `presence` yet: it arrives with realtime in `v0.6.0`. Treat the signed-in user as `online` until then.                           |
+| `UserProfile`, `TeamMember`       | No `presence` field: who is online comes from Live Sync's `presence.updated` (§7.2), per project.                                   |
 | `UserProfile`, later `TeamMember` | The avatar field is `gradient`, as in `lib/members.ts`, not the brief's `avatarColor`.                                              |
 | Every `id` except issues          | UUIDs instead of the fixtures' `u-jr`, `p-dev`, `dev-todo`, `s-p-dev-25`, `pat_01` style ids.                                       |
 | `Issue.id`                        | The issue key (`DEV-104`), as in `types.ts`. Keys are never zero-padded: the fixtures' `DEV-088` is `DEV-88` (lookups accept both). |
@@ -62,6 +62,8 @@
 | Reports page                  | Burndown, velocity, history           | `GET /sprints/:id/burndown`, `GET /projects/:key/reports/*`   | 0.5.0 |
 | Issue sheet comments          | Read and add comments                 | `GET`/`POST /issues/:issueKey/comments`                       | 0.4.0 |
 | ⌘K jump                       | Open an issue by key or number        | `GET /issues/:issueKey` (`104` needs `?project=DEV`)          | 0.4.0 |
+| Live Sync, presence avatars   | Teammates' changes appear live        | Socket.IO `/realtime` at `/api/v1/socket.io` (§7)             | 0.6.0 |
+| Issue card / sheet git badge  | PR or commit linked from GitHub       | `Issue.git`, set by GitHub webhooks (§7.5)                    | 0.6.0 |
 
 ### Account and workspace
 
@@ -86,12 +88,13 @@
 
 ### Operational
 
-| Endpoint            | Purpose                                               | Since |
-| ------------------- | ----------------------------------------------------- | ----- |
-| `GET /health`       | Liveness, `{ status: "ok" }`                          | 0.1.0 |
-| `GET /health/ready` | Readiness: `200` / `503` with per-dependency `checks` | 0.1.0 |
-| `GET /openapi.json` | OpenAPI 3.1 document                                  | 0.1.0 |
-| `GET /docs`         | Swagger UI                                            | 0.1.0 |
+| Endpoint                            | Purpose                                               | Since |
+| ----------------------------------- | ----------------------------------------------------- | ----- |
+| `GET /health`                       | Liveness, `{ status: "ok" }`                          | 0.1.0 |
+| `GET /health/ready`                 | Readiness: `200` / `503` with per-dependency `checks` | 0.1.0 |
+| `GET /openapi.json`                 | OpenAPI 3.1 document                                  | 0.1.0 |
+| `GET /docs`                         | Swagger UI                                            | 0.1.0 |
+| `POST /integrations/github/webhook` | GitHub App deliveries (called by GitHub)              | 0.6.0 |
 
 ## 3. Feature flags — `GET /config`
 
@@ -135,33 +138,34 @@ Every error is `application/problem+json`:
 Codes are stable: new ones may be added, existing ones are never renamed or repurposed. "Reserved" codes are part of
 the contract already but no endpoint returns them yet.
 
-| Code                     | HTTP | Meaning                                                                         | Returned by                                                            |
-| ------------------------ | ---- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `BAD_REQUEST`            | 400  | The body is not valid JSON                                                      | Any endpoint with a JSON body                                          |
-| `RESET_TOKEN_INVALID`    | 400  | The reset link is unknown, already used or expired; request a new one           | `POST /auth/password/reset`                                            |
-| `INVITE_INVALID`         | 400  | The invite link is unknown, used, replaced by a resend or expired               | `GET /invites/:token`, `POST /invites/:token/accept` (new in `v0.3.0`) |
-| `UNAUTHENTICATED`        | 401  | Not signed in (or the session was revoked); redirect to `/login`                | Every authenticated endpoint, `POST /auth/refresh`                     |
-| `TOKEN_EXPIRED`          | 401  | Access token expired; call `POST /auth/refresh` once and retry                  | Every cookie-authenticated endpoint                                    |
-| `INVALID_CREDENTIALS`    | 401  | Wrong email or password (same answer for unknown emails)                        | `POST /auth/login`                                                     |
-| `FORBIDDEN`              | 403  | Not allowed: role too low, cross-site write, or a token on a session-only route | Every write (origin check), admin routes, `PATCH /me`, `/me/tokens`    |
-| `CANNOT_CHANGE_OWN_ROLE` | 403  | Admins cannot change their own role                                             | `PATCH /workspace/members/:id`                                         |
-| `CANNOT_REMOVE_SELF`     | 403  | Admins cannot remove themselves                                                 | `DELETE /workspace/members/:id` (new in `v0.3.0`)                      |
-| `NOT_FOUND`              | 404  | Unknown route or resource                                                       | Any unknown route, `DELETE /me/tokens/:id`, disabled OAuth provider    |
-| `EMAIL_TAKEN`            | 409  | Sign-up with an email that already has an account                               | `POST /auth/signup`                                                    |
-| `PROJECT_KEY_TAKEN`      | 409  | Project key already in use                                                      | `POST /projects`                                                       |
-| `SPRINT_ALREADY_ACTIVE`  | 409  | Another sprint is active in the project; complete it first                      | `POST /sprints/:id/start`                                              |
-| `SPRINT_NOT_PLANNED`     | 409  | Only planned sprints can be started or deleted                                  | `POST /sprints/:id/start`, `DELETE /sprints/:id`                       |
-| `SPRINT_NOT_ACTIVE`      | 409  | Only the active sprint can be completed                                         | `POST /sprints/:id/complete` (new in `v0.5.0`)                         |
-| `STATUS_DELETE_BLOCKED`  | 409  | Deleting would leave < 2 statuses or no to-do / done status (`detail` says why) | `DELETE /projects/:key/statuses/:id`                                   |
-| `STATUS_UPDATE_BLOCKED`  | 409  | Recategorising would leave no to-do or no done status (`detail` says why)       | `PATCH /projects/:key/statuses/:id` (new in `v0.4.0`)                  |
-| `LAST_ADMIN`             | 409  | The last active admin cannot be demoted or removed                              | `PATCH` / `DELETE /workspace/members/:id`                              |
-| `ALREADY_MEMBER`         | 409  | The email is already a member or already invited                                | `POST /workspace/invites`, `POST /invites/:token/accept`               |
-| `CONFLICT_STALE`         | 412  | `If-Match` no longer matches; re-fetch and retry                                | `PATCH /me`, `PATCH /projects/:key`, `PATCH /issues/:issueKey`         |
-| `PAYLOAD_TOO_LARGE`      | 413  | Body larger than 100 kB                                                         | Any endpoint with a JSON body                                          |
-| `VALIDATION_FAILED`      | 422  | Invalid fields, listed in `errors`                                              | Every endpoint with input                                              |
-| `RATE_LIMITED`           | 429  | Too many requests; retry later                                                  | Reserved (`v1.0.0`)                                                    |
-| `INTERNAL_ERROR`         | 500  | Unexpected failure; quote `requestId` when reporting                            | Any endpoint                                                           |
-| `EMAIL_DELIVERY_FAILED`  | 502  | The email could not be sent; the invite is saved, offer Resend                  | `POST /workspace/invites`, `.../resend` (new in `v0.3.0`)              |
+| Code                        | HTTP | Meaning                                                                         | Returned by                                                            |
+| --------------------------- | ---- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `BAD_REQUEST`               | 400  | The body is not valid JSON                                                      | Any endpoint with a JSON body, the GitHub webhook                      |
+| `RESET_TOKEN_INVALID`       | 400  | The reset link is unknown, already used or expired; request a new one           | `POST /auth/password/reset`                                            |
+| `INVITE_INVALID`            | 400  | The invite link is unknown, used, replaced by a resend or expired               | `GET /invites/:token`, `POST /invites/:token/accept` (new in `v0.3.0`) |
+| `UNAUTHENTICATED`           | 401  | Not signed in (or the session was revoked); redirect to `/login`                | Every authenticated endpoint, `POST /auth/refresh`                     |
+| `TOKEN_EXPIRED`             | 401  | Access token expired; call `POST /auth/refresh` once and retry                  | Every cookie-authenticated endpoint                                    |
+| `INVALID_CREDENTIALS`       | 401  | Wrong email or password (same answer for unknown emails)                        | `POST /auth/login`                                                     |
+| `WEBHOOK_SIGNATURE_INVALID` | 401  | `X-Hub-Signature-256` missing or wrong (GitHub only, never the frontend)        | `POST /integrations/github/webhook` (new in `v0.6.0`)                  |
+| `FORBIDDEN`                 | 403  | Not allowed: role too low, cross-site write, or a token on a session-only route | Every write (origin check), admin routes, `PATCH /me`, `/me/tokens`    |
+| `CANNOT_CHANGE_OWN_ROLE`    | 403  | Admins cannot change their own role                                             | `PATCH /workspace/members/:id`                                         |
+| `CANNOT_REMOVE_SELF`        | 403  | Admins cannot remove themselves                                                 | `DELETE /workspace/members/:id` (new in `v0.3.0`)                      |
+| `NOT_FOUND`                 | 404  | Unknown route or resource                                                       | Any unknown route or resource, disabled OAuth provider or GitHub App   |
+| `EMAIL_TAKEN`               | 409  | Sign-up with an email that already has an account                               | `POST /auth/signup`                                                    |
+| `PROJECT_KEY_TAKEN`         | 409  | Project key already in use                                                      | `POST /projects`                                                       |
+| `SPRINT_ALREADY_ACTIVE`     | 409  | Another sprint is active in the project; complete it first                      | `POST /sprints/:id/start`                                              |
+| `SPRINT_NOT_PLANNED`        | 409  | Only planned sprints can be started or deleted                                  | `POST /sprints/:id/start`, `DELETE /sprints/:id`                       |
+| `SPRINT_NOT_ACTIVE`         | 409  | Only the active sprint can be completed                                         | `POST /sprints/:id/complete` (new in `v0.5.0`)                         |
+| `STATUS_DELETE_BLOCKED`     | 409  | Deleting would leave < 2 statuses or no to-do / done status (`detail` says why) | `DELETE /projects/:key/statuses/:id`                                   |
+| `STATUS_UPDATE_BLOCKED`     | 409  | Recategorising would leave no to-do or no done status (`detail` says why)       | `PATCH /projects/:key/statuses/:id` (new in `v0.4.0`)                  |
+| `LAST_ADMIN`                | 409  | The last active admin cannot be demoted or removed                              | `PATCH` / `DELETE /workspace/members/:id`                              |
+| `ALREADY_MEMBER`            | 409  | The email is already a member or already invited                                | `POST /workspace/invites`, `POST /invites/:token/accept`               |
+| `CONFLICT_STALE`            | 412  | `If-Match` no longer matches; re-fetch and retry                                | `PATCH /me`, `PATCH /projects/:key`, `PATCH /issues/:issueKey`         |
+| `PAYLOAD_TOO_LARGE`         | 413  | Body larger than 100 kB                                                         | Any endpoint with a JSON body                                          |
+| `VALIDATION_FAILED`         | 422  | Invalid fields, listed in `errors`                                              | Every endpoint with input                                              |
+| `RATE_LIMITED`              | 429  | Too many requests; retry later                                                  | Reserved (`v1.0.0`)                                                    |
+| `INTERNAL_ERROR`            | 500  | Unexpected failure; quote `requestId` when reporting                            | Any endpoint                                                           |
+| `EMAIL_DELIVERY_FAILED`     | 502  | The email could not be sent; the invite is saved, offer Resend                  | `POST /workspace/invites`, `.../resend` (new in `v0.3.0`)              |
 
 ## 5. Authentication
 
@@ -277,7 +281,7 @@ signed-in sessions are not scoped:
 | `issues:read`     | Read projects, issues, comments, snapshots and `/bootstrap`                          |
 | `issues:write`    | Create, update, move and delete issues; comment                                      |
 | `projects:admin`  | Create, update and delete projects; edit workflows (the caller's role still applies) |
-| `webhooks:manage` | Reserved for the GitHub integration (`v0.6.0`)                                       |
+| `webhooks:manage` | Reserved; GitHub deliveries authenticate with their signature, not a token           |
 
 ### 5.9 Roles and permissions
 
@@ -320,7 +324,7 @@ offers filtered, paginated access (`sprint=<id>|backlog|active`, `assignee=<id>|
 - `POST /projects/:key/issues` puts the issue at the top of the ranking, like `createIssue`. Omitted fields default to
   `type: task`, `priority: medium`, no assignee, estimate or sprint, and the first to-do status.
 - `resolvedAt` is managed by the API: set when an issue enters a done-category status, cleared when it leaves. Don't
-  send it. `tags`, `dueAt` and `git` are read-only, as in the store (`git` is set by GitHub in `v0.6.0`).
+  send it. `tags`, `dueAt` and `git` are read-only, as in the store (`git` is set by GitHub, §7.5).
 - `PATCH /issues/:issueKey` and `PATCH /projects/:key` return an `ETag`; send `If-Match` to get `412` instead of
   overwriting a teammate's change.
 
@@ -375,14 +379,129 @@ to `BurndownChart` as is. The difference is where `remaining` comes from: the is
 `resolvedAt` values, so issues added, removed, re-estimated or reopened mid-sprint are counted correctly. `ideal`
 starts from `committedPoints`; `remaining` is `null` for days still ahead. A planned sprint has no days.
 
-## 7. Realtime
+## 7. Realtime (Live Sync) and GitHub
 
-Ships in `v0.6.0`. No events yet. Decided so far: Socket.IO is mounted at **`/api/v1/socket.io`** (not the default
-`/socket.io`) so the handshake carries the `/api/v1`-scoped session cookie. Connect with:
+### 7.1 Connecting
+
+Socket.IO 4, namespace **`/realtime`**, mounted at **`/api/v1/socket.io`** (not the default `/socket.io`) so the
+handshake carries the `/api/v1`-scoped session cookie:
 
 ```ts
-io("http://localhost:4000/realtime", { path: "/api/v1/socket.io", withCredentials: true });
+import { io } from "socket.io-client";
+
+const socket = io("http://localhost:4000/realtime", { path: "/api/v1/socket.io", withCredentials: true });
+// Scripts and the CLI: io(url, { path, auth: { token: "dfp_…" } }) — joining needs the issues:read scope.
 ```
+
+- The handshake is authenticated once, with the session cookie or a personal access token, and must come from
+  `CORS_ORIGIN` (other origins are refused).
+- A refused connection fires `connect_error` with the REST error code in `err.data.code`:
+
+  ```ts
+  socket.on("connect_error", async (err) => {
+    const code = (err as Error & { data?: { code?: string } }).data?.code;
+    if (code === "TOKEN_EXPIRED") {
+      await refresh(); // POST /auth/refresh, the same single-flight refresh as the API client (§5.3)
+      socket.connect();
+    } else if (code === "UNAUTHENTICATED") {
+      // signed out: stop reconnecting and go to /login
+    }
+  });
+  ```
+
+- An open connection is not cut when the access token later expires; it lasts until it disconnects.
+
+### 7.2 Project rooms and presence
+
+Events are sent per project. Join the projects the user is looking at (or every project from `/bootstrap`):
+
+```ts
+socket.emit("project:join", "DEV", (res) => {
+  // { ok: true, projectKey: "DEV" } or { ok: false, code: "NOT_FOUND" | "FORBIDDEN" | "VALIDATION_FAILED", message }
+});
+socket.emit("project:leave", "DEV");
+```
+
+Rooms are not remembered across reconnects: **re-join on every `connect`**, then re-fetch
+`GET /projects/:key/snapshot`, because events sent while disconnected are not replayed.
+
+`presence.updated` is sent to the room whenever someone joins, leaves or disconnects. `online` lists the user ids
+(`TeamMember.id`) with at least one tab in the room, the joining user included:
+
+```json
+{ "projectKey": "DEV", "actorId": "0193f1c2-…", "online": ["0193f1c2-…", "0193f1c2-…"] }
+```
+
+### 7.3 Events
+
+Every payload has `projectKey` and `actorId`: the user who made the change, or `null` for the system (GitHub). The
+user who made a change receives its event too: **ignore events whose `actorId` is your own user id**, since the HTTP
+response already updated the store. Resources inside payloads have exactly the REST shapes (`Issue`, `Sprint`,
+`Project`).
+
+| Event              | Extra fields                        | Apply to the store                                                                  |
+| ------------------ | ----------------------------------- | ----------------------------------------------------------------------------------- |
+| `issue.created`    | `issue`                             | Insert at the top of the ranking (new issues always rank first)                     |
+| `issue.updated`    | `issue`                             | Replace the issue (fields, comment count, `git` link)                               |
+| `issue.moved`      | `issue`, `beforeIssueKey`           | Replace it, and re-rank it before `beforeIssueKey` (`null`: last)                   |
+| `issue.deleted`    | `issueKey`                          | Remove it                                                                           |
+| `sprint.created`   | `sprint`                            | Add it                                                                              |
+| `sprint.updated`   | `sprint`                            | Replace it (name, goal)                                                             |
+| `sprint.started`   | `sprint`                            | Replace it (now `active`, with dates and `committedPoints`)                         |
+| `sprint.completed` | `sprint`, `carriedOverTo`, `issues` | Replace the sprint, add or replace `carriedOverTo` (may be new), replace `issues`   |
+| `sprint.deleted`   | `sprintId`, `issues`                | Remove the sprint; replace `issues` (moved to the backlog)                          |
+| `workflow.updated` | `project`                           | Replace the project, then re-fetch the snapshot (a deleted status moves its issues) |
+| `project.updated`  | `project`                           | Replace the project (name, description, …)                                          |
+| `project.deleted`  | —                                   | Remove the project and its data; leave the page if it is open                       |
+| `presence.updated` | `online`                            | §7.2                                                                                |
+
+`sprint.completed.issues` are the carried-over issues with their new `sprintId` (`null` for the backlog). Issues
+completed in the sprint stay in it and are not repeated.
+
+Examples:
+
+```jsonc
+// issue.moved: Dmitri dragged DEV-134 above DEV-104 into "In Progress"
+{
+  "projectKey": "DEV",
+  "actorId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e11",
+  "issue": { "id": "DEV-134", "statusId": "0193f1c2-…", "sprintId": "0193f1c2-…", "title": "Live!", "…": "…" },
+  "beforeIssueKey": "DEV-104"
+}
+
+// issue.deleted
+{ "projectKey": "DEV", "actorId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e11", "issueKey": "DEV-134" }
+
+// sprint.completed with carry-over into a new sprint
+{
+  "projectKey": "DEV",
+  "actorId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e11",
+  "sprint": { "id": "0193f1c2-…", "name": "Sprint 25", "status": "completed", "report": { "…": "…" } },
+  "carriedOverTo": { "id": "0193f1c2-…", "name": "Sprint 27", "status": "planned" },
+  "issues": [{ "id": "DEV-118", "sprintId": "0193f1c2-…", "…": "…" }]
+}
+```
+
+### 7.4 Applying events safely
+
+- Drop events for projects that are not in the store.
+- Each event is sent as soon as its change commits. Two changes made at the same moment may arrive in either order,
+  and two people editing the same field is still last-write-wins; send `If-Match` (§1) where it matters.
+- The snapshot is always authoritative. When in doubt (a reconnect, an event about an issue or sprint the store
+  doesn't have), re-fetch it.
+
+### 7.5 GitHub integration
+
+When `GET /config` reports `githubIntegration: true`, GitHub App webhooks
+(`POST /integrations/github/webhook`, called by GitHub, never by the frontend) keep `Issue.git` up to date:
+
+- Issue keys are read from pull request titles, branch names (`dev-104-token-refresh`) and commit messages.
+- A pull request sets `git: { kind: "pr", number, state }` with `state` `open`, `draft` or `merged`. A merged one also
+  moves the issue to the project's first done status (`resolvedAt` set, counted in the burndown). One closed without
+  merging removes its own link.
+- A commit sets `git: { kind: "commit", sha }` (7 characters), but never replaces a pull request link.
+- Each change arrives as `issue.updated`, or `issue.moved` when the status changed, with `actorId: null`. Show it
+  as a GitHub change (e.g. "via GitHub").
 
 ## 8. Demo data and accounts
 
@@ -406,7 +525,12 @@ touching accounts.
 ## 9. Known limitations
 
 - Deleting an issue also deletes its history, so it disappears from past burndowns.
-- No realtime yet (`v0.6.0`): other people's changes appear after re-fetching the snapshot.
+- Live Sync checks permissions when a socket connects and joins a room: a member who is demoted or removed keeps
+  receiving that project's events until their socket disconnects (their next request is refused as usual).
+- Live Sync events are not replayed after a disconnect; re-fetch the snapshot after reconnecting (§7.2).
+- GitHub is one-way: DevFlow receives webhooks but does not call GitHub's API, so pull requests opened before the App
+  was installed are not linked until their next event. The App's private key is required to enable the integration
+  but is not used yet.
 - No rate limits on sign-in, sign-up, password reset or invites until `v1.0.0`.
 - Signing up directly with an invited email leaves the invite pending (accepting it then answers `ALREADY_MEMBER`);
   revoke it from the members list.

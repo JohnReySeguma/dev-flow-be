@@ -38,6 +38,8 @@ export type IssueWrite = {
   estimate?: number | null;
   rank?: string;
   resolvedAt?: Date | null;
+  /** A GitLink, or Prisma.DbNull to remove it. */
+  git?: Prisma.InputJsonValue | typeof Prisma.DbNull;
 };
 
 function repository(db: Db) {
@@ -75,6 +77,17 @@ function repository(db: Db) {
       )?.rank ?? null,
 
     /** The rank at the bottom of the project, ignoring `excludeId`. */
+    /** The issue ranked right after this one, or null when it is last. */
+    issueAfter: (projectId: string, issue: RankCursor): Promise<{ number: number } | null> =>
+      db.issue.findFirst({
+        where: {
+          projectId,
+          OR: [{ rank: { gt: issue.rank } }, { rank: issue.rank, id: { gt: issue.id } }],
+        },
+        orderBy: [{ rank: "asc" }, { id: "asc" }],
+        select: { number: true },
+      }),
+
     lastRank: async (projectId: string, excludeId: string): Promise<string | null> =>
       (
         await db.issue.findFirst({
@@ -171,6 +184,13 @@ function repository(db: Db) {
         where: { projectId, category: "todo" },
         orderBy: [{ position: "asc" }, { id: "asc" }],
       })) ?? db.workflowStatus.findFirst({ where: { projectId }, orderBy: [{ position: "asc" }, { id: "asc" }] }),
+
+    /** Where a merged pull request moves its issue: the first done status. */
+    firstDoneStatus: (projectId: string): Promise<WorkflowStatus | null> =>
+      db.workflowStatus.findFirst({
+        where: { projectId, category: "done" },
+        orderBy: [{ position: "asc" }, { id: "asc" }],
+      }),
 
     findSprint: (projectId: string, id: string): Promise<Sprint | null> =>
       db.sprint.findFirst({ where: { id, projectId } }),
