@@ -3,7 +3,11 @@
 > **For:** the backend developer (human or AI agent) building the DevFlow API.
 > **This repo:** https://github.com/JohnReySeguma/dev-flow-be
 > **Frontend repo:** https://github.com/JohnReySeguma/dev-flow (Next.js 16, released as `v1.0.0`)
-> Paste this whole document as your starting prompt.
+> Paste this whole document as your starting prompt, together with [`FRONTEND_HANDOFF.md`](FRONTEND_HANDOFF.md),
+> which defines what you must deliver back to the frontend at every release.
+>
+> **Scope:** the DevFlow **app** only. The public website (landing, legal, status pages) is static in the frontend —
+> no CMS, no content or contact endpoints.
 
 ---
 
@@ -305,14 +309,15 @@ Local testing relays webhooks with `npx smee-client --url <smee-url> --target ht
 | GET | `/health` | Liveness (no auth) |
 | GET | `/health/ready` | Readiness: database (and Redis when configured) reachable |
 | GET | `/docs` | Swagger UI for the OpenAPI spec |
-| POST | `/contact` | Optional: `{ email, message }`, rate-limited, honeypot — replaces the frontend's FormSubmit relay |
+| GET | `/bootstrap` | `{ me, workspace, config, projects }` in one call (see `FRONTEND_HANDOFF.md` §4) |
+| GET | `/projects/:key/snapshot` | `{ project, sprints, issues }` for rendering a whole project (see `FRONTEND_HANDOFF.md` §4) |
 
 ---
 
 ## 6. Non-functional requirements
 
 - **Secrets:** `.env` and `*.pem` are git-ignored and docker-ignored. Never commit, log, or bake them into an image. Never print a secret in error messages.
-- **Security:** Argon2id passwords; hashed PATs and refresh tokens; `helmet`; CSRF protection for cookie auth (SameSite + `Origin` check on writes); strict CORS (`CORS_ORIGIN` only, `credentials: true`); rate limits on auth, invites and contact.
+- **Security:** Argon2id passwords; hashed PATs and refresh tokens; `helmet`; CSRF protection for cookie auth (SameSite + `Origin` check on writes); strict CORS (`CORS_ORIGIN` only, `credentials: true`); rate limits on auth and invites.
 - **Authorization:** enforce roles server-side on every route; a viewer calling a write endpoint gets `403`.
 - **Data integrity:** sprint start/complete, status delete and project delete run in transactions.
 - **Seed:** `npm run db:seed` reproduces the frontend's `lib/tracker/seed.ts` (three projects, sprints, issues) with dates relative to now.
@@ -359,4 +364,5 @@ Look at `git log --graph` in the frontend repo; this repo's history must read th
 - [ ] OpenAPI spec published; `.env.example` complete; the seed works on a fresh database.
 - [ ] Runs locally **without Docker** (`npm run dev`, `npm test`) with a local Postgres and no Redis, and with every optional integration unset.
 - [ ] `docker compose up --build` from a fresh clone starts the API, Postgres and Redis, migrates, seeds and passes `/health/ready` — checked by the reviewer at every release tag.
+- [ ] Every release satisfies the handoff checklist in [`FRONTEND_HANDOFF.md`](FRONTEND_HANDOFF.md) §8.
 - [ ] History follows §7, with tags `v0.1.0` … `v1.0.0` pushed.
