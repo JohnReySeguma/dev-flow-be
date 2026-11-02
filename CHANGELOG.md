@@ -6,6 +6,50 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-02
+
+Workspace: members, roles, invites and permission middleware.
+
+### Frontend impact
+
+- **Can connect now** (details in `docs/INTEGRATION.md` §5.7 and §5.9):
+  - Team members page: `GET /workspace/members` returns active members and pending invites in the existing
+    `TeamMember` shape; `GET /workspace` returns the workspace name and your role.
+  - Invite and resend: `POST /workspace/invites`, `POST /workspace/invites/:id/resend`.
+  - Change role: `PATCH /workspace/members/:id`; remove a member or revoke an invite: `DELETE /workspace/members/:id`.
+  - New `/invite?token=…` page: `GET /invites/:token` to preview, `POST /invites/:token/accept` to create the account
+    and sign in.
+- **Behaviour to adapt:** removing a member is immediate and permanent, so the current "Undo" needs to become a
+  confirmation (or a delayed request). Show `EMAIL_DELIVERY_FAILED` instead of "Invite sent" when it occurs.
+- **Permissions:** viewers and members get `403 FORBIDDEN` on member management; hide those controls by role.
+- **New error codes:** `INVITE_INVALID` (400), `CANNOT_REMOVE_SELF` (403), `EMAIL_DELIVERY_FAILED` (502). Now
+  returned: `CANNOT_CHANGE_OWN_ROLE`, `LAST_ADMIN`, `ALREADY_MEMBER`.
+- **Not in this release:** `POST /workspace/demo/reset` moves to `v0.4.0`, together with the demo projects it restores.
+- **BREAKING:** none.
+
+### Added
+
+- `GET /workspace` and `GET /workspace/members` (members and pending invites in one paginated list).
+- Role changes and member removal for admins, with the own-role, self-removal and last-admin rules; the admin rows are
+  locked so concurrent demotions cannot leave the workspace without an admin.
+- Email invites with seven-day, single-use links, resend with token rotation, invite preview and acceptance.
+- Role and scope guards (`requireRole`, `requireScope`) for every module to use.
+
+### Security
+
+- Invite tokens, OAuth `code`/`state` and `token` query parameters are redacted from request logs.
+
+### Handoff checklist
+
+- [x] `docs/openapi.json` regenerated and valid
+- [x] `docs/INTEGRATION.md` coverage matrix updated
+- [x] New error codes added to the catalogue (`INVITE_INVALID`, `CANNOT_REMOVE_SELF`, `EMAIL_DELIVERY_FAILED`)
+- [x] New realtime events documented with examples (none in this release)
+- [x] **Frontend impact** section in `CHANGELOG.md`
+- [x] Seed and demo accounts still work on a fresh database
+- [x] `docker compose up --build` instructions in the README still accurate
+- [x] Known limitations or stubs listed (`docs/INTEGRATION.md` §8)
+
 ## [0.2.1] - 2026-11-02
 
 ### Frontend impact
@@ -130,7 +174,8 @@ Foundation: configuration, database, error format, health checks, feature flags,
 - [x] `docker compose up --build` instructions in the README still accurate
 - [x] Known limitations or stubs listed (`docs/INTEGRATION.md` §8)
 
-[Unreleased]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/JohnReySeguma/dev-flow-be/releases/tag/v0.1.0
