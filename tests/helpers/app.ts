@@ -1,4 +1,5 @@
 import { createApp } from "../../src/app.js";
+import { resolveFeatures } from "../../src/config/features.js";
 import { createLogger } from "../../src/lib/logger.js";
 import { createPrismaClient } from "../../src/lib/prisma.js";
 import { createRedisClient } from "../../src/lib/redis.js";
@@ -10,7 +11,7 @@ export function createTestApp() {
   const logger = createLogger(env);
   const prisma = createPrismaClient(env.DATABASE_URL);
   const redis = createRedisClient(env.REDIS_URL, logger);
-  const app = createApp({ env, logger, prisma, redis });
+  const app = createApp({ env, features: resolveFeatures(env), logger, prisma, redis });
 
   async function close() {
     await prisma.$disconnect();

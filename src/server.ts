@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import { API_PREFIX, createApp } from "./app.js";
 import { EnvError, loadEnv, type Env } from "./config/env.js";
+import { describeFeatures, resolveFeatures } from "./config/features.js";
 import { createLogger } from "./lib/logger.js";
 import { createPrismaClient } from "./lib/prisma.js";
 import { createRedisClient } from "./lib/redis.js";
@@ -20,9 +21,12 @@ function readEnv(): Env {
 
 const env = readEnv();
 const logger = createLogger(env);
+const features = resolveFeatures(env);
+logger.info(describeFeatures(features), "active modes");
+
 const prisma = createPrismaClient(env.DATABASE_URL);
 const redis = createRedisClient(env.REDIS_URL, logger);
-const app = createApp({ env, logger, prisma, redis });
+const app = createApp({ env, features, logger, prisma, redis });
 const server = createServer(app);
 
 const shutdown = createShutdown({
