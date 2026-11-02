@@ -69,7 +69,10 @@ export function createOAuthService({ providers, auth, users, sessions, secret, a
     throw new OAuthFlowError("oauth_state_mismatch");
   }
 
-  /** Finds the account by provider identity, then by verified email (linking it), else creates one. */
+  /**
+   * Finds the account by provider identity, then by verified email (claiming it, see below), else
+   * creates one.
+   */
   async function resolveUser(name: OAuthProviderName, code: string, claims: StateClaims): Promise<User> {
     const provider = providers[name];
     if (!provider) throw new OAuthFlowError("oauth_failed");
@@ -85,8 +88,16 @@ export function createOAuthService({ providers, auth, users, sessions, secret, a
     if (linked) return linked;
     if (!profile.email || !profile.emailVerified) throw new OAuthFlowError("oauth_email_unverified");
 
+    const existing = await users.findByEmail(profile.email);
+    if (existing?.passwordHash) {
+      // Sign-up never verifies email addresses, so whoever set that password may not own the
+      // address; the provider just proved who does. Clear the password and sign everyone out, or
+      // someone who registered the address first would keep access to the account.
+      await users.setPasswordHash(existing.id, null);
+      await sessions.revokeAllCredentials(existing.id, new Date());
+    }
     const user =
-      (await users.findByEmail(profile.email)) ??
+      existing ??
       (await auth.createUser({ name: profile.name.slice(0, 48), email: profile.email, passwordHash: null }));
     await sessions.linkOAuthAccount(user.id, name, profile.providerAccountId);
     return user;

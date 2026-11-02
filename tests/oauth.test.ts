@@ -103,6 +103,38 @@ describe("GET /api/v1/auth/oauth/:provider/callback", () => {
     expect(await prisma.oAuthAccount.count()).toBe(1);
   });
 
+  it("takes an account back from whoever registered the email first", async () => {
+    // Someone signs up with Ada's address (never verified) and keeps a session and a token.
+    const signup = await request(app)
+      .post("/api/v1/auth/signup")
+      .set("Origin", FRONTEND_ORIGIN)
+      .send({ name: "Not Ada", email: "ada@acme.dev", password: "attacker password" });
+    const squatter = sessionCookieHeader(signup);
+    const token = await request(app)
+      .post("/api/v1/me/tokens")
+      .set("Origin", FRONTEND_ORIGIN)
+      .set("Cookie", squatter)
+      .send({ name: "keep", scopes: ["issues:read"], expiresInDays: null });
+
+    const { callback } = await signInWithGitHub();
+
+    expect(callback.headers.location).toBe(`${FRONTEND_ORIGIN}/projects`);
+    expect((await request(app).get("/api/v1/auth/me").set("Cookie", squatter)).status).toBe(401);
+    expect(
+      (
+        await request(app)
+          .get("/api/v1/auth/me")
+          .set("Authorization", `Bearer ${token.body.secret as string}`)
+      ).status,
+    ).toBe(401);
+    const login = await request(app)
+      .post("/api/v1/auth/login")
+      .set("Origin", FRONTEND_ORIGIN)
+      .send({ email: "ada@acme.dev", password: "attacker password" });
+    expect(login.status).toBe(401);
+    expect((await request(app).get("/api/v1/auth/me").set("Cookie", sessionCookieHeader(callback))).status).toBe(200);
+  });
+
   it("refuses an account without a verified email", async () => {
     githubEmails = [{ email: "ada@acme.dev", primary: true, verified: false }];
 

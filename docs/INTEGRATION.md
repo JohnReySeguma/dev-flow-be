@@ -236,8 +236,10 @@ http://localhost:4000/api/v1/auth/oauth/github?redirect=/projects
 | `oauth_email_unverified` | The provider account has no verified email, so it cannot be linked or created |
 | `oauth_failed`           | The provider could not be reached or rejected the request: try again          |
 
-Accounts are matched by provider identity first, then by verified email (an existing password account gets the
-provider linked), otherwise a member account is created. The callback URLs registered with the providers are
+Accounts are matched by provider identity first, then by verified email, otherwise a member account is created.
+Sign-up does not verify email addresses, so when a provider claims an existing **password** account, the provider is
+linked and the account is secured: its password is removed and its other sessions and access tokens are revoked. The
+owner signs in with the provider from then on, or sets a password again through "Forgot password". The callback URLs registered with the providers are
 `${API_URL}/api/v1/auth/oauth/{github,google}/callback`.
 
 ### 5.6 Password reset

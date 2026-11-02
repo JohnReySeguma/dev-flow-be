@@ -34,7 +34,8 @@ export function createUsersRepository(prisma: PrismaClient) {
       });
       return count === 1 ? prisma.user.findUnique({ where: { id } }) : null;
     },
-    setPasswordHash: (id: string, passwordHash: string) =>
+    /** null removes password sign-in (OAuth only). */
+    setPasswordHash: (id: string, passwordHash: string | null) =>
       prisma.user.update({ where: { id }, data: { passwordHash } }),
     touchLastActive: (id: string, at: Date) => prisma.user.update({ where: { id }, data: { lastActiveAt: at } }),
   };
