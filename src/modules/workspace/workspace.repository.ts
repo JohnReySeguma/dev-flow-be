@@ -142,8 +142,6 @@ function repository(db: Db) {
         data: { role },
         include: { user: true },
       }),
-    /** Deleting the user also ends their sessions and access tokens (cascade). */
-    deleteMember: (userId: string) => db.user.delete({ where: { id: userId } }),
 
     findInviteByEmail: (workspaceId: string, email: string): Promise<WorkspaceInvite | null> =>
       db.workspaceInvite.findUnique({ where: { workspaceId_email: { workspaceId, email } } }),

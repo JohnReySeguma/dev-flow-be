@@ -176,15 +176,20 @@ describe("managing members", () => {
     expect(await prisma.workspaceMember.count({ where: { role: "admin" } })).toBe(1);
   });
 
-  it("removes a member together with their sessions and tokens", async () => {
+  it("removes the membership but keeps the account and its other workspaces", async () => {
     const lucasCookie = await signIn(app, "viewer@devflow.local");
     const lucas = await idOf("viewer@devflow.local");
+    const own = await asBrowser(app, lucasCookie)
+      .post("/api/v2/workspaces")
+      .send({ name: "Lucas's", sampleData: false });
 
     const res = await (await admin()).delete(`/api/v2/workspaces/acme-inc/members/${lucas}`);
 
     expect(res.status).toBe(204);
-    expect(await prisma.user.findUnique({ where: { id: lucas } })).toBeNull();
-    expect((await asBrowser(app, lucasCookie).get("/api/v2/workspaces/acme-inc")).status).toBe(401);
+    expect(await prisma.user.findUnique({ where: { id: lucas } })).not.toBeNull();
+    expect((await asBrowser(app, lucasCookie).get("/api/v2/workspaces/acme-inc")).status).toBe(404);
+    const me = await asBrowser(app, lucasCookie).get("/api/v2/auth/me");
+    expect(me.body.workspaces.map((w: { slug: string }) => w.slug)).toEqual([own.body.slug]);
   });
 
   it("forbids removing yourself", async () => {

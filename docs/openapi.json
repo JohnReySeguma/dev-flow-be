@@ -4795,7 +4795,7 @@
           "Workspace"
         ],
         "summary": "Remove a member or revoke an invite",
-        "description": "Admins only, signed-in session only. Removing a member deletes their account, sessions and access tokens immediately; there is no undo. Errors: 403 CANNOT_REMOVE_SELF, 409 LAST_ADMIN, 404 NOT_FOUND. 403 DEMO_WORKSPACE_LOCKED in the demo workspace.",
+        "description": "Admins only, signed-in session only. Removing a member ends their access immediately and deletes their access tokens for this workspace; their account and other workspaces are kept, and their issues and project leads here are unassigned. Errors: 403 CANNOT_REMOVE_SELF, 409 LAST_ADMIN, 404 NOT_FOUND. 403 DEMO_WORKSPACE_LOCKED in the demo workspace.",
         "security": [
           {
             "cookieAuth": []

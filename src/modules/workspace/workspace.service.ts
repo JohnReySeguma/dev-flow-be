@@ -140,7 +140,10 @@ export function createWorkspaceService(deps: {
       await resetSampleData(auth.workspace, auth.userId);
     },
 
-    /** Removes a member (ending their sessions and tokens) or revokes a pending invite. */
+    /**
+     * Removes a member from this workspace or revokes a pending invite. The account stays, with
+     * its other workspaces; its access tokens for this one are deleted and its work here unassigned.
+     */
     async remove(auth: AuthContext, id: string): Promise<void> {
       if (!z.uuid().safeParse(id).success) throw notFound();
       if (id === auth.userId) {
@@ -152,7 +155,7 @@ export function createWorkspaceService(deps: {
         const member = await tx.findMember(auth.workspaceId, id);
         if (member) {
           if (member.role === "admin" && admins.length <= 1) throw lastAdmin();
-          await tx.deleteMember(id);
+          await tx.removeMembership(auth.workspaceId, id);
           return;
         }
         const invite = await tx.findInvite(auth.workspaceId, id);
