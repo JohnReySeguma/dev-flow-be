@@ -13,7 +13,7 @@ export function registerUsersDocs(registry: OpenAPIRegistry) {
     path: "/me",
     tags: ["Profile"],
     summary: "Your profile",
-    security: [{ cookieAuth: [] }],
+    security: [{ cookieAuth: [] }, { bearerAuth: [] }],
     responses: {
       200: {
         description: "The signed-in user.",
@@ -30,7 +30,8 @@ export function registerUsersDocs(registry: OpenAPIRegistry) {
     summary: "Update your profile",
     description:
       "Any of name (max 48), gradient (one of the frontend AVATAR_GRADIENTS), timezone (IANA) and bio (max 280). " +
-      "Send If-Match with the ETag you read to get 412 CONFLICT_STALE instead of overwriting a newer change.",
+      "Send If-Match with the ETag you read to get 412 CONFLICT_STALE instead of overwriting a newer change. " +
+      "Session only: 403 FORBIDDEN with a bearer token.",
     security: [{ cookieAuth: [] }],
     request: {
       headers: z.object({ "If-Match": z.string().optional().meta({ description: "ETag from GET /me." }) }),

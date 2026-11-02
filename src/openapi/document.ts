@@ -3,6 +3,7 @@ import pkg from "../../package.json" with { type: "json" };
 import { registerAuthDocs } from "../modules/auth/auth.openapi.js";
 import { registerConfigDocs } from "../modules/config/config.openapi.js";
 import { registerHealthDocs } from "../modules/health/health.openapi.js";
+import { registerTokensDocs } from "../modules/tokens/tokens.openapi.js";
 import { registerUsersDocs } from "../modules/users/users.openapi.js";
 
 /** Assembles the OpenAPI 3.1 document from every module's Zod schemas. */
@@ -15,10 +16,17 @@ export function buildOpenApiDocument() {
     description: "Session cookie set by /auth/login, /auth/signup and OAuth. Send requests with credentials.",
   });
 
+  registry.registerComponent("securitySchemes", "bearerAuth", {
+    type: "http",
+    scheme: "bearer",
+    description: "Personal access token (dfp_…) from POST /me/tokens, for the CLI and scripts.",
+  });
+
   registerHealthDocs(registry);
   registerConfigDocs(registry);
   registerAuthDocs(registry);
   registerUsersDocs(registry);
+  registerTokensDocs(registry);
 
   return new OpenApiGeneratorV31(registry.definitions).generateDocument({
     openapi: "3.1.0",

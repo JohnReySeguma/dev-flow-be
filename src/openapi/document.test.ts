@@ -20,6 +20,8 @@ describe("OpenAPI document", () => {
       "/health",
       "/health/ready",
       "/me",
+      "/me/tokens",
+      "/me/tokens/{id}",
     ]);
   });
 

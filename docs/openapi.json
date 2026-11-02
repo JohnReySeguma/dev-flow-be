@@ -17,6 +17,11 @@
         "in": "cookie",
         "name": "devflow_access",
         "description": "Session cookie set by /auth/login, /auth/signup and OAuth. Send requests with credentials."
+      },
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Personal access token (dfp_…) from POST /me/tokens, for the CLI and scripts."
       }
     },
     "schemas": {
@@ -441,6 +446,185 @@
         "example": {
           "timezone": "Asia/Manila",
           "bio": "Owns the board and realtime sync."
+        }
+      },
+      "AccessTokenPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccessToken"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass as ?cursor= for the next page; null on the last."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "example": {
+          "items": [
+            {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e10",
+              "name": "devflow-cli · MacBook Pro",
+              "lastFour": "q7Rk",
+              "scopes": [
+                "issues:read",
+                "issues:write"
+              ],
+              "createdAt": "2026-08-14T10:00:00.000Z",
+              "lastUsedAt": "2026-11-01T08:41:00.000Z",
+              "expiresAt": null
+            }
+          ],
+          "nextCursor": null
+        }
+      },
+      "AccessToken": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "lastFour": {
+            "type": "string"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "issues:read",
+                "issues:write",
+                "projects:admin",
+                "webhooks:manage"
+              ]
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastUsedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "lastFour",
+          "scopes",
+          "createdAt",
+          "lastUsedAt",
+          "expiresAt"
+        ],
+        "example": {
+          "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e10",
+          "name": "devflow-cli · MacBook Pro",
+          "lastFour": "q7Rk",
+          "scopes": [
+            "issues:read",
+            "issues:write"
+          ],
+          "createdAt": "2026-08-14T10:00:00.000Z",
+          "lastUsedAt": "2026-11-01T08:41:00.000Z",
+          "expiresAt": null
+        }
+      },
+      "CreatedAccessToken": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "$ref": "#/components/schemas/AccessToken"
+          },
+          "secret": {
+            "type": "string",
+            "description": "Shown once. Use as `Authorization: Bearer <secret>`."
+          }
+        },
+        "required": [
+          "token",
+          "secret"
+        ],
+        "example": {
+          "token": {
+            "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e10",
+            "name": "devflow-cli · MacBook Pro",
+            "lastFour": "q7Rk",
+            "scopes": [
+              "issues:read",
+              "issues:write"
+            ],
+            "createdAt": "2026-08-14T10:00:00.000Z",
+            "lastUsedAt": "2026-11-01T08:41:00.000Z",
+            "expiresAt": null
+          },
+          "secret": "dfp_4tq0fZ8kWm2Lr9XbVn3cHs7YpEo1Ju6Gd5Ka-q7Rk"
+        }
+      },
+      "CreateAccessTokenRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "issues:read",
+                "issues:write",
+                "projects:admin",
+                "webhooks:manage"
+              ]
+            },
+            "minItems": 1
+          },
+          "expiresInDays": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 365
+          }
+        },
+        "required": [
+          "name",
+          "scopes",
+          "expiresInDays"
+        ],
+        "example": {
+          "name": "GitHub Actions · release.yml",
+          "scopes": [
+            "issues:write"
+          ],
+          "expiresInDays": 30
         }
       }
     },
@@ -884,6 +1068,9 @@
         "security": [
           {
             "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
           }
         ],
         "responses": {
@@ -919,6 +1106,9 @@
         "security": [
           {
             "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
           }
         ],
         "responses": {
@@ -957,7 +1147,7 @@
           "Profile"
         ],
         "summary": "Update your profile",
-        "description": "Any of name (max 48), gradient (one of the frontend AVATAR_GRADIENTS), timezone (IANA) and bio (max 280). Send If-Match with the ETag you read to get 412 CONFLICT_STALE instead of overwriting a newer change.",
+        "description": "Any of name (max 48), gradient (one of the frontend AVATAR_GRADIENTS), timezone (IANA) and bio (max 280). Send If-Match with the ETag you read to get 412 CONFLICT_STALE instead of overwriting a newer change. Session only: 403 FORBIDDEN with a bearer token.",
         "security": [
           {
             "cookieAuth": []
@@ -1002,6 +1192,147 @@
                 }
               }
             }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/tokens": {
+      "get": {
+        "tags": [
+          "Access tokens"
+        ],
+        "summary": "Your personal access tokens",
+        "description": "Newest first. Session only: 403 FORBIDDEN with a bearer token.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of tokens.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessTokenPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Access tokens"
+        ],
+        "summary": "Generate a token",
+        "description": "The secret is returned once and never again; only its hash and last four characters are stored. expiresInDays: 1 to 365, or null for no expiry. Session only.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAccessTokenRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedAccessToken"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/tokens/{id}": {
+      "delete": {
+        "tags": [
+          "Access tokens"
+        ],
+        "summary": "Revoke a token",
+        "description": "Takes effect immediately. 404 NOT_FOUND if it is not one of your tokens. Session only.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Revoked."
           },
           "default": {
             "description": "Error, as RFC 9457 problem details.",

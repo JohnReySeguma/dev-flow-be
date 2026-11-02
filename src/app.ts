@@ -13,7 +13,7 @@ import type { Redis } from "./lib/redis.js";
 import { errorHandler, notFoundHandler } from "./middleware/error-handler.js";
 import { originCheck } from "./middleware/origin-check.js";
 import { requestLogger } from "./middleware/request-logger.js";
-import { requireAuth } from "./middleware/require-auth.js";
+import { requireAuth, requireSession } from "./middleware/require-auth.js";
 import { createAccessTokens } from "./modules/auth/access-token.js";
 import { createAuthRepository } from "./modules/auth/auth.repository.js";
 import { createAuthRouter } from "./modules/auth/auth.routes.js";
@@ -23,6 +23,9 @@ import { createPasswordResetService } from "./modules/auth/password-reset.servic
 import { createConfigRouter } from "./modules/config/config.routes.js";
 import { createHealthRouter } from "./modules/health/health.routes.js";
 import { createUsersRepository } from "./modules/users/users.repository.js";
+import { createTokensRepository } from "./modules/tokens/tokens.repository.js";
+import { createTokensRouter } from "./modules/tokens/tokens.routes.js";
+import { createTokensService } from "./modules/tokens/tokens.service.js";
 import { createMeRouter } from "./modules/users/users.routes.js";
 import { createUsersService } from "./modules/users/users.service.js";
 import { createWorkspaceRepository } from "./modules/workspace/workspace.repository.js";
@@ -73,13 +76,15 @@ export function createApp({ env, features, logger, prisma, redis, email, fetch: 
     apiUrl: env.API_URL,
     logger,
   });
-  const authenticated = requireAuth(auth);
+  const tokens = createTokensService(createTokensRepository(prisma));
+  const authenticated = requireAuth({ auth, tokens });
 
   const api = express.Router();
   api.use(originCheck(env.CORS_ORIGIN));
   api.use("/health", createHealthRouter({ prisma, redis }));
   api.use("/config", createConfigRouter({ features }));
-  api.use("/me", createMeRouter({ users: createUsersService(users), requireAuth: authenticated }));
+  api.use("/me/tokens", createTokensRouter({ tokens, requireAuth: authenticated, requireSession }));
+  api.use("/me", createMeRouter({ users: createUsersService(users), requireAuth: authenticated, requireSession }));
   api.use(
     "/auth",
     createAuthRouter({ auth, passwords, oauth, frontendUrl: env.CORS_ORIGIN, requireAuth: authenticated }),

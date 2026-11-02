@@ -124,7 +124,7 @@ export function registerAuthDocs(registry: OpenAPIRegistry) {
     summary: "Current user and workspace",
     description:
       "Call on app load. 401 UNAUTHENTICATED → signed out; 401 TOKEN_EXPIRED → call POST /auth/refresh once and retry.",
-    security: [{ cookieAuth: [] }],
+    security: [{ cookieAuth: [] }, { bearerAuth: [] }],
     responses: { 200: { description: "The signed-in user.", ...json(authMeResponse) }, default: problemResponse },
   });
 }

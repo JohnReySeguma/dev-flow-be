@@ -54,6 +54,7 @@ model User {
   sessions            Session[]
   passwordResetTokens PasswordResetToken[]
   oauthAccounts       OAuthAccount[]
+  accessTokens        AccessToken[]
 
   @@index([workspaceId])
   @@map("users")
@@ -124,4 +125,24 @@ model OAuthAccount {
   @@unique([provider, providerAccountId])
   @@index([userId])
   @@map("oauth_accounts")
+}
+
+/// Personal access token for the CLI and scripts: `Authorization: Bearer dfp_…`.
+model AccessToken {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  name       String
+  /// SHA-256 of the secret, which is shown to the user once and never stored.
+  tokenHash  String    @unique @map("token_hash")
+  lastFour   String    @map("last_four")
+  /// issues:read, issues:write, projects:admin, webhooks:manage
+  scopes     String[]
+  expiresAt  DateTime? @map("expires_at") @db.Timestamptz(3)
+  lastUsedAt DateTime? @map("last_used_at") @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
+  @@map("access_tokens")
 }
