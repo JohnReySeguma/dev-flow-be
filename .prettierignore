@@ -1,0 +1,10 @@
+dist/
+coverage/
+node_modules/
+src/generated/
+package-lock.json
+
+# Authored briefs, kept as written
+docs/BRIEF.md
+docs/FRONTEND_HANDOFF.md
+docs/openapi.json
