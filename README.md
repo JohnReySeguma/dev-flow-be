@@ -25,6 +25,9 @@ projects with custom workflows, backlogs, sprints, reports, GitHub integration a
 
 TypeScript is pinned to 6.0: TypeScript 7 no longer ships the compiler API that typescript-eslint needs.
 
+The brief lists `@octokit/app` and `@octokit/rest` for GitHub; they are not installed. DevFlow only receives GitHub
+webhooks, which need an HMAC check (`node:crypto`), not an API client. Add them back if DevFlow starts calling GitHub.
+
 ## Run locally
 
 Only **Docker Desktop** and **Node.js 22** are needed. Postgres and Redis run in containers; the API runs on the host
