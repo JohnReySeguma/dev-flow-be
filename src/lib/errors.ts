@@ -19,6 +19,7 @@ export const ERROR_CATALOGUE = {
   PROJECT_KEY_TAKEN: { status: 409, title: "Project key already in use" },
   SPRINT_ALREADY_ACTIVE: { status: 409, title: "Another sprint is already active" },
   SPRINT_NOT_PLANNED: { status: 409, title: "Sprint is not planned" },
+  SPRINT_NOT_ACTIVE: { status: 409, title: "Sprint is not active" },
   STATUS_DELETE_BLOCKED: { status: 409, title: "Status cannot be deleted" },
   STATUS_UPDATE_BLOCKED: { status: 409, title: "Status cannot change category" },
   LAST_ADMIN: { status: 409, title: "The workspace needs at least one admin" },

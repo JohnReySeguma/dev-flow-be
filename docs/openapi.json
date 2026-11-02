@@ -79,6 +79,7 @@
               "PROJECT_KEY_TAKEN",
               "SPRINT_ALREADY_ACTIVE",
               "SPRINT_NOT_PLANNED",
+              "SPRINT_NOT_ACTIVE",
               "STATUS_DELETE_BLOCKED",
               "STATUS_UPDATE_BLOCKED",
               "LAST_ADMIN",
@@ -2112,6 +2113,473 @@
         ],
         "example": {
           "body": "Looks good to me. Merging after CI."
+        }
+      },
+      "SprintPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Sprint"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass as ?cursor= for the next page; null on the last."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "example": {
+          "items": [
+            {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e30",
+              "projectId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e20",
+              "number": 25,
+              "name": "Sprint 25",
+              "goal": "Ship SSO for enterprise tenants and stabilise token refresh.",
+              "status": "active",
+              "startAt": "2026-10-26T09:00:00.000Z",
+              "endAt": "2026-11-09T09:00:00.000Z",
+              "committedPoints": 50,
+              "completedAt": null,
+              "report": null
+            }
+          ],
+          "nextCursor": null
+        }
+      },
+      "UpdateSprintRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "goal": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "example": {
+          "goal": "Cycle analytics v1."
+        }
+      },
+      "StartSprintRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "goal": {
+            "type": "string",
+            "maxLength": 500,
+            "default": ""
+          },
+          "durationDays": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 28
+          }
+        },
+        "required": [
+          "name",
+          "durationDays"
+        ],
+        "example": {
+          "name": "Sprint 26",
+          "goal": "Cycle analytics v1.",
+          "durationDays": 14
+        }
+      },
+      "CompletedSprint": {
+        "type": "object",
+        "properties": {
+          "sprint": {
+            "$ref": "#/components/schemas/Sprint"
+          },
+          "carriedOverTo": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "projectId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "number": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "goal": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "planned",
+                  "active",
+                  "completed"
+                ]
+              },
+              "startAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "endAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "committedPoints": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "Points in the sprint when it started."
+              },
+              "completedAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "report": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "committedPoints": {
+                    "type": "integer"
+                  },
+                  "completedPoints": {
+                    "type": "integer"
+                  },
+                  "completedIssues": {
+                    "type": "integer"
+                  },
+                  "carriedOverIssues": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "committedPoints",
+                  "completedPoints",
+                  "completedIssues",
+                  "carriedOverIssues"
+                ],
+                "example": {
+                  "committedPoints": 40,
+                  "completedPoints": 33,
+                  "completedIssues": 12,
+                  "carriedOverIssues": 3
+                },
+                "description": "Set when the sprint completes."
+              }
+            },
+            "required": [
+              "id",
+              "projectId",
+              "number",
+              "name",
+              "goal",
+              "status",
+              "startAt",
+              "endAt",
+              "committedPoints",
+              "completedAt",
+              "report"
+            ],
+            "example": {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e30",
+              "projectId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e20",
+              "number": 25,
+              "name": "Sprint 25",
+              "goal": "Ship SSO for enterprise tenants and stabilise token refresh.",
+              "status": "active",
+              "startAt": "2026-10-26T09:00:00.000Z",
+              "endAt": "2026-11-09T09:00:00.000Z",
+              "committedPoints": 50,
+              "completedAt": null,
+              "report": null
+            },
+            "description": "The sprint that received unfinished issues; null when they went to the backlog."
+          }
+        },
+        "required": [
+          "sprint",
+          "carriedOverTo"
+        ],
+        "example": {
+          "sprint": {
+            "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e30",
+            "projectId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e20",
+            "number": 25,
+            "name": "Sprint 25",
+            "goal": "Ship SSO for enterprise tenants and stabilise token refresh.",
+            "status": "completed",
+            "startAt": "2026-10-26T09:00:00.000Z",
+            "endAt": "2026-11-09T09:00:00.000Z",
+            "committedPoints": 50,
+            "completedAt": "2026-11-09T09:00:00.000Z",
+            "report": {
+              "committedPoints": 45,
+              "completedPoints": 38,
+              "completedIssues": 9,
+              "carriedOverIssues": 2
+            }
+          },
+          "carriedOverTo": null
+        }
+      },
+      "CompleteSprintRequest": {
+        "type": "object",
+        "properties": {
+          "carryOver": {
+            "$ref": "#/components/schemas/CarryOver"
+          }
+        },
+        "required": [
+          "carryOver"
+        ],
+        "example": {
+          "carryOver": {
+            "kind": "backlog"
+          }
+        }
+      },
+      "CarryOver": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "backlog"
+                ]
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "sprint"
+                ]
+              },
+              "sprintId": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "required": [
+              "kind",
+              "sprintId"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "new-sprint"
+                ]
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        ],
+        "example": {
+          "kind": "new-sprint"
+        }
+      },
+      "Burndown": {
+        "type": "object",
+        "properties": {
+          "sprintId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "committedPoints": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "Sprint start plus n days."
+                },
+                "ideal": {
+                  "type": "number"
+                },
+                "remaining": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "description": "Null for days that have not happened yet."
+                }
+              },
+              "required": [
+                "date",
+                "ideal",
+                "remaining"
+              ]
+            }
+          }
+        },
+        "required": [
+          "sprintId",
+          "committedPoints",
+          "days"
+        ],
+        "example": {
+          "sprintId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e30",
+          "committedPoints": 45,
+          "days": [
+            {
+              "date": "2026-10-27T09:00:00.000Z",
+              "ideal": 45,
+              "remaining": 45
+            },
+            {
+              "date": "2026-10-28T09:00:00.000Z",
+              "ideal": 41.79,
+              "remaining": 42
+            },
+            {
+              "date": "2026-10-29T09:00:00.000Z",
+              "ideal": 38.57,
+              "remaining": null
+            }
+          ]
+        }
+      },
+      "Velocity": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "sprintId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "name": {
+              "type": "string"
+            },
+            "committed": {
+              "type": "integer"
+            },
+            "completed": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "sprintId",
+            "name",
+            "committed",
+            "completed"
+          ]
+        },
+        "description": "The most recent completed sprints, oldest first (chart order).",
+        "example": [
+          {
+            "sprintId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e31",
+            "name": "Sprint 23",
+            "committed": 31,
+            "completed": 31
+          },
+          {
+            "sprintId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e32",
+            "name": "Sprint 24",
+            "committed": 40,
+            "completed": 33
+          }
+        ]
+      },
+      "SprintHistory": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Sprint"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass as ?cursor= for the next page; null on the last."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "description": "Completed sprints with goal, dates and report, newest first.",
+        "example": {
+          "items": [
+            {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e30",
+              "projectId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e20",
+              "number": 24,
+              "name": "Sprint 24",
+              "goal": "Realtime presence and Live Sync",
+              "status": "completed",
+              "startAt": "2026-10-26T09:00:00.000Z",
+              "endAt": "2026-11-09T09:00:00.000Z",
+              "committedPoints": 50,
+              "completedAt": "2026-10-26T09:00:00.000Z",
+              "report": {
+                "committedPoints": 40,
+                "completedPoints": 33,
+                "completedIssues": 12,
+                "carriedOverIssues": 3
+              }
+            }
+          ],
+          "nextCursor": null
         }
       },
       "Bootstrap": {
@@ -4599,6 +5067,536 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Comment"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{key}/sprints": {
+      "get": {
+        "tags": [
+          "Sprints"
+        ],
+        "summary": "Sprints of a project, by number",
+        "description": "Any role; tokens need issues:read.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "DEV"
+            },
+            "required": true,
+            "name": "key",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Comma-separated filter, e.g. planned,active.",
+              "example": "planned,active"
+            },
+            "required": false,
+            "description": "Comma-separated filter, e.g. planned,active.",
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 20
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of sprints.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SprintPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Sprints"
+        ],
+        "summary": "Create the next sprint",
+        "description": "Members and admins; tokens need issues:write. Creates `Sprint {n+1}` in the planned state. No body.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "DEV"
+            },
+            "required": true,
+            "name": "key",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "The new sprint.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sprint"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sprints/{id}": {
+      "patch": {
+        "tags": [
+          "Sprints"
+        ],
+        "summary": "Rename a sprint or set its goal",
+        "description": "Members and admins; tokens need issues:write.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSprintRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated sprint.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sprint"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Sprints"
+        ],
+        "summary": "Delete a planned sprint",
+        "description": "Members and admins; tokens need issues:write. Its issues return to the backlog. 409 SPRINT_NOT_PLANNED for active or completed sprints.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted."
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sprints/{id}/start": {
+      "post": {
+        "tags": [
+          "Sprints"
+        ],
+        "summary": "Start a planned sprint",
+        "description": "Members and admins; tokens need issues:write. Starts now and ends after durationDays (1 to 28); committedPoints snapshots the points in the sprint. 409 SPRINT_ALREADY_ACTIVE when another sprint of the project is running, 409 SPRINT_NOT_PLANNED when this one is not planned.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartSprintRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The started sprint.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sprint"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sprints/{id}/complete": {
+      "post": {
+        "tags": [
+          "Sprints"
+        ],
+        "summary": "Complete the active sprint",
+        "description": "Members and admins; tokens need issues:write. In one transaction: writes the report, marks the sprint completed and moves issues not in a done status to carryOver (the backlog, a planned sprint, or a new sprint it creates). 409 SPRINT_NOT_ACTIVE when this sprint is not the active one.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteSprintRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The completed sprint and the carry-over target.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompletedSprint"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sprints/{id}/burndown": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Burndown of a sprint",
+        "description": "One point per sprint day from the issue history: ideal falls from committedPoints to zero; remaining is the points still open in the sprint at that moment, null for days still ahead. A completed sprint is read just before it completed. Empty days for a sprint that has not started. Any role; tokens need issues:read.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The burndown.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Burndown"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{key}/reports/velocity": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Velocity of recent sprints",
+        "description": "Committed against completed points for the last `limit` completed sprints, oldest first.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "DEV"
+            },
+            "required": true,
+            "name": "key",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 8,
+              "description": "How many recent sprints."
+            },
+            "required": false,
+            "description": "How many recent sprints.",
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The velocity series.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Velocity"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{key}/reports/history": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Sprint history",
+        "description": "Completed sprints with goal, dates and report, newest first.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "DEV"
+            },
+            "required": true,
+            "name": "key",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 40
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of completed sprints.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SprintHistory"
                 }
               }
             }

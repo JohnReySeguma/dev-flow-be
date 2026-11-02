@@ -1,7 +1,7 @@
 # DevFlow API — Frontend Integration Guide
 
 > **For:** the frontend ([`dev-flow`](https://github.com/JohnReySeguma/dev-flow)).
-> **Accurate for:** `v0.4.0`. Updated at every release (see [`FRONTEND_HANDOFF.md`](FRONTEND_HANDOFF.md)).
+> **Accurate for:** `v0.5.0`. Updated at every release (see [`FRONTEND_HANDOFF.md`](FRONTEND_HANDOFF.md)).
 > **Machine-readable contract:** [`openapi.json`](openapi.json), also served at `/api/v1/openapi.json`, with
 > Swagger UI at `/api/v1/docs`.
 > **Step-by-step plan for the frontend:** [`FRONTEND_BRIEF.md`](FRONTEND_BRIEF.md).
@@ -46,11 +46,11 @@
 | `moveIssueToStatus`           | Drag card between board columns       | `POST /issues/:issueKey/move`                                 | 0.4.0 |
 | `moveIssueToSprint`           | Backlog drag, "Move to" menu, ranking | `POST /issues/:issueKey/move`                                 | 0.4.0 |
 | `deleteIssue`                 | Issue sheet → Delete                  | `DELETE /issues/:issueKey`                                    | 0.4.0 |
-| `createSprint`                | Backlog → "+ Sprint"                  | `POST /projects/:key/sprints`                                 |       |
-| `updateSprint`                | Edit sprint name & goal               | `PATCH /sprints/:id`                                          |       |
-| `deleteSprint`                | Delete planned sprint                 | `DELETE /sprints/:id`                                         |       |
-| `startSprint`                 | Start sprint dialog                   | `POST /sprints/:id/start`                                     |       |
-| `completeSprint`              | Complete sprint dialog                | `POST /sprints/:id/complete`                                  |       |
+| `createSprint`                | Backlog → "+ Sprint"                  | `POST /projects/:key/sprints`                                 | 0.5.0 |
+| `updateSprint`                | Edit sprint name & goal               | `PATCH /sprints/:id`                                          | 0.5.0 |
+| `deleteSprint`                | Delete planned sprint                 | `DELETE /sprints/:id`                                         | 0.5.0 |
+| `startSprint`                 | Start sprint dialog                   | `POST /sprints/:id/start`                                     | 0.5.0 |
+| `completeSprint`              | Complete sprint dialog                | `POST /sprints/:id/complete`                                  | 0.5.0 |
 | `addStatus`                   | Board "Add column", settings          | `POST /projects/:key/statuses`                                | 0.4.0 |
 | `updateStatus`                | Rename column, change category        | `PATCH /projects/:key/statuses/:id`                           | 0.4.0 |
 | `moveStatus`                  | Move column left/right                | `PUT /projects/:key/statuses/order` (send the full new order) | 0.4.0 |
@@ -59,7 +59,7 @@
 | `updateProject`               | Project settings → General            | `PATCH /projects/:key`                                        | 0.4.0 |
 | `deleteProject`               | Project settings → Delete             | `DELETE /projects/:key`                                       | 0.4.0 |
 | `resetDemoData`               | Workspace settings → Reset demo data  | `POST /workspace/demo/reset`                                  | 0.4.0 |
-| Reports page                  | Burndown, velocity, history           | `GET /sprints/:id/burndown`, `GET /projects/:key/reports/*`   |       |
+| Reports page                  | Burndown, velocity, history           | `GET /sprints/:id/burndown`, `GET /projects/:key/reports/*`   | 0.5.0 |
 | Issue sheet comments          | Read and add comments                 | `GET`/`POST /issues/:issueKey/comments`                       | 0.4.0 |
 | ⌘K jump                       | Open an issue by key or number        | `GET /issues/:issueKey` (`104` needs `?project=DEV`)          | 0.4.0 |
 
@@ -149,8 +149,9 @@ the contract already but no endpoint returns them yet.
 | `NOT_FOUND`              | 404  | Unknown route or resource                                                       | Any unknown route, `DELETE /me/tokens/:id`, disabled OAuth provider    |
 | `EMAIL_TAKEN`            | 409  | Sign-up with an email that already has an account                               | `POST /auth/signup`                                                    |
 | `PROJECT_KEY_TAKEN`      | 409  | Project key already in use                                                      | `POST /projects`                                                       |
-| `SPRINT_ALREADY_ACTIVE`  | 409  | Another sprint is active in the project                                         | Reserved (`v0.5.0`)                                                    |
-| `SPRINT_NOT_PLANNED`     | 409  | Only planned sprints can be started or deleted                                  | Reserved (`v0.5.0`)                                                    |
+| `SPRINT_ALREADY_ACTIVE`  | 409  | Another sprint is active in the project; complete it first                      | `POST /sprints/:id/start`                                              |
+| `SPRINT_NOT_PLANNED`     | 409  | Only planned sprints can be started or deleted                                  | `POST /sprints/:id/start`, `DELETE /sprints/:id`                       |
+| `SPRINT_NOT_ACTIVE`      | 409  | Only the active sprint can be completed                                         | `POST /sprints/:id/complete` (new in `v0.5.0`)                         |
 | `STATUS_DELETE_BLOCKED`  | 409  | Deleting would leave < 2 statuses or no to-do / done status (`detail` says why) | `DELETE /projects/:key/statuses/:id`                                   |
 | `STATUS_UPDATE_BLOCKED`  | 409  | Recategorising would leave no to-do or no done status (`detail` says why)       | `PATCH /projects/:key/statuses/:id` (new in `v0.4.0`)                  |
 | `LAST_ADMIN`             | 409  | The last active admin cannot be demoted or removed                              | `PATCH` / `DELETE /workspace/members/:id`                              |
@@ -288,7 +289,7 @@ it anyway with `403 FORBIDDEN`.
 | Read the workspace, members and invites                         | ✓      | ✓      | ✓     |
 | Read projects, issues, comments                                 | ✓      | ✓      | ✓     |
 | Create and edit issues and comments; create and rename projects |        | ✓      | ✓     |
-| Edit sprints (from `v0.5.0`)                                    |        | ✓      | ✓     |
+| Create, edit, start, complete and delete sprints                |        | ✓      | ✓     |
 | Invite, change roles, remove members, revoke invites            |        |        | ✓     |
 | Edit the workflow, delete projects, reset demo data             |        |        | ✓     |
 
@@ -345,8 +346,34 @@ and `DELETE …/:id?moveTo=<statusId>` (`moveTo` is required when the column has
 
 ### 6.5 Sprints
 
-Sprints are read-only in this release: they arrive in the snapshot and issues can be moved in and out of planned or
-active sprints, but creating, editing, starting and completing sprints, and the reports, ship in `v0.5.0`.
+Members and admins run the lifecycle; every call answers with the frontend's `Sprint`:
+
+| Store function   | Endpoint                                               | Rules                                                                               |
+| ---------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| `createSprint`   | `POST /projects/:key/sprints` (no body)                | Creates `Sprint {n+1}`, planned                                                     |
+| `updateSprint`   | `PATCH /sprints/:id { name?, goal? }`                  | Any status                                                                          |
+| `deleteSprint`   | `DELETE /sprints/:id`                                  | Planned only (`SPRINT_NOT_PLANNED`); its issues return to the backlog               |
+| `startSprint`    | `POST /sprints/:id/start { name, goal, durationDays }` | Planned only; one active sprint per project (`SPRINT_ALREADY_ACTIVE`); 1 to 28 days |
+| `completeSprint` | `POST /sprints/:id/complete { carryOver }`             | Active only (`SPRINT_NOT_ACTIVE`); `carryOver` is the store's `CarryOver`           |
+
+Starting snapshots `committedPoints`. Completing writes `report`, sets `completedAt` and moves every issue not in a
+done status to the backlog, a planned sprint (`{ kind: "sprint", sprintId }`) or a sprint it creates
+(`{ kind: "new-sprint" }`), all in one transaction. The response is `{ sprint, carriedOverTo }`: `carriedOverTo` is the
+sprint that received the issues (the new one for `new-sprint`), or `null` for the backlog. Re-fetch the snapshot
+afterwards to pick up the moved issues. `GET /projects/:key/sprints?status=planned,active` lists sprints by number.
+
+### 6.6 Reports
+
+| Report   | Endpoint                                      | Shape                                                               |
+| -------- | --------------------------------------------- | ------------------------------------------------------------------- |
+| Burndown | `GET /sprints/:id/burndown`                   | `{ sprintId, committedPoints, days: [{ date, ideal, remaining }] }` |
+| Velocity | `GET /projects/:key/reports/velocity?limit=8` | `[{ sprintId, name, committed, completed }]`, oldest first          |
+| History  | `GET /projects/:key/reports/history`          | `{ items: Sprint[], nextCursor }`, completed sprints newest first   |
+
+`days` has one point per sprint day, exactly the `BurndownDay[]` the reports view builds today, so it can be passed
+to `BurndownChart` as is. The difference is where `remaining` comes from: the issue history rather than today's
+`resolvedAt` values, so issues added, removed, re-estimated or reopened mid-sprint are counted correctly. `ideal`
+starts from `committedPoints`; `remaining` is `null` for days still ahead. A planned sprint has no days.
 
 ## 7. Realtime
 
@@ -378,8 +405,7 @@ touching accounts.
 
 ## 9. Known limitations
 
-- Sprint lifecycle (create, edit, start, complete) and the reports arrive in `v0.5.0`; until then sprint actions stay
-  local or disabled in API mode.
+- Deleting an issue also deletes its history, so it disappears from past burndowns.
 - No realtime yet (`v0.6.0`): other people's changes appear after re-fetching the snapshot.
 - No rate limits on sign-in, sign-up, password reset or invites until `v1.0.0`.
 - Signing up directly with an invited email leaves the invite pending (accepting it then answers `ALREADY_MEMBER`);

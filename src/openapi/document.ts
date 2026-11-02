@@ -7,6 +7,8 @@ import { registerConfigDocs } from "../modules/config/config.openapi.js";
 import { registerHealthDocs } from "../modules/health/health.openapi.js";
 import { registerIssuesDocs } from "../modules/issues/issues.openapi.js";
 import { registerProjectsDocs } from "../modules/projects/projects.openapi.js";
+import { registerReportsDocs } from "../modules/reports/reports.openapi.js";
+import { registerSprintsDocs } from "../modules/sprints/sprints.openapi.js";
 import { registerTokensDocs } from "../modules/tokens/tokens.openapi.js";
 import { registerUsersDocs } from "../modules/users/users.openapi.js";
 import { registerWorkflowDocs } from "../modules/workflow/workflow.openapi.js";
@@ -38,6 +40,8 @@ export function buildOpenApiDocument() {
   registerIssuesDocs(registry);
   registerWorkflowDocs(registry);
   registerCommentsDocs(registry);
+  registerSprintsDocs(registry);
+  registerReportsDocs(registry);
   registerBootstrapDocs(registry);
 
   return new OpenApiGeneratorV31(registry.definitions).generateDocument({

@@ -3,9 +3,9 @@
 REST + realtime API for [DevFlow](https://github.com/JohnReySeguma/dev-flow), a sprint-based issue tracker:
 projects with custom workflows, backlogs, sprints, reports, GitHub integration and Live Sync.
 
-> **Status:** `v0.4.0` — foundation, authentication, the workspace (members, roles, invites) and the tracker:
-> projects, workflows, issues with ranking and comments, `/bootstrap` and project snapshots. Sprint lifecycle,
-> reports, realtime and GitHub arrive milestone by milestone ([`docs/BRIEF.md` §7](docs/BRIEF.md)).
+> **Status:** `v0.5.0` — foundation, authentication, the workspace (members, roles, invites) and the tracker:
+> projects, workflows, issues with ranking and comments, the sprint lifecycle and reports (burndown, velocity,
+> history). Realtime, GitHub and hardening arrive milestone by milestone ([`docs/BRIEF.md` §7](docs/BRIEF.md)).
 > Frontend integration: the contract is [`docs/INTEGRATION.md`](docs/INTEGRATION.md); the step-by-step plan is
 > [`docs/FRONTEND_BRIEF.md`](docs/FRONTEND_BRIEF.md).
 
@@ -122,7 +122,7 @@ src/
   server.ts           entry point: env, clients, HTTP server, graceful shutdown
   config/             env.ts (Zod-validated environment), features.ts (optional integrations)
   modules/<feature>/  routes → controller → service → repository, plus schemas and OpenAPI docs
-                      (auth, users, tokens, workspace, projects, workflow, issues, comments, bootstrap, …)
+                      (auth, users, tokens, workspace, projects, workflow, issues, comments, sprints, reports, …)
   middleware/         request id + logging, validation, auth, origin check, problem+json error handler
   integrations/       email (console, smtp) and OAuth providers (GitHub, Google)
   lib/                errors catalogue, logger, Prisma and Redis clients, hashing, pagination, ETags, shutdown

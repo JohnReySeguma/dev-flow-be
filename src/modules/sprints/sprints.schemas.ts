@@ -45,3 +45,88 @@ export const sprint = z
   });
 
 export type SprintView = z.infer<typeof sprint>;
+
+export const sprintPage = z
+  .object({
+    items: z.array(sprint),
+    nextCursor: z.string().nullable().meta({ description: "Pass as ?cursor= for the next page; null on the last." }),
+  })
+  .meta({ id: "SprintPage", example: { items: [sprint.meta()?.example], nextCursor: null } });
+
+export const listSprintsQuery = z.object({
+  status: z
+    .string()
+    .optional()
+    .transform((value, ctx) => {
+      if (value === undefined) return undefined;
+      const statuses = value.split(",").map((s) => s.trim());
+      const parsed = z.array(z.enum(["planned", "active", "completed"])).safeParse(statuses);
+      if (!parsed.success) {
+        ctx.addIssue({ code: "custom", message: "Use planned, active and/or completed, comma-separated." });
+        return z.NEVER;
+      }
+      return parsed.data;
+    })
+    .meta({ description: "Comma-separated filter, e.g. planned,active.", example: "planned,active" }),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  cursor: z.string().max(20).optional(),
+});
+
+const sprintName = z.string().trim().min(1, "Name the sprint.").max(64, "Use at most 64 characters.");
+const sprintGoal = z.string().trim().max(500, "Use at most 500 characters.");
+
+export const updateSprintBody = z
+  .object({ name: sprintName, goal: sprintGoal })
+  .partial()
+  .refine((body) => Object.keys(body).length > 0, "Send name or goal.")
+  .meta({ id: "UpdateSprintRequest", example: { goal: "Cycle analytics v1." } });
+
+export type ListSprintsQuery = z.infer<typeof listSprintsQuery>;
+export type UpdateSprintInput = z.infer<typeof updateSprintBody>;
+
+export const startSprintBody = z
+  .object({
+    name: sprintName,
+    goal: sprintGoal.default(""),
+    durationDays: z.number().int().min(1, "At least one day.").max(28, "At most 28 days."),
+  })
+  .meta({
+    id: "StartSprintRequest",
+    example: { name: "Sprint 26", goal: "Cycle analytics v1.", durationDays: 14 },
+  });
+
+/** Where unfinished issues go (the frontend's CarryOver). */
+export const carryOver = z
+  .discriminatedUnion("kind", [
+    z.object({ kind: z.literal("backlog") }),
+    z.object({ kind: z.literal("sprint"), sprintId: z.uuid() }),
+    z.object({ kind: z.literal("new-sprint") }),
+  ])
+  .meta({ id: "CarryOver", example: { kind: "new-sprint" } });
+
+export const completeSprintBody = z
+  .object({ carryOver })
+  .meta({ id: "CompleteSprintRequest", example: { carryOver: { kind: "backlog" } } });
+
+export const completeSprintResponse = z
+  .object({
+    sprint,
+    carriedOverTo: sprint
+      .nullable()
+      .meta({ description: "The sprint that received unfinished issues; null when they went to the backlog." }),
+  })
+  .meta({
+    id: "CompletedSprint",
+    example: {
+      sprint: {
+        ...(sprint.meta()?.example as object),
+        status: "completed",
+        completedAt: "2026-11-09T09:00:00.000Z",
+        report: { committedPoints: 45, completedPoints: 38, completedIssues: 9, carriedOverIssues: 2 },
+      },
+      carriedOverTo: null,
+    },
+  });
+
+export type StartSprintInput = z.infer<typeof startSprintBody>;
+export type CompleteSprintInput = z.infer<typeof completeSprintBody>;
