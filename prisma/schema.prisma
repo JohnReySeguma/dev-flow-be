@@ -20,8 +20,9 @@ model Workspace {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  users   User[]
-  invites WorkspaceInvite[]
+  users    User[]
+  invites  WorkspaceInvite[]
+  projects Project[]
 
   @@map("workspaces")
 }
@@ -57,6 +58,7 @@ model User {
   oauthAccounts       OAuthAccount[]
   accessTokens        AccessToken[]
   invitesSent         WorkspaceInvite[]    @relation("InvitesSent")
+  projectsLed         Project[]            @relation("ProjectLead")
 
   @@index([workspaceId])
   @@map("users")
@@ -169,4 +171,49 @@ model WorkspaceInvite {
   @@unique([workspaceId, email])
   @@index([workspaceId, createdAt, id])
   @@map("workspace_invites")
+}
+
+/// Categories give custom statuses shared meaning (e.g. what counts as done).
+enum StatusCategory {
+  todo
+  in_progress
+  done
+}
+
+model Project {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  workspaceId     String   @map("workspace_id") @db.Uuid
+  /// ^[A-Z]{2,5}$, immutable; issues are keyed KEY-n.
+  key             String
+  name            String
+  description     String   @default("")
+  /// Tailwind gradient classes for the project icon.
+  color           String
+  leadId          String?  @map("lead_id") @db.Uuid
+  /// Next issue number; incremented atomically when an issue is created.
+  nextIssueNumber Int      @default(1) @map("next_issue_number")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  workspace Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  lead      User?            @relation("ProjectLead", fields: [leadId], references: [id], onDelete: SetNull)
+  statuses  WorkflowStatus[]
+
+  @@unique([workspaceId, key])
+  @@map("projects")
+}
+
+/// A board column. `position` orders the workflow left to right.
+model WorkflowStatus {
+  id        String         @id @default(uuid(7)) @db.Uuid
+  projectId String         @map("project_id") @db.Uuid
+  name      String
+  category  StatusCategory
+  position  Int
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, position])
+  @@map("workflow_statuses")
 }

@@ -893,6 +893,224 @@
           "name": "Grace Hopper",
           "password": "YOUR_PASSWORD"
         }
+      },
+      "ProjectPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Project"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass as ?cursor= for the next page; null on the last."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "example": {
+          "items": [
+            {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e20",
+              "key": "DEV",
+              "name": "DevFlow Core",
+              "description": "The web app: board, realtime sync, auth and the public API gateway.",
+              "color": "from-violet-500 to-indigo-600",
+              "leadId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
+              "workflow": [
+                {
+                  "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e21",
+                  "name": "To Do",
+                  "category": "todo"
+                },
+                {
+                  "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e22",
+                  "name": "In Progress",
+                  "category": "in_progress"
+                },
+                {
+                  "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e23",
+                  "name": "In Review",
+                  "category": "in_progress"
+                },
+                {
+                  "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e24",
+                  "name": "Done",
+                  "category": "done"
+                }
+              ],
+              "nextIssueNumber": 134,
+              "createdAt": "2026-05-05T09:00:00.000Z"
+            }
+          ],
+          "nextCursor": null
+        }
+      },
+      "Project": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          },
+          "leadId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "workflow": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkflowStatus"
+            }
+          },
+          "nextIssueNumber": {
+            "type": "integer"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "name",
+          "description",
+          "color",
+          "leadId",
+          "workflow",
+          "nextIssueNumber",
+          "createdAt"
+        ],
+        "example": {
+          "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e20",
+          "key": "DEV",
+          "name": "DevFlow Core",
+          "description": "The web app: board, realtime sync, auth and the public API gateway.",
+          "color": "from-violet-500 to-indigo-600",
+          "leadId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
+          "workflow": [
+            {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e21",
+              "name": "To Do",
+              "category": "todo"
+            },
+            {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e22",
+              "name": "In Progress",
+              "category": "in_progress"
+            },
+            {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e23",
+              "name": "In Review",
+              "category": "in_progress"
+            },
+            {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e24",
+              "name": "Done",
+              "category": "done"
+            }
+          ],
+          "nextIssueNumber": 134,
+          "createdAt": "2026-05-05T09:00:00.000Z"
+        }
+      },
+      "WorkflowStatus": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "todo",
+              "in_progress",
+              "done"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "category"
+        ],
+        "example": {
+          "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e21",
+          "name": "In Review",
+          "category": "in_progress"
+        }
+      },
+      "CreateProjectRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "key": {
+            "type": "string",
+            "pattern": "^[A-Z]{2,5}$"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500,
+            "default": ""
+          }
+        },
+        "required": [
+          "name",
+          "key"
+        ],
+        "example": {
+          "name": "Mobile App",
+          "key": "MOB",
+          "description": "React Native client for iOS and Android."
+        }
+      },
+      "UpdateProjectRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "example": {
+          "description": "Board, realtime sync and auth."
+        }
       }
     },
     "parameters": {}
@@ -1984,6 +2202,298 @@
                 }
               }
             }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects": {
+      "get": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Projects in the workspace",
+        "description": "Oldest first. Any role; tokens need issues:read.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of projects.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Create a project",
+        "description": "Members and admins; tokens need projects:admin. The key is upper-cased, must match ^[A-Z]{2,5}$ and cannot change later. Creates the default workflow (To Do, In Progress, In Review, Done); the creator leads the project. Errors: 409 PROJECT_KEY_TAKEN, 422 VALIDATION_FAILED.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProjectRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The new project.",
+            "headers": {
+              "ETag": {
+                "description": "Version of the project; send it back as If-Match.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{key}": {
+      "get": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "A project with its workflow",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Project key, any case.",
+              "example": "DEV"
+            },
+            "required": true,
+            "description": "Project key, any case.",
+            "name": "key",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The project.",
+            "headers": {
+              "ETag": {
+                "description": "Version of the project; send it back as If-Match.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Rename or describe a project",
+        "description": "Members and admins; tokens need projects:admin. The key is immutable. Optional If-Match → 412 CONFLICT_STALE.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Project key, any case.",
+              "example": "DEV"
+            },
+            "required": true,
+            "description": "Project key, any case.",
+            "name": "key",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "If-Match",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProjectRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated project.",
+            "headers": {
+              "ETag": {
+                "description": "Version of the project; send it back as If-Match.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Delete a project",
+        "description": "Admins only; tokens need projects:admin. Deletes its workflow, sprints, issues and comments.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Project key, any case.",
+              "example": "DEV"
+            },
+            "required": true,
+            "description": "Project key, any case.",
+            "name": "key",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted."
           },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
