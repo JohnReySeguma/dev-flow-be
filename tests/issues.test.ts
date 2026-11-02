@@ -1,6 +1,6 @@
 import request from "supertest";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { seed } from "../prisma/seed.js";
+import { seedTeam } from "./helpers/team.js";
 import { createLogger } from "../src/lib/logger.js";
 import { createTestApp } from "./helpers/app.js";
 import { truncateAll } from "./helpers/db.js";
@@ -16,7 +16,7 @@ let projectId = "";
 
 beforeEach(async () => {
   await truncateAll(prisma);
-  await seed(prisma, createLogger(env), undefined, { tracker: false });
+  await seedTeam(prisma, createLogger(env), undefined, { tracker: false });
   member = asBrowser(app, await signIn(app, "member@devflow.local"));
   viewer = asBrowser(app, await signIn(app, "viewer@devflow.local"));
   const project = await member.post("/api/v2/workspaces/acme-inc/projects").send({ name: "DevFlow Core", key: "DEV" });

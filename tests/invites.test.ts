@@ -1,6 +1,6 @@
 import request from "supertest";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { seed } from "../prisma/seed.js";
+import { seedTeam } from "./helpers/team.js";
 import { createLogger } from "../src/lib/logger.js";
 import { createTestApp } from "./helpers/app.js";
 import { FRONTEND_ORIGIN, sessionCookieHeader } from "./helpers/cookies.js";
@@ -13,7 +13,7 @@ afterAll(close);
 let admin: ReturnType<typeof asBrowser>;
 beforeEach(async () => {
   await truncateAll(prisma);
-  await seed(prisma, createLogger(env), undefined, { tracker: false });
+  await seedTeam(prisma, createLogger(env), undefined, { tracker: false });
   email.sent.length = 0;
   email.failNext = false;
   admin = asBrowser(app, await signIn(app, "demo@devflow.local"));

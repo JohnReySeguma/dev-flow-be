@@ -1,6 +1,7 @@
 import request from "supertest";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { DEMO_MEMBERS, seed } from "../prisma/seed.js";
+import { DEMO_MEMBERS } from "../prisma/seed.js";
+import { seedTeam } from "./helpers/team.js";
 import { createLogger } from "../src/lib/logger.js";
 import { createTestApp } from "./helpers/app.js";
 import { truncateAll } from "./helpers/db.js";
@@ -11,7 +12,7 @@ afterAll(close);
 
 beforeEach(async () => {
   await truncateAll(prisma);
-  await seed(prisma, createLogger(env), undefined, { tracker: false });
+  await seedTeam(prisma, createLogger(env), undefined, { tracker: false });
 });
 
 describe("GET /api/v2/workspaces/acme-inc", () => {

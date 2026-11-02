@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { seed } from "../prisma/seed.js";
+import { seedTeam } from "./helpers/team.js";
 import { createLogger } from "../src/lib/logger.js";
 import { FRONTEND_ORIGIN } from "./helpers/cookies.js";
 import { truncateAll } from "./helpers/db.js";
@@ -13,7 +13,7 @@ afterAll(() => server.close());
 let cookie = "";
 beforeEach(async () => {
   await truncateAll(prisma);
-  await seed(prisma, createLogger(env));
+  await seedTeam(prisma, createLogger(env));
   cookie = await signIn(app, "member@devflow.local");
 });
 

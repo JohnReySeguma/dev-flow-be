@@ -5,9 +5,10 @@ import type { TokenScope } from "../tokens/tokens.schemas.js";
  * Who is calling, from the session cookie or an access token; attached to `req.identity` by
  * `requireAuth`. An access token works in one workspace only, `tokenWorkspaceId`.
  */
-export type Identity =
-  | { userId: string; via: "session"; sessionId: string }
-  | { userId: string; via: "token"; tokenId: string; scopes: TokenScope[]; tokenWorkspaceId: string };
+export type Identity = { userId: string; /** A seeded demo account (public password). */ isDemo: boolean } & (
+  | { via: "session"; sessionId: string }
+  | { via: "token"; tokenId: string; scopes: TokenScope[]; tokenWorkspaceId: string }
+);
 
 /** The workspace a request acts in. */
 export type WorkspaceRef = { id: string; slug: string; name: string; isDemo: boolean };

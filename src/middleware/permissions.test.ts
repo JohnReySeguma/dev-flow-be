@@ -8,7 +8,7 @@ import { hasRole, requireRole, requireScope } from "./permissions.js";
 import { requestLogger } from "./request-logger.js";
 
 const workspace = { id: "w", slug: "acme-inc", name: "Acme Inc", isDemo: false };
-const caller = { userId: "u", workspaceId: "w", workspace };
+const caller = { userId: "u", isDemo: false, workspaceId: "w", workspace };
 const session = (role: AuthContext["role"]): AuthContext => ({ ...caller, role, via: "session", sessionId: "s" });
 const token = (scopes: string[]): AuthContext =>
   ({ ...caller, role: "admin", via: "token", tokenId: "t", scopes, tokenWorkspaceId: "w" }) as AuthContext;

@@ -75,6 +75,8 @@
               "FORBIDDEN",
               "CANNOT_CHANGE_OWN_ROLE",
               "CANNOT_REMOVE_SELF",
+              "DEMO_WORKSPACE_LOCKED",
+              "DEMO_ACCOUNT_LOCKED",
               "NOT_FOUND",
               "EMAIL_TAKEN",
               "PROJECT_KEY_TAKEN",
@@ -3622,7 +3624,7 @@
           "Profile"
         ],
         "summary": "Update your profile",
-        "description": "Any of name (max 48), gradient (one of the frontend AVATAR_GRADIENTS), timezone (IANA) and bio (max 280). Send If-Match with the ETag you read to get 412 CONFLICT_STALE instead of overwriting a newer change. Session only: 403 FORBIDDEN with a bearer token.",
+        "description": "Any of name (max 48), gradient (one of the frontend AVATAR_GRADIENTS), timezone (IANA) and bio (max 280). Send If-Match with the ETag you read to get 412 CONFLICT_STALE instead of overwriting a newer change. Session only: 403 FORBIDDEN with a bearer token. 403 DEMO_ACCOUNT_LOCKED for the shared demo accounts.",
         "security": [
           {
             "cookieAuth": []
@@ -3791,7 +3793,7 @@
           "Access tokens"
         ],
         "summary": "Generate a token",
-        "description": "The secret is returned once and never again; only its hash and last four characters are stored. expiresInDays: 1 to 365, or null for no expiry. Session only.",
+        "description": "The secret is returned once and never again; only its hash and last four characters are stored. The token works in `workspace` only (422 if you are not a member). expiresInDays: 1 to 365, or null for no expiry. Session only. 403 DEMO_ACCOUNT_LOCKED for the shared demo accounts.",
         "security": [
           {
             "cookieAuth": []
@@ -3860,7 +3862,7 @@
           "Access tokens"
         ],
         "summary": "Revoke a token",
-        "description": "Takes effect immediately. 404 NOT_FOUND if it is not one of your tokens. Session only.",
+        "description": "Takes effect immediately. 404 NOT_FOUND if it is not one of your tokens. Session only. 403 DEMO_ACCOUNT_LOCKED for the shared demo accounts.",
         "security": [
           {
             "cookieAuth": []
@@ -4004,7 +4006,7 @@
           "Workspace"
         ],
         "summary": "Create a workspace",
-        "description": "You become its admin. With sampleData (the default) it starts with a copy of the sample projects DEV, BIL and MOB: the demo admin's issues are yours, the rest unassigned, no comments. The slug comes from the name and gets a short suffix when taken. Signed-in session only.",
+        "description": "You become its admin. With sampleData (the default) it starts with a copy of the sample projects DEV, BIL and MOB: the demo admin's issues are yours, the rest unassigned, no comments. The slug comes from the name and gets a short suffix when taken. Signed-in session only. 403 DEMO_ACCOUNT_LOCKED for the shared demo accounts.",
         "security": [
           {
             "cookieAuth": []
@@ -4396,7 +4398,7 @@
           "Workspace"
         ],
         "summary": "Rename the workspace",
-        "description": "Admins only, signed-in session only. The slug does not change, so links keep working.",
+        "description": "Admins only, signed-in session only. The slug does not change, so links keep working. 403 DEMO_WORKSPACE_LOCKED in the demo workspace.",
         "security": [
           {
             "cookieAuth": []
@@ -4476,7 +4478,7 @@
           "Workspace"
         ],
         "summary": "Delete the workspace",
-        "description": "Admins only, signed-in session only. Deletes its projects, issues, sprints, invites and access tokens, and every membership, immediately; there is no undo. The accounts themselves are kept.",
+        "description": "Admins only, signed-in session only. Deletes its projects, issues, sprints, invites and access tokens, and every membership, immediately; there is no undo. The accounts themselves are kept. 403 DEMO_WORKSPACE_LOCKED in the demo workspace.",
         "security": [
           {
             "cookieAuth": []
@@ -4542,7 +4544,7 @@
           "Workspace"
         ],
         "summary": "Leave the workspace",
-        "description": "Any role, signed-in session only. Your access tokens for it are deleted and your issues and project leads in it are unassigned. 409 LAST_ADMIN when you are its last admin: promote someone first, or delete the workspace if you are its only member.",
+        "description": "Any role, signed-in session only. Your access tokens for it are deleted and your issues and project leads in it are unassigned. 409 LAST_ADMIN when you are its last admin: promote someone first, or delete the workspace if you are its only member. 403 DEMO_WORKSPACE_LOCKED in the demo workspace.",
         "security": [
           {
             "cookieAuth": []
@@ -4704,7 +4706,7 @@
           "Workspace"
         ],
         "summary": "Change a member's or invite's role",
-        "description": "Admins only, signed-in session only. Errors: 403 CANNOT_CHANGE_OWN_ROLE, 409 LAST_ADMIN (demoting the last active admin), 404 NOT_FOUND. Last write wins: no If-Match.",
+        "description": "Admins only, signed-in session only. Errors: 403 CANNOT_CHANGE_OWN_ROLE, 409 LAST_ADMIN (demoting the last active admin), 404 NOT_FOUND. Last write wins: no If-Match. 403 DEMO_WORKSPACE_LOCKED in the demo workspace.",
         "security": [
           {
             "cookieAuth": []
@@ -4793,7 +4795,7 @@
           "Workspace"
         ],
         "summary": "Remove a member or revoke an invite",
-        "description": "Admins only, signed-in session only. Removing a member deletes their account, sessions and access tokens immediately; there is no undo. Errors: 403 CANNOT_REMOVE_SELF, 409 LAST_ADMIN, 404 NOT_FOUND.",
+        "description": "Admins only, signed-in session only. Removing a member deletes their account, sessions and access tokens immediately; there is no undo. Errors: 403 CANNOT_REMOVE_SELF, 409 LAST_ADMIN, 404 NOT_FOUND. 403 DEMO_WORKSPACE_LOCKED in the demo workspace.",
         "security": [
           {
             "cookieAuth": []
@@ -4868,7 +4870,7 @@
           "Workspace"
         ],
         "summary": "Invite someone by email",
-        "description": "Admins only, signed-in session only. Emails a single-use link to {CORS_ORIGIN}/invite?token=… that expires after 7 days. Errors: 409 ALREADY_MEMBER (already a member or already invited), 502 EMAIL_DELIVERY_FAILED (the invite is kept; use resend).",
+        "description": "Admins only, signed-in session only. Emails a single-use link to {CORS_ORIGIN}/invite?token=… that expires after 7 days. Errors: 409 ALREADY_MEMBER (already a member or already invited), 502 EMAIL_DELIVERY_FAILED (the invite is kept; use resend). 403 DEMO_WORKSPACE_LOCKED in the demo workspace.",
         "security": [
           {
             "cookieAuth": []
@@ -4950,7 +4952,7 @@
           "Workspace"
         ],
         "summary": "Re-send an invite",
-        "description": "Admins only. Sends a new link valid for 7 days; earlier links stop working. 404 NOT_FOUND if the invite was accepted or revoked; 502 EMAIL_DELIVERY_FAILED.",
+        "description": "Admins only. Sends a new link valid for 7 days; earlier links stop working. 404 NOT_FOUND if the invite was accepted or revoked; 502 EMAIL_DELIVERY_FAILED. 403 DEMO_WORKSPACE_LOCKED in the demo workspace.",
         "security": [
           {
             "cookieAuth": []

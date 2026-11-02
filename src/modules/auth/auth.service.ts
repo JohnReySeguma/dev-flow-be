@@ -165,7 +165,7 @@ export function createAuthService({
       if (session?.userId !== userId || session.revokedAt || session.expiresAt <= new Date()) {
         throw new AppError("UNAUTHENTICATED");
       }
-      return { userId, via: "session", sessionId };
+      return { userId, isDemo: session.user.isDemo, via: "session", sessionId };
     },
   };
 }

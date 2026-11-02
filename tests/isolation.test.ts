@@ -1,6 +1,7 @@
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { DEMO_PASSWORD, seed } from "../prisma/seed.js";
+import { DEMO_PASSWORD } from "../prisma/seed.js";
+import { seedTeam } from "./helpers/team.js";
 import { createLogger } from "../src/lib/logger.js";
 import { hashPassword } from "../src/lib/password.js";
 import { createTestApp } from "./helpers/app.js";
@@ -20,7 +21,7 @@ let hankId = "";
  */
 beforeAll(async () => {
   await truncateAll(prisma);
-  await seed(prisma, createLogger(env));
+  await seedTeam(prisma, createLogger(env));
   const workspace = await prisma.workspace.create({ data: { name: "Globex", slug: "globex" } });
   const hank = await prisma.user.create({
     data: {

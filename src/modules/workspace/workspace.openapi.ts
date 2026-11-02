@@ -41,7 +41,7 @@ export function registerWorkspaceDocs(registry: OpenAPIRegistry, workspace: Open
     description:
       "You become its admin. With sampleData (the default) it starts with a copy of the sample projects DEV, BIL " +
       "and MOB: the demo admin's issues are yours, the rest unassigned, no comments. The slug comes from the name " +
-      "and gets a short suffix when taken. Signed-in session only.",
+      "and gets a short suffix when taken. Signed-in session only. 403 DEMO_ACCOUNT_LOCKED for the shared demo accounts.",
     security: [{ cookieAuth: [] }],
     request: { body: json(createWorkspaceBody) },
     responses: { 201: { description: "The new workspace.", ...json(workspaceResponse) }, default: problemResponse },
@@ -60,7 +60,8 @@ export function registerWorkspaceDocs(registry: OpenAPIRegistry, workspace: Open
     path: "/",
     tags: ["Workspace"],
     summary: "Rename the workspace",
-    description: "Admins only, signed-in session only. The slug does not change, so links keep working.",
+    description:
+      "Admins only, signed-in session only. The slug does not change, so links keep working. 403 DEMO_WORKSPACE_LOCKED in the demo workspace.",
     security: [{ cookieAuth: [] }],
     request: { body: json(renameWorkspaceBody) },
     responses: { 200: { description: "The renamed workspace.", ...json(workspaceResponse) }, default: problemResponse },
@@ -72,7 +73,7 @@ export function registerWorkspaceDocs(registry: OpenAPIRegistry, workspace: Open
     summary: "Delete the workspace",
     description:
       "Admins only, signed-in session only. Deletes its projects, issues, sprints, invites and access tokens, and " +
-      "every membership, immediately; there is no undo. The accounts themselves are kept.",
+      "every membership, immediately; there is no undo. The accounts themselves are kept. 403 DEMO_WORKSPACE_LOCKED in the demo workspace.",
     security: [{ cookieAuth: [] }],
     responses: { 204: { description: "Deleted." }, default: problemResponse },
   });
@@ -84,7 +85,7 @@ export function registerWorkspaceDocs(registry: OpenAPIRegistry, workspace: Open
     description:
       "Any role, signed-in session only. Your access tokens for it are deleted and your issues and project leads " +
       "in it are unassigned. 409 LAST_ADMIN when you are its last admin: promote someone first, or delete the " +
-      "workspace if you are its only member.",
+      "workspace if you are its only member. 403 DEMO_WORKSPACE_LOCKED in the demo workspace.",
     security: [{ cookieAuth: [] }],
     responses: { 204: { description: "Left." }, default: problemResponse },
   });
@@ -105,7 +106,7 @@ export function registerWorkspaceDocs(registry: OpenAPIRegistry, workspace: Open
     summary: "Change a member's or invite's role",
     description:
       "Admins only, signed-in session only. Errors: 403 CANNOT_CHANGE_OWN_ROLE, 409 LAST_ADMIN (demoting the last " +
-      "active admin), 404 NOT_FOUND. Last write wins: no If-Match.",
+      "active admin), 404 NOT_FOUND. Last write wins: no If-Match. 403 DEMO_WORKSPACE_LOCKED in the demo workspace.",
     security: [{ cookieAuth: [] }],
     request: { params: z.object({ id: z.uuid() }), body: json(changeRoleBody) },
     responses: { 200: { description: "The updated member.", ...json(teamMember) }, default: problemResponse },
@@ -117,7 +118,7 @@ export function registerWorkspaceDocs(registry: OpenAPIRegistry, workspace: Open
     summary: "Remove a member or revoke an invite",
     description:
       "Admins only, signed-in session only. Removing a member deletes their account, sessions and access tokens " +
-      "immediately; there is no undo. Errors: 403 CANNOT_REMOVE_SELF, 409 LAST_ADMIN, 404 NOT_FOUND.",
+      "immediately; there is no undo. Errors: 403 CANNOT_REMOVE_SELF, 409 LAST_ADMIN, 404 NOT_FOUND. 403 DEMO_WORKSPACE_LOCKED in the demo workspace.",
     security: [{ cookieAuth: [] }],
     request: { params: z.object({ id: z.uuid() }) },
     responses: { 204: { description: "Removed." }, default: problemResponse },
@@ -130,7 +131,7 @@ export function registerWorkspaceDocs(registry: OpenAPIRegistry, workspace: Open
     description:
       "Admins only, signed-in session only. Emails a single-use link to {CORS_ORIGIN}/invite?token=… that expires " +
       "after 7 days. Errors: 409 ALREADY_MEMBER (already a member or already invited), 502 EMAIL_DELIVERY_FAILED " +
-      "(the invite is kept; use resend).",
+      "(the invite is kept; use resend). 403 DEMO_WORKSPACE_LOCKED in the demo workspace.",
     security: [{ cookieAuth: [] }],
     request: { body: json(inviteBody) },
     responses: { 201: { description: "The pending invite.", ...json(teamMember) }, default: problemResponse },
@@ -142,7 +143,7 @@ export function registerWorkspaceDocs(registry: OpenAPIRegistry, workspace: Open
     summary: "Re-send an invite",
     description:
       "Admins only. Sends a new link valid for 7 days; earlier links stop working. 404 NOT_FOUND if the invite " +
-      "was accepted or revoked; 502 EMAIL_DELIVERY_FAILED.",
+      "was accepted or revoked; 502 EMAIL_DELIVERY_FAILED. 403 DEMO_WORKSPACE_LOCKED in the demo workspace.",
     security: [{ cookieAuth: [] }],
     request: { params: z.object({ id: z.uuid() }) },
     responses: { 200: { description: "The pending invite.", ...json(teamMember) }, default: problemResponse },

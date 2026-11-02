@@ -1,5 +1,6 @@
 import { Router, type RequestHandler } from "express";
 import { paginationQuery } from "../../lib/pagination.js";
+import { lockedForDemoAccounts, lockedInDemoWorkspace } from "../../middleware/demo-locks.js";
 import { requireRole, requireScope } from "../../middleware/permissions.js";
 import { validate } from "../../middleware/validate.js";
 import { createInvitesController } from "./invites.controller.js";
@@ -21,7 +22,14 @@ export function createWorkspacesRouter(deps: {
 
   const router = Router();
   router.get("/", deps.requireAuth, deps.requireSession, validate({ query: paginationQuery }), controller.list);
-  router.post("/", deps.requireAuth, deps.requireSession, validate({ body: createWorkspaceBody }), controller.create);
+  router.post(
+    "/",
+    deps.requireAuth,
+    deps.requireSession,
+    lockedForDemoAccounts,
+    validate({ body: createWorkspaceBody }),
+    controller.create,
+  );
   return router;
 }
 
@@ -35,20 +43,22 @@ export function createWorkspaceRouter(deps: {
   const controller = createWorkspaceController(deps.workspace);
   const invites = createInvitesController(deps.invites);
   const admin = [deps.requireSession, requireRole("admin")];
+  // Changes every visitor of the public demo would see.
+  const manage = [...admin, lockedInDemoWorkspace];
 
   const router = Router();
   router.use(deps.requireAuth);
   // Tokens need issues:read, like every other read: members and invites include email addresses.
   const read = requireScope("issues:read");
   router.get("/", read, controller.get);
-  router.patch("/", ...admin, validate({ body: renameWorkspaceBody }), controller.rename);
-  router.delete("/", ...admin, controller.deleteWorkspace);
-  router.post("/leave", deps.requireSession, controller.leave);
+  router.patch("/", ...manage, validate({ body: renameWorkspaceBody }), controller.rename);
+  router.delete("/", ...manage, controller.deleteWorkspace);
+  router.post("/leave", deps.requireSession, lockedInDemoWorkspace, controller.leave);
   router.get("/members", read, validate({ query: paginationQuery }), controller.listMembers);
-  router.patch("/members/:id", ...admin, validate({ body: changeRoleBody }), controller.changeRole);
-  router.delete("/members/:id", ...admin, controller.remove);
-  router.post("/invites", ...admin, validate({ body: inviteBody }), invites.create);
-  router.post("/invites/:id/resend", ...admin, invites.resend);
+  router.patch("/members/:id", ...manage, validate({ body: changeRoleBody }), controller.changeRole);
+  router.delete("/members/:id", ...manage, controller.remove);
+  router.post("/invites", ...manage, validate({ body: inviteBody }), invites.create);
+  router.post("/invites/:id/resend", ...manage, invites.resend);
   router.post("/demo/reset", ...admin, controller.resetDemo);
   return router;
 }

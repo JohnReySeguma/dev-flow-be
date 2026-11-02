@@ -31,7 +31,7 @@ export function registerUsersDocs(registry: OpenAPIRegistry) {
     description:
       "Any of name (max 48), gradient (one of the frontend AVATAR_GRADIENTS), timezone (IANA) and bio (max 280). " +
       "Send If-Match with the ETag you read to get 412 CONFLICT_STALE instead of overwriting a newer change. " +
-      "Session only: 403 FORBIDDEN with a bearer token.",
+      "Session only: 403 FORBIDDEN with a bearer token. 403 DEMO_ACCOUNT_LOCKED for the shared demo accounts.",
     security: [{ cookieAuth: [] }],
     request: {
       headers: z.object({ "If-Match": z.string().optional().meta({ description: "ETag from GET /me." }) }),

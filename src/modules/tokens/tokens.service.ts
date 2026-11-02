@@ -71,6 +71,7 @@ export function createTokensService(tokens: TokensRepository) {
       await tokens.touchLastUsed(token.id, now);
       return {
         userId: token.userId,
+        isDemo: token.user.isDemo,
         via: "token",
         tokenId: token.id,
         // Stored as text[]; drop anything that is no longer a known scope.

@@ -1,8 +1,11 @@
 import request from "supertest";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { seed } from "../prisma/seed.js";
+import { createLogger } from "../src/lib/logger.js";
 import { createTestApp } from "./helpers/app.js";
 import { FRONTEND_ORIGIN, sessionCookieHeader, setCookies } from "./helpers/cookies.js";
 import { truncateAll } from "./helpers/db.js";
+import { testEnv } from "./helpers/env.js";
 
 /** What the fake GitHub returns for the signed-in account; tests adjust it. */
 let githubAccount = { id: 42, login: "ada", name: "Ada Lovelace" as string | null };
@@ -143,6 +146,19 @@ describe("GET /api/v2/auth/oauth/:provider/callback", () => {
 
     expect(callback.headers.location).toBe(`${FRONTEND_ORIGIN}/login?error=oauth_email_unverified`);
     expect(await prisma.user.count()).toBe(0);
+  });
+
+  it("never takes over a demo account, whose password is public", async () => {
+    await seed(prisma, createLogger(testEnv()), undefined, { tracker: false });
+    githubEmails = [{ email: "aiko@acme.dev", primary: true, verified: true }];
+    const before = await prisma.user.findUniqueOrThrow({ where: { email: "aiko@acme.dev" } });
+
+    const { callback } = await signInWithGitHub();
+
+    expect(callback.headers.location).toBe(`${FRONTEND_ORIGIN}/login?error=oauth_account_locked`);
+    const after = await prisma.user.findUniqueOrThrow({ where: { email: "aiko@acme.dev" } });
+    expect(after.passwordHash).toBe(before.passwordHash);
+    expect(await prisma.oAuthAccount.count()).toBe(0);
   });
 
   it("rejects a callback whose state does not match the cookie", async () => {

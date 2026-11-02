@@ -122,6 +122,7 @@ export async function seedAccounts(
       data: {
         ...member,
         passwordHash,
+        isDemo: true,
         lastActiveAt: at(lastActive),
         memberships: { create: { workspaceId: workspace.id, role } },
       },

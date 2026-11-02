@@ -136,6 +136,15 @@ describe(`migration ${MEMBERSHIPS}`, () => {
     expect(token).toEqual({ workspace_id: ids.acme });
   });
 
+  it("flags the demo workspace's demo accounts, and only those", async () => {
+    const rows = await withClient(
+      scratchUrl,
+      async (db) => (await db.query(`SELECT email FROM users WHERE is_demo ORDER BY email`)).rows,
+    );
+
+    expect(rows).toEqual([{ email: "demo@devflow.local" }]);
+  });
+
   it("treats existing accounts as verified and drops the old columns", async () => {
     const [verified, columns] = await withClient(scratchUrl, async (db) => [
       (await db.query(`SELECT count(*)::int AS n FROM users WHERE email_verified_at IS NOT NULL`)).rows[0],

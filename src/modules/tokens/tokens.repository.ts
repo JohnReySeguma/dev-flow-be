@@ -28,7 +28,8 @@ export function createTokensRepository(prisma: PrismaClient) {
         include: { workspace: true },
       }),
 
-    findByHash: (tokenHash: string) => prisma.accessToken.findUnique({ where: { tokenHash } }),
+    findByHash: (tokenHash: string) =>
+      prisma.accessToken.findUnique({ where: { tokenHash }, include: { user: { select: { isDemo: true } } } }),
 
     /** The workspace with this slug, if the user is a member of it. */
     findMemberWorkspace: (userId: string, slug: string): Promise<Workspace | null> =>

@@ -21,7 +21,8 @@ type Deps = {
 export function createPasswordResetService({ users, sessions, email, logger, frontendUrl }: Deps) {
   async function sendResetLink(address: string): Promise<void> {
     const user = await users.findByEmail(address);
-    if (!user) return;
+    // Demo accounts keep their public password; a reset would lock every visitor out.
+    if (!user || user.isDemo) return;
     const token = randomToken();
     await sessions.createPasswordResetToken({
       userId: user.id,
