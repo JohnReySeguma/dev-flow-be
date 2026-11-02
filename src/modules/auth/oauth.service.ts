@@ -93,7 +93,8 @@ export function createOAuthService({ providers, auth, users, sessions, secret, a
   }
 
   return {
-    isEnabled: (name: string): name is OAuthProviderName => name in providers,
+    // hasOwn, not `in`: "constructor" or "toString" must not count as providers.
+    isEnabled: (name: string): name is OAuthProviderName => Object.hasOwn(providers, name),
 
     /** The provider URL to send the browser to, plus the signed state to keep in a cookie. */
     start(name: OAuthProviderName, redirect: unknown): { url: string; stateToken: string } {

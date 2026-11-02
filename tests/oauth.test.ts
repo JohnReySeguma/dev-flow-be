@@ -64,6 +64,8 @@ describe("GET /api/v1/auth/oauth/:provider", () => {
   it("is 404 for a provider that is not configured or does not exist", async () => {
     expect((await request(app).get("/api/v1/auth/oauth/google")).status).toBe(404);
     expect((await request(app).get("/api/v1/auth/oauth/myspace")).status).toBe(404);
+    expect((await request(app).get("/api/v1/auth/oauth/constructor")).status).toBe(404);
+    expect((await request(app).get("/api/v1/auth/oauth/toString/callback")).status).toBe(404);
   });
 });
 
