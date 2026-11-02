@@ -2,9 +2,11 @@
 // matching the JSON shapes in the frontend's lib/tracker/types.ts.
 
 generator client {
-  provider     = "prisma-client"
-  output       = "../src/generated/prisma"
-  moduleFormat = "esm"
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  // Explicit, so generation doesn't depend on whether tsconfig.json is present (e.g. in Docker).
+  importFileExtension = "js"
 }
 
 datasource db {

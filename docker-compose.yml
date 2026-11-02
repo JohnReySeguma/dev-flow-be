@@ -3,6 +3,30 @@
 name: devflow
 
 services:
+  api:
+    build: .
+    image: devflow-api:local
+    init: true # tini as PID 1 forwards SIGTERM to Node for a graceful shutdown
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    env_file: .env
+    environment:
+      # Overrides for the container network; everything else comes from .env.
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/devflow
+      REDIS_URL: redis://redis:6379
+      GITHUB_APP_PRIVATE_KEY_PATH: /run/secrets/github-app.pem
+    volumes:
+      # The key stays on the host and is mounted read-only, never copied into the image.
+      # Unset → /dev/null, which the API treats as "GitHub integration disabled".
+      - ${GITHUB_APP_PRIVATE_KEY_FILE:-/dev/null}:/run/secrets/github-app.pem:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
