@@ -4,6 +4,7 @@ import express, { type Express } from "express";
 import helmet from "helmet";
 import swaggerUi from "swagger-ui-express";
 import type { Env } from "./config/env.js";
+import { resetDemoTracker } from "./demo/seed.js";
 import type { Features } from "./config/features.js";
 import type { EmailProvider } from "./integrations/email/index.js";
 import { createOAuthProviders } from "./integrations/oauth/index.js";
@@ -101,7 +102,10 @@ export function createApp({ env, features, logger, prisma, redis, email, fetch: 
 
   const config = createConfigService(features);
   const usersService = createUsersService(users);
-  const workspace = createWorkspaceService({ workspaces });
+  const workspace = createWorkspaceService({
+    workspaces,
+    ...(env.SEED_DEMO_DATA && { resetDemo: (workspaceId: string) => resetDemoTracker(prisma, workspaceId) }),
+  });
   const projects = createProjectsService({ projects: createProjectsRepository(prisma) });
   const issues = createIssuesService({ issues: createIssuesRepository(prisma), projects });
   const invites = createInvitesService({ workspaces, auth, users, email, logger, frontendUrl: env.CORS_ORIGIN });

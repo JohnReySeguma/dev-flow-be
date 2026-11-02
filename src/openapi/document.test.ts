@@ -36,6 +36,7 @@ describe("OpenAPI document", () => {
       "/projects/{key}/statuses/order",
       "/projects/{key}/statuses/{id}",
       "/workspace",
+      "/workspace/demo/reset",
       "/workspace/invites",
       "/workspace/invites/{id}/resend",
       "/workspace/members",

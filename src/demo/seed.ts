@@ -17,7 +17,7 @@ const SPRINT_LENGTH_DAYS = 14;
  */
 export async function seedTracker(
   tx: Prisma.TransactionClient,
-  context: { workspaceId: string; users: Record<MemberRef, string>; now: number },
+  context: { workspaceId: string; users: Partial<Record<MemberRef, string>>; now: number },
 ): Promise<void> {
   const at = (days: number) => new Date(context.now + days * DAY);
   const team = Object.values(context.users);
@@ -30,7 +30,7 @@ export async function seedTracker(
         name: demo.name,
         description: demo.description,
         color: demo.color,
-        leadId: context.users[demo.lead],
+        leadId: context.users[demo.lead] ?? null,
         nextIssueNumber: demo.nextIssueNumber,
         createdAt: at(demo.created),
       },
@@ -91,7 +91,7 @@ export async function seedTracker(
       const createdAt = at(demoIssue.updated - 5);
       const updatedAt = at(demoIssue.updated);
       const resolvedAt = demoIssue.resolved === undefined ? null : at(demoIssue.resolved);
-      const assigneeId = demoIssue.assignee ? context.users[demoIssue.assignee] : null;
+      const assigneeId = demoIssue.assignee ? (context.users[demoIssue.assignee] ?? null) : null;
 
       const issue = await tx.issue.create({
         data: {
@@ -177,4 +177,28 @@ export async function seedDemo(
     "seeded demo data",
   );
   return true;
+}
+
+/**
+ * Replaces a workspace's projects with a fresh copy of the demo tracker, dated relative to now.
+ * Accounts are untouched, as with the frontend's "Reset demo data"; demo members who were
+ * removed come back as unassigned work.
+ */
+export async function resetDemoTracker(prisma: PrismaClient, workspaceId: string, now = Date.now()): Promise<void> {
+  await prisma.$transaction(
+    async (tx) => {
+      await tx.project.deleteMany({ where: { workspaceId } });
+      const members = await tx.user.findMany({
+        where: { workspaceId, email: { in: DEMO_MEMBERS.map((m) => m.email) } },
+        select: { id: true, email: true },
+      });
+      const users: Partial<Record<MemberRef, string>> = {};
+      for (const member of DEMO_MEMBERS) {
+        const user = members.find((u) => u.email === member.email);
+        if (user) users[member.ref] = user.id;
+      }
+      await seedTracker(tx, { workspaceId, users, now });
+    },
+    { timeout: 60_000 },
+  );
 }

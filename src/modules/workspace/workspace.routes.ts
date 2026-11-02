@@ -27,5 +27,6 @@ export function createWorkspaceRouter(deps: {
   router.delete("/members/:id", ...admin, controller.remove);
   router.post("/invites", ...admin, validate({ body: inviteBody }), invites.create);
   router.post("/invites/:id/resend", ...admin, invites.resend);
+  router.post("/demo/reset", ...admin, controller.resetDemo);
   return router;
 }

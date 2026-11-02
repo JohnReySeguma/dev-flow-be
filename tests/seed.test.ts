@@ -6,7 +6,7 @@ import { createLogger } from "../src/lib/logger.js";
 import { createTestApp } from "./helpers/app.js";
 import { FRONTEND_ORIGIN } from "./helpers/cookies.js";
 import { nonEmptyTables, truncateAll } from "./helpers/db.js";
-import { signIn } from "./helpers/session.js";
+import { asBrowser, signIn } from "./helpers/session.js";
 
 const { app, env, prisma, close } = createTestApp();
 const logger = createLogger(env);
@@ -142,5 +142,45 @@ describe("test isolation", () => {
     await truncateAll(prisma);
 
     expect(await nonEmptyTables(prisma)).toEqual([]);
+  });
+});
+
+describe("POST /api/v1/workspace/demo/reset", () => {
+  beforeEach(async () => {
+    await seed(prisma, logger);
+  });
+
+  it("restores the demo projects without touching accounts", async () => {
+    const admin = asBrowser(app, await signIn(app, "demo@devflow.local"));
+    await admin.delete("/api/v1/projects/MOB");
+    await admin.post("/api/v1/projects").send({ name: "Scratch", key: "TMP" });
+    await admin.patch("/api/v1/issues/DEV-104").send({ title: "Edited during the demo" });
+    const users = await prisma.user.count();
+
+    const res = await admin.post("/api/v1/workspace/demo/reset");
+
+    expect(res.status).toBe(204);
+    const projects = await admin.get("/api/v1/projects");
+    expect(projects.body.items.map((p: { key: string }) => p.key)).toEqual(["DEV", "BIL", "MOB"]);
+    expect((await admin.get("/api/v1/issues/DEV-104")).body.title).toBe(
+      "OAuth refresh token rotation fails on concurrent tabs",
+    );
+    expect(await prisma.user.count()).toBe(users);
+  });
+
+  it("is admin-only", async () => {
+    const member = asBrowser(app, await signIn(app, "member@devflow.local"));
+
+    expect((await member.post("/api/v1/workspace/demo/reset")).status).toBe(403);
+  });
+
+  it("is not available without SEED_DEMO_DATA", async () => {
+    const production = createTestApp({ env: { SEED_DEMO_DATA: false } });
+    const admin = asBrowser(production.app, await signIn(production.app, "demo@devflow.local"));
+
+    const res = await admin.post("/api/v1/workspace/demo/reset");
+
+    expect(res.status).toBe(404);
+    await production.close();
   });
 });
