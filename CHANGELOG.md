@@ -6,6 +6,49 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.0.0-beta.1] - 2026-11-03
+
+First step towards multiple workspaces (API v2): the data model. A user can now belong to several workspaces with a
+different role in each. The `/api/v1` contract is unchanged in this pre-release; `beta.2` moves everything to
+`/api/v2`.
+
+### Frontend impact
+
+- None. No endpoint, response or error changed.
+- **Coming in `beta.2` (BREAKING):** every path moves to `/api/v2`, workspace routes move under `/workspaces/:slug`,
+  and `/api/v1` is removed. Plan the switch then, not now.
+
+### Added
+
+- `workspace_members`: roles live on the membership, so one person can be admin in one workspace and viewer in
+  another.
+- Workspaces have a URL slug (`acme-inc`), set at creation and unchanged by renames, and an `is_demo` flag for the
+  seeded Acme Inc.
+- Users record when their email was verified (used from `beta.4`).
+
+### Changed
+
+- Access tokens are bound to the workspace they were created in, and stop working once their owner leaves it.
+
+### Migration
+
+- `20261103010000_workspace_memberships` runs on start (`migrate deploy`). Each user becomes a member of the workspace
+  they were in, with the same role; each token is bound to its owner's workspace; the workspace containing
+  `demo@devflow.local` is marked as the demo; existing accounts count as verified, because v1 never asked anyone to
+  verify. Back up the database before upgrading a deployment you care about: the migration drops `users.workspace_id`
+  and `users.role`.
+
+### Handoff checklist
+
+- [x] `docs/openapi.json` regenerated and valid (unchanged)
+- [x] `docs/INTEGRATION.md` coverage matrix updated (no endpoint changes; a note that v2 is in progress)
+- [x] New error codes added to the catalogue (none in this release)
+- [x] New realtime events documented with examples (none in this release)
+- [x] **Frontend impact** section in `CHANGELOG.md`
+- [x] Seed and demo accounts still work on a fresh database, and on a migrated one
+- [x] `docker compose up --build` instructions in the README still accurate
+- [x] Known limitations or stubs listed (`docs/INTEGRATION.md` §9, unchanged)
+
 ## [1.0.1] - 2026-11-02
 
 ### Frontend impact
@@ -378,7 +421,8 @@ Foundation: configuration, database, error format, health checks, feature flags,
 - [x] `docker compose up --build` instructions in the README still accurate
 - [x] Known limitations or stubs listed (`docs/INTEGRATION.md` §8)
 
-[Unreleased]: https://github.com/JohnReySeguma/dev-flow-be/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/JohnReySeguma/dev-flow-be/compare/v2.0.0-beta.1...HEAD
+[2.0.0-beta.1]: https://github.com/JohnReySeguma/dev-flow-be/compare/v1.0.1...v2.0.0-beta.1
 [1.0.1]: https://github.com/JohnReySeguma/dev-flow-be/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.6.0...v1.0.0
 [0.6.0]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.5.0...v0.6.0
