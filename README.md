@@ -3,9 +3,10 @@
 REST + realtime API for [DevFlow](https://github.com/JohnReySeguma/dev-flow), a sprint-based issue tracker:
 projects with custom workflows, backlogs, sprints, reports, GitHub integration and Live Sync.
 
-> **Status:** `v1.0.0` — authentication, the workspace (members, roles, invites), the tracker (projects, workflows,
-> issues with ranking and comments, the sprint lifecycle and reports), Live Sync over Socket.IO, GitHub webhooks, and
-> hardening (rate limits, a security review). Deploying it: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+> **Status:** `v2.0.0-beta.2` — API v2 is multi-workspace: every account gets its own workspace and can belong to
+> others with a different role in each. Authentication, workspaces (members, roles, invites), the tracker (projects,
+> workflows, issues with ranking and comments, the sprint lifecycle and reports), Live Sync over Socket.IO, GitHub
+> webhooks, and hardening (rate limits, a security review). Deploying it: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 > Frontend integration: the contract is [`docs/INTEGRATION.md`](docs/INTEGRATION.md); the step-by-step plan is
 > [`docs/FRONTEND_BRIEF.md`](docs/FRONTEND_BRIEF.md).
 
@@ -86,6 +87,7 @@ is empty, `/dev/null` is mounted and the integration is disabled.
 | `npm run db:migrate`        | Create and apply migrations in development (`prisma migrate dev`)              |
 | `npm run db:seed`           | Seed demo data into an empty database                                          |
 | `npm run db:reset`          | **Destroys local data:** recreate the dev and test databases, migrate and seed |
+| `npm run demo:reset`        | Restore the demo workspace (name, team, projects); for a nightly cron          |
 | `npm run openapi:generate`  | Regenerate `docs/openapi.json` (`openapi:check` fails if it is stale)          |
 
 Integration tests use `TEST_DATABASE_URL` (`devflow_test` in the same container), migrated once per run and
@@ -134,10 +136,15 @@ src/
   lib/                errors catalogue, logger, Prisma and Redis clients, hashing, pagination, ETags, shutdown
   openapi/            OpenAPI document assembly and generator
 prisma/               schema, migrations, seed entry point
-src/demo/             the demo workspace and tracker data (seed and demo reset)
+src/demo/             the demo workspace and tracker data (seed, sample copies, resets)
+src/jobs/             scheduled jobs run from the command line (demo:reset)
 tests/                integration tests (Supertest against devflow_test)
 docker/               entrypoint, healthcheck, Postgres init script
 ```
+
+Workspaces: sign-in identifies the user; every route under `/workspaces/:ws` passes `requireMembership`, which
+resolves the slug to the caller's membership (404 for non-members) and attaches their role in that workspace, so
+services always act in one workspace.
 
 Layering: routes only wire HTTP; controllers translate requests into service calls; services hold every business
 rule; repositories hold every query. Input is validated with Zod at the edge, and every error is rendered by one
@@ -160,16 +167,22 @@ names, PR titles or commit messages; GitHub's "Recent Deliveries" tab shows each
 
 ## Demo accounts
 
-Created by the seed when `SEED_DEMO_DATA=true` and the database is empty. All use the password **`devflow-demo`**:
+Created by the seed when `SEED_DEMO_DATA=true` and the database is empty: the demo workspace **Acme Inc**
+(`/workspaces/acme-inc`) and its team. All use the password **`devflow-demo`**:
 
-| Role   | Email                  | Person       |
-| ------ | ---------------------- | ------------ |
-| admin  | `demo@devflow.local`   | John Rey     |
-| member | `member@devflow.local` | Dmitri Kovac |
-| viewer | `viewer@devflow.local` | Lucas Brandt |
+| Role in Acme Inc | Email                  | Person       |
+| ---------------- | ---------------------- | ------------ |
+| admin            | `demo@devflow.local`   | John Rey     |
+| member           | `member@devflow.local` | Dmitri Kovac |
+| viewer           | `viewer@devflow.local` | Lucas Brandt |
 
-These are seed-only demo credentials; never enable `SEED_DEMO_DATA` on a real deployment. An existing database is
-never re-seeded: run `npm run db:reset` (destroys local data) to pick up new demo data after upgrading.
+Everyone who signs up gets a workspace of their own instead, pre-filled with a copy of the sample projects.
+
+The demo password is public, so the demo workspace and accounts are locked against changes every visitor would see:
+the workspace cannot be renamed, deleted or left and takes no invites or member changes, and the accounts cannot
+edit their profile, manage tokens, create workspaces or reset their password (`docs/INTEGRATION.md` §5.10, §8).
+On a public deployment, also run `npm run demo:reset` nightly (`docs/DEPLOYMENT.md`). An existing database is never
+re-seeded: run `npm run db:reset` (destroys local data) to pick up new demo data after upgrading.
 
 Try it:
 
