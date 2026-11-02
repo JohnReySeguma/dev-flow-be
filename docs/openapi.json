@@ -11,6 +11,19 @@
     }
   ],
   "components": {
+    "securitySchemes": {
+      "cookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "devflow_access",
+        "description": "Session cookie set by /auth/login, /auth/signup and OAuth. Send requests with credentials."
+      },
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Personal access token (dfp_…) from POST /me/tokens, for the CLI and scripts."
+      }
+    },
     "schemas": {
       "Liveness": {
         "type": "object",
@@ -53,6 +66,7 @@
             "type": "string",
             "enum": [
               "BAD_REQUEST",
+              "RESET_TOKEN_INVALID",
               "UNAUTHENTICATED",
               "TOKEN_EXPIRED",
               "INVALID_CREDENTIALS",
@@ -208,6 +222,410 @@
           "githubIntegration": false,
           "email": false
         }
+      },
+      "AuthMe": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/UserProfile"
+          },
+          "workspace": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ]
+          }
+        },
+        "required": [
+          "user",
+          "workspace"
+        ],
+        "example": {
+          "user": {
+            "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
+            "name": "John Rey",
+            "handle": "jrey",
+            "initials": "JR",
+            "gradient": "from-violet-500 to-indigo-600",
+            "email": "demo@devflow.local",
+            "role": "admin",
+            "timezone": "America/New_York",
+            "bio": "Frontend platform lead. Owns the board, realtime sync and the design system."
+          },
+          "workspace": {
+            "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e00",
+            "name": "Acme Inc"
+          }
+        }
+      },
+      "UserProfile": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "handle": {
+            "type": "string"
+          },
+          "initials": {
+            "type": "string"
+          },
+          "gradient": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "member",
+              "viewer"
+            ]
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "bio": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "handle",
+          "initials",
+          "gradient",
+          "email",
+          "role",
+          "timezone",
+          "bio"
+        ],
+        "example": {
+          "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
+          "name": "John Rey",
+          "handle": "jrey",
+          "initials": "JR",
+          "gradient": "from-violet-500 to-indigo-600",
+          "email": "demo@devflow.local",
+          "role": "admin",
+          "timezone": "America/New_York",
+          "bio": "Frontend platform lead. Owns the board, realtime sync and the design system."
+        }
+      },
+      "SignupRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 48
+          },
+          "email": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "name",
+          "email",
+          "password"
+        ],
+        "example": {
+          "name": "Ada Lovelace",
+          "email": "ada@acme.dev",
+          "password": "correct horse battery"
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "example": {
+          "email": "demo@devflow.local",
+          "password": "devflow-demo"
+        }
+      },
+      "ForgotPasswordRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "example": {
+          "email": "demo@devflow.local"
+        }
+      },
+      "ResetPasswordRequest": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "token",
+          "password"
+        ],
+        "example": {
+          "token": "Zq3nXl0w8bJ7r2mYc5dV1aKf9sHt4uPo6eLgQiWjNxE",
+          "password": "a new long password"
+        }
+      },
+      "UpdateProfileRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 48
+          },
+          "gradient": {
+            "type": "string",
+            "enum": [
+              "from-violet-500 to-indigo-600",
+              "from-rose-500 to-orange-500",
+              "from-sky-500 to-cyan-500",
+              "from-emerald-500 to-teal-600",
+              "from-amber-500 to-yellow-600",
+              "from-fuchsia-500 to-pink-600"
+            ]
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "bio": {
+            "type": "string",
+            "maxLength": 280
+          }
+        },
+        "description": "Only these fields can change; email, handle and role cannot.",
+        "example": {
+          "timezone": "Asia/Manila",
+          "bio": "Owns the board and realtime sync."
+        }
+      },
+      "AccessTokenPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccessToken"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass as ?cursor= for the next page; null on the last."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "example": {
+          "items": [
+            {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e10",
+              "name": "devflow-cli · MacBook Pro",
+              "lastFour": "q7Rk",
+              "scopes": [
+                "issues:read",
+                "issues:write"
+              ],
+              "createdAt": "2026-08-14T10:00:00.000Z",
+              "lastUsedAt": "2026-11-01T08:41:00.000Z",
+              "expiresAt": null
+            }
+          ],
+          "nextCursor": null
+        }
+      },
+      "AccessToken": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "lastFour": {
+            "type": "string"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "issues:read",
+                "issues:write",
+                "projects:admin",
+                "webhooks:manage"
+              ]
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastUsedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "lastFour",
+          "scopes",
+          "createdAt",
+          "lastUsedAt",
+          "expiresAt"
+        ],
+        "example": {
+          "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e10",
+          "name": "devflow-cli · MacBook Pro",
+          "lastFour": "q7Rk",
+          "scopes": [
+            "issues:read",
+            "issues:write"
+          ],
+          "createdAt": "2026-08-14T10:00:00.000Z",
+          "lastUsedAt": "2026-11-01T08:41:00.000Z",
+          "expiresAt": null
+        }
+      },
+      "CreatedAccessToken": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "$ref": "#/components/schemas/AccessToken"
+          },
+          "secret": {
+            "type": "string",
+            "description": "Shown once. Use as `Authorization: Bearer <secret>`."
+          }
+        },
+        "required": [
+          "token",
+          "secret"
+        ],
+        "example": {
+          "token": {
+            "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e10",
+            "name": "devflow-cli · MacBook Pro",
+            "lastFour": "q7Rk",
+            "scopes": [
+              "issues:read",
+              "issues:write"
+            ],
+            "createdAt": "2026-08-14T10:00:00.000Z",
+            "lastUsedAt": "2026-11-01T08:41:00.000Z",
+            "expiresAt": null
+          },
+          "secret": "dfp_4tq0fZ8kWm2Lr9XbVn3cHs7YpEo1Ju6Gd5Ka-q7Rk"
+        }
+      },
+      "CreateAccessTokenRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "issues:read",
+                "issues:write",
+                "projects:admin",
+                "webhooks:manage"
+              ]
+            },
+            "minItems": 1
+          },
+          "expiresInDays": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 365
+          }
+        },
+        "required": [
+          "name",
+          "scopes",
+          "expiresInDays"
+        ],
+        "example": {
+          "name": "GitHub Actions · release.yml",
+          "scopes": [
+            "issues:write"
+          ],
+          "expiresInDays": 30
+        }
       }
     },
     "parameters": {}
@@ -309,6 +727,612 @@
                 }
               }
             }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/signup": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Create an account and sign in",
+        "description": "Joins the workspace as a member (the first user of an empty workspace becomes admin). Errors: 409 EMAIL_TAKEN, 422 VALIDATION_FAILED.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignupRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Signed up and signed in.",
+            "headers": {
+              "Set-Cookie": {
+                "description": "`devflow_access` (Path=/api/v1) and `devflow_refresh` (Path=/api/v1/auth); both HttpOnly, Secure, SameSite=Lax.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthMe"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Sign in with email and password",
+        "description": "Errors: 401 INVALID_CREDENTIALS, 422 VALIDATION_FAILED.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Signed in.",
+            "headers": {
+              "Set-Cookie": {
+                "description": "`devflow_access` (Path=/api/v1) and `devflow_refresh` (Path=/api/v1/auth); both HttpOnly, Secure, SameSite=Lax.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthMe"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Rotate the session tokens",
+        "description": "Uses the devflow_refresh cookie. Call once after a 401 TOKEN_EXPIRED, then retry the request. Each refresh token works once: reusing one revokes the whole session, so never run two refreshes at the same time. 401 UNAUTHENTICATED → signed out (both cookies are cleared).",
+        "responses": {
+          "204": {
+            "description": "New cookies set.",
+            "headers": {
+              "Set-Cookie": {
+                "description": "`devflow_access` (Path=/api/v1) and `devflow_refresh` (Path=/api/v1/auth); both HttpOnly, Secure, SameSite=Lax.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Sign out",
+        "description": "Revokes the current session and clears both cookies. Succeeds even when already signed out.",
+        "responses": {
+          "204": {
+            "description": "Signed out."
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/password/forgot": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Email a password reset link",
+        "description": "Always 202, whether or not the account exists. The email links to {CORS_ORIGIN}/reset-password?token=…; the link works once and expires after 60 minutes.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted."
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/password/reset": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Set a new password with the emailed token",
+        "description": "Signs the account out on every device; the user then signs in with the new password. Errors: 400 RESET_TOKEN_INVALID, 422 VALIDATION_FAILED.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Password changed."
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/oauth/{provider}": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Start GitHub or Google sign-in",
+        "description": "Navigate the browser here (not fetch). Redirects to the provider; after consent the provider returns to the callback, which redirects to {CORS_ORIGIN}{redirect} signed in, or to {CORS_ORIGIN}/login?error=<code> with code oauth_denied, oauth_state_mismatch, oauth_email_unverified or oauth_failed. 404 NOT_FOUND when the provider is disabled.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "github",
+                "google"
+              ],
+              "description": "Must be enabled (see GET /config)."
+            },
+            "required": true,
+            "description": "Must be enabled (see GET /config).",
+            "name": "provider",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Relative frontend path to land on. Default /projects.",
+              "example": "/projects"
+            },
+            "required": false,
+            "description": "Relative frontend path to land on. Default /projects.",
+            "name": "redirect",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to the provider."
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/oauth/{provider}/callback": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "OAuth callback (called by the provider)",
+        "description": "Registered with GitHub and Google as {API_URL}/api/v1/auth/oauth/{provider}/callback. Always redirects to the frontend.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "github",
+                "google"
+              ],
+              "description": "Must be enabled (see GET /config)."
+            },
+            "required": true,
+            "description": "Must be enabled (see GET /config).",
+            "name": "provider",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to the frontend.",
+            "headers": {
+              "Set-Cookie": {
+                "description": "`devflow_access` (Path=/api/v1) and `devflow_refresh` (Path=/api/v1/auth); both HttpOnly, Secure, SameSite=Lax.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Current user and workspace",
+        "description": "Call on app load. 401 UNAUTHENTICATED → signed out; 401 TOKEN_EXPIRED → call POST /auth/refresh once and retry.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The signed-in user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthMe"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me": {
+      "get": {
+        "tags": [
+          "Profile"
+        ],
+        "summary": "Your profile",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The signed-in user.",
+            "headers": {
+              "ETag": {
+                "description": "Version of the profile; send it back as If-Match.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Profile"
+        ],
+        "summary": "Update your profile",
+        "description": "Any of name (max 48), gradient (one of the frontend AVATAR_GRADIENTS), timezone (IANA) and bio (max 280). Send If-Match with the ETag you read to get 412 CONFLICT_STALE instead of overwriting a newer change. Session only: 403 FORBIDDEN with a bearer token.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "ETag from GET /me."
+            },
+            "required": false,
+            "description": "ETag from GET /me.",
+            "name": "If-Match",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProfileRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated profile.",
+            "headers": {
+              "ETag": {
+                "description": "Version of the profile; send it back as If-Match.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/tokens": {
+      "get": {
+        "tags": [
+          "Access tokens"
+        ],
+        "summary": "Your personal access tokens",
+        "description": "Newest first. Session only: 403 FORBIDDEN with a bearer token.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of tokens.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessTokenPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Access tokens"
+        ],
+        "summary": "Generate a token",
+        "description": "The secret is returned once and never again; only its hash and last four characters are stored. expiresInDays: 1 to 365, or null for no expiry. Session only.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAccessTokenRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedAccessToken"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/tokens/{id}": {
+      "delete": {
+        "tags": [
+          "Access tokens"
+        ],
+        "summary": "Revoke a token",
+        "description": "Takes effect immediately. 404 NOT_FOUND if it is not one of your tokens. Session only.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Revoked."
           },
           "default": {
             "description": "Error, as RFC 9457 problem details.",

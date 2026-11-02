@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { API_PREFIX, createApp } from "./app.js";
 import { EnvError, loadEnv, type Env } from "./config/env.js";
 import { describeFeatures, resolveFeatures } from "./config/features.js";
+import { createEmailProvider } from "./integrations/email/index.js";
 import { createLogger } from "./lib/logger.js";
 import { createPrismaClient } from "./lib/prisma.js";
 import { createRedisClient } from "./lib/redis.js";
@@ -26,7 +27,7 @@ logger.info(describeFeatures(features), "active modes");
 
 const prisma = createPrismaClient(env.DATABASE_URL);
 const redis = createRedisClient(env.REDIS_URL, logger);
-const app = createApp({ env, features, logger, prisma, redis });
+const app = createApp({ env, features, logger, prisma, redis, email: createEmailProvider(env, logger) });
 const server = createServer(app);
 
 const shutdown = createShutdown({
@@ -61,6 +62,15 @@ const shutdown = createShutdown({
 for (const signal of ["SIGTERM", "SIGINT"] as const) {
   process.once(signal, () => void shutdown(signal));
 }
+
+server.once("error", (error: NodeJS.ErrnoException) => {
+  const message =
+    error.code === "EADDRINUSE"
+      ? `port ${env.PORT} is already in use: stop the other process (e.g. \`docker compose stop api\`) or set PORT`
+      : "http server failed to start";
+  logger.fatal({ err: error }, message);
+  void Promise.allSettled([prisma.$disconnect(), redis?.quit()]).finally(() => process.exit(1));
+});
 
 server.listen(env.PORT, () => {
   logger.info({ port: env.PORT, env: env.NODE_ENV }, `api listening on http://localhost:${env.PORT}${API_PREFIX}`);

@@ -3,8 +3,9 @@
 REST + realtime API for [DevFlow](https://github.com/JohnReySeguma/dev-flow), a sprint-based issue tracker:
 projects with custom workflows, backlogs, sprints, reports, GitHub integration and Live Sync.
 
-> **Status:** `v0.1.0` foundation — configuration, database, error format, health checks, feature flags, OpenAPI,
-> Docker and CI. Domain endpoints arrive milestone by milestone ([`docs/BRIEF.md` §7](docs/BRIEF.md)).
+> **Status:** `v0.2.0` — foundation plus authentication: sign-up and login with session cookies, refresh-token
+> rotation, GitHub and Google sign-in, password reset by email, profile and personal access tokens. Domain endpoints
+> arrive milestone by milestone ([`docs/BRIEF.md` §7](docs/BRIEF.md)).
 > Frontend integration: the contract is [`docs/INTEGRATION.md`](docs/INTEGRATION.md); the step-by-step plan is
 > [`docs/FRONTEND_BRIEF.md`](docs/FRONTEND_BRIEF.md).
 
@@ -91,24 +92,25 @@ truncated between tests.
 Every variable is listed in [`.env.example`](.env.example) and validated at startup; the server refuses to start
 with a clear message when one is invalid. Empty values count as unset, which disables optional integrations.
 
-| Variable                                 | Required    | Default                 | Purpose                                         |
-| ---------------------------------------- | ----------- | ----------------------- | ----------------------------------------------- |
-| `DATABASE_URL`                           | yes         |                         | Postgres connection string                      |
-| `JWT_SECRET`                             | yes         |                         | Signs session tokens; at least 32 characters    |
-| `TEST_DATABASE_URL`                      | for tests   |                         | Database used by `npm test`                     |
-| `NODE_ENV`                               | no          | `development`           | `development` · `test` · `production`           |
-| `PORT`                                   | no          | `4000`                  | HTTP port                                       |
-| `CORS_ORIGIN`                            | no          | `http://localhost:3000` | The frontend origin, allowed with credentials   |
-| `SEED_DEMO_DATA`                         | no          | `true`                  | Seed demo data into an empty database           |
-| `REDIS_URL`                              | no          |                         | Set → Redis; empty → in-memory fallback         |
-| `GITHUB_CLIENT_ID` / `_SECRET`           | no          |                         | GitHub sign-in (both required to enable)        |
-| `GOOGLE_CLIENT_ID` / `_SECRET`           | no          |                         | Google sign-in (both required to enable)        |
-| `GITHUB_APP_ID`, `GITHUB_WEBHOOK_SECRET` | no          |                         | GitHub App integration                          |
-| `GITHUB_APP_PRIVATE_KEY_PATH`            | no          |                         | Path the API reads the App key from             |
-| `GITHUB_APP_PRIVATE_KEY_FILE`            | Docker only |                         | `./` path of the key Compose mounts             |
-| `EMAIL_PROVIDER`                         | no          | `console`               | `console` logs emails · `smtp` delivers them    |
-| `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`    | when `smtp` |                         | SMTP delivery (e.g. Gmail with an App Password) |
-| `SMTP_PORT`, `EMAIL_FROM`                | no          | `465`, `DevFlow <…>`    |                                                 |
+| Variable                                 | Required    | Default                 | Purpose                                                                                           |
+| ---------------------------------------- | ----------- | ----------------------- | ------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                           | yes         |                         | Postgres connection string                                                                        |
+| `JWT_SECRET`                             | yes         |                         | Signs session tokens; at least 32 characters                                                      |
+| `TEST_DATABASE_URL`                      | for tests   |                         | Database used by `npm test`                                                                       |
+| `NODE_ENV`                               | no          | `development`           | `development` · `test` · `production`                                                             |
+| `PORT`                                   | no          | `4000`                  | HTTP port                                                                                         |
+| `CORS_ORIGIN`                            | no          | `http://localhost:3000` | The frontend origin, allowed with credentials; also the base of emailed links and OAuth redirects |
+| `API_URL`                                | no          | `http://localhost:4000` | Public URL of this API; builds the OAuth callback URLs registered with GitHub and Google          |
+| `SEED_DEMO_DATA`                         | no          | `true`                  | Seed demo data into an empty database                                                             |
+| `REDIS_URL`                              | no          |                         | Set → Redis; empty → in-memory fallback                                                           |
+| `GITHUB_CLIENT_ID` / `_SECRET`           | no          |                         | GitHub sign-in (both required to enable)                                                          |
+| `GOOGLE_CLIENT_ID` / `_SECRET`           | no          |                         | Google sign-in (both required to enable)                                                          |
+| `GITHUB_APP_ID`, `GITHUB_WEBHOOK_SECRET` | no          |                         | GitHub App integration                                                                            |
+| `GITHUB_APP_PRIVATE_KEY_PATH`            | no          |                         | Path the API reads the App key from                                                               |
+| `GITHUB_APP_PRIVATE_KEY_FILE`            | Docker only |                         | `./` path of the key Compose mounts                                                               |
+| `EMAIL_PROVIDER`                         | no          | `console`               | `console` logs emails · `smtp` delivers them                                                      |
+| `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`    | when `smtp` |                         | SMTP delivery (e.g. Gmail with an App Password)                                                   |
+| `SMTP_PORT`, `EMAIL_FROM`                | no          | `465`, `DevFlow <…>`    |                                                                                                   |
 
 The active modes are logged at startup (`realtime`, `email`, OAuth providers, GitHub integration).
 
@@ -120,8 +122,10 @@ src/
   server.ts           entry point: env, clients, HTTP server, graceful shutdown
   config/             env.ts (Zod-validated environment), features.ts (optional integrations)
   modules/<feature>/  routes → controller → service → repository, plus schemas and OpenAPI docs
-  middleware/         request id + logging, validation, problem+json error handler
-  lib/                errors catalogue, logger, Prisma and Redis clients, shutdown
+                      (auth, users, tokens, workspace, config, health so far)
+  middleware/         request id + logging, validation, auth, origin check, problem+json error handler
+  integrations/       email (console, smtp) and OAuth providers (GitHub, Google)
+  lib/                errors catalogue, logger, Prisma and Redis clients, hashing, pagination, ETags, shutdown
   openapi/            OpenAPI document assembly and generator
 prisma/               schema, migrations, seed
 tests/                integration tests (Supertest against devflow_test)
@@ -134,8 +138,24 @@ handler as RFC 9457 `application/problem+json` with a stable `code`.
 
 ## Demo accounts
 
-Sign-in accounts for each role (`demo@`, `member@` and `viewer@devflow.local`) are created by the seed from
-`v0.2.0`, when authentication ships. `v0.1.0` seeds only the demo workspace, Acme Inc.
+Created by the seed when `SEED_DEMO_DATA=true` and the database is empty. All use the password **`devflow-demo`**:
+
+| Role   | Email                  | Person       |
+| ------ | ---------------------- | ------------ |
+| admin  | `demo@devflow.local`   | John Rey     |
+| member | `member@devflow.local` | Dmitri Kovac |
+| viewer | `viewer@devflow.local` | Lucas Brandt |
+
+These are seed-only demo credentials; never enable `SEED_DEMO_DATA` on a real deployment. An existing database is
+never re-seeded: run `npm run db:reset` (destroys local data) to pick up new demo data after upgrading.
+
+Try it:
+
+```bash
+curl -i -c cookies.txt -H "Origin: http://localhost:3000" -H "Content-Type: application/json" \
+  -d '{"email":"demo@devflow.local","password":"devflow-demo"}' http://localhost:4000/api/v1/auth/login
+curl -b cookies.txt http://localhost:4000/api/v1/auth/me
+```
 
 ## Contributing
 

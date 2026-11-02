@@ -6,7 +6,23 @@ const document = buildOpenApiDocument();
 
 describe("OpenAPI document", () => {
   it("documents every route the app serves", () => {
-    expect(Object.keys(document.paths ?? {}).sort()).toEqual(["/config", "/health", "/health/ready"]);
+    expect(Object.keys(document.paths ?? {}).sort()).toEqual([
+      "/auth/login",
+      "/auth/logout",
+      "/auth/me",
+      "/auth/oauth/{provider}",
+      "/auth/oauth/{provider}/callback",
+      "/auth/password/forgot",
+      "/auth/password/reset",
+      "/auth/refresh",
+      "/auth/signup",
+      "/config",
+      "/health",
+      "/health/ready",
+      "/me",
+      "/me/tokens",
+      "/me/tokens/{id}",
+    ]);
   });
 
   it("gives every component schema an example", () => {

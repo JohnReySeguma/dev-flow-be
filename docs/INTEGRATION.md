@@ -1,7 +1,7 @@
 # DevFlow API — Frontend Integration Guide
 
 > **For:** the frontend ([`dev-flow`](https://github.com/JohnReySeguma/dev-flow)).
-> **Accurate for:** `v0.1.0`. Updated at every release (see [`FRONTEND_HANDOFF.md`](FRONTEND_HANDOFF.md)).
+> **Accurate for:** `v0.2.0`. Updated at every release (see [`FRONTEND_HANDOFF.md`](FRONTEND_HANDOFF.md)).
 > **Machine-readable contract:** [`openapi.json`](openapi.json), also served at `/api/v1/openapi.json`, with
 > Swagger UI at `/api/v1/docs`.
 > **Step-by-step plan for the frontend:** [`FRONTEND_BRIEF.md`](FRONTEND_BRIEF.md).
@@ -10,17 +10,24 @@
 
 ## 1. Conventions
 
-| Topic      | Contract                                                                                                                                                   |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Base URL   | `http://localhost:4000/api/v1` (development and Docker)                                                                                                    |
-| JSON       | camelCase, field names and enum values identical to `lib/tracker/types.ts`                                                                                 |
-| Timestamps | ISO 8601 UTC strings, e.g. `2026-11-01T09:00:00.000Z`                                                                                                      |
-| CORS       | Only `CORS_ORIGIN` (default `http://localhost:3000`), with credentials. Send `credentials: "include"`.                                                     |
-| Request id | Every response carries `X-Request-Id`; error bodies repeat it as `requestId`. You may send your own `X-Request-Id` (≤ 128 chars of `A–Z a–z 0–9 _ . : -`). |
-| Errors     | RFC 9457 `application/problem+json` with a stable `code` (§4)                                                                                              |
+| Topic       | Contract                                                                                                                                                   |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Base URL    | `http://localhost:4000/api/v1` (development and Docker)                                                                                                    |
+| JSON        | camelCase, field names and enum values identical to the frontend's types (deviations in §1.1)                                                              |
+| Timestamps  | ISO 8601 UTC strings, e.g. `2026-11-01T09:00:00.000Z`                                                                                                      |
+| CORS        | Only `CORS_ORIGIN` (default `http://localhost:3000`), with credentials. Send `credentials: "include"` on every request.                                    |
+| Request id  | Every response carries `X-Request-Id`; error bodies repeat it as `requestId`. You may send your own `X-Request-Id` (≤ 128 chars of `A–Z a–z 0–9 _ . : -`). |
+| Errors      | RFC 9457 `application/problem+json` with a stable `code` (§4)                                                                                              |
+| Lists       | `?limit=50&cursor=…` (limit 1–100, default 50) → `{ items, nextCursor }`; `nextCursor` is `null` on the last page. Cursors are opaque.                     |
+| Concurrency | Resources you can PATCH return an `ETag`. Send it back as `If-Match` to get `412 CONFLICT_STALE` instead of overwriting a newer change. Optional.          |
 
-Not yet available (planned): cursor pagination (`?limit&cursor` → `{ items, nextCursor }`) and `ETag` / `If-Match`
-concurrency (`412 CONFLICT_STALE`) arrive with the first list and PATCH endpoints in `v0.3.0`–`v0.4.0`.
+### 1.1 Deliberate differences from the frontend types
+
+| Where                              | Difference                                                                                                |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `UserProfile` (`/auth/me`, `/me`)  | No `presence` yet: it arrives with realtime in `v0.6.0`. Treat the signed-in user as `online` until then. |
+| `UserProfile`, later `TeamMember`  | The avatar field is `gradient`, as in `lib/members.ts`, not the brief's `avatarColor`.                    |
+| `UserProfile.id`, `AccessToken.id` | UUIDs instead of the fixtures' `u-jr` / `pat_01` style ids.                                               |
 
 ## 2. Endpoint coverage matrix
 
@@ -53,15 +60,19 @@ concurrency (`412 CONFLICT_STALE`) arrive with the first list and PATCH endpoint
 
 ### Account and workspace
 
-| Frontend component                     | UI action                           | Endpoint                                               | Since |
-| -------------------------------------- | ----------------------------------- | ------------------------------------------------------ | ----- |
-| `components/auth/auth-form.tsx`        | Sign in / sign up / forgot password | `/auth/login`, `/auth/signup`, `/auth/password/forgot` |       |
-| `auth-form.tsx` OAuth buttons          | Show / hide providers               | `GET /config`                                          | 0.1.0 |
-| `auth-form.tsx` OAuth buttons          | Continue with GitHub / Google       | `GET /auth/oauth/:provider`                            |       |
-| `components/layout/app-sidebar.tsx`    | Log out                             | `POST /auth/logout`                                    |       |
-| `components/profile/profile-view.tsx`  | Save personal settings              | `PATCH /me`                                            |       |
-| `components/profile/access-tokens.tsx` | Generate / revoke token             | `POST /me/tokens`, `DELETE /me/tokens/:id`             |       |
-| `components/settings/team-members.tsx` | Invite, resend, change role, remove | `/workspace/invites…`, `/workspace/members/:id`        |       |
+| Frontend component                     | UI action                           | Endpoint                                                     | Since |
+| -------------------------------------- | ----------------------------------- | ------------------------------------------------------------ | ----- |
+| App load                               | Session check                       | `GET /auth/me`                                               | 0.2.0 |
+| `components/auth/auth-form.tsx`        | Sign in / sign up                   | `POST /auth/login`, `POST /auth/signup`                      | 0.2.0 |
+| `auth-form.tsx`                        | Forgot password                     | `POST /auth/password/forgot`                                 | 0.2.0 |
+| New `/reset-password` page             | Choose a new password               | `POST /auth/password/reset`                                  | 0.2.0 |
+| `auth-form.tsx` OAuth buttons          | Show / hide providers               | `GET /config`                                                | 0.1.0 |
+| `auth-form.tsx` OAuth buttons          | Continue with GitHub / Google       | `GET /auth/oauth/:provider` (browser navigation)             | 0.2.0 |
+| API client                             | Renew an expired access token       | `POST /auth/refresh`                                         | 0.2.0 |
+| `components/layout/app-sidebar.tsx`    | Log out                             | `POST /auth/logout`                                          | 0.2.0 |
+| `components/profile/profile-view.tsx`  | Load / save personal settings       | `GET /me`, `PATCH /me`                                       | 0.2.0 |
+| `components/profile/access-tokens.tsx` | List / generate / revoke tokens     | `GET /me/tokens`, `POST /me/tokens`, `DELETE /me/tokens/:id` | 0.2.0 |
+| `components/settings/team-members.tsx` | Invite, resend, change role, remove | `/workspace/invites…`, `/workspace/members/:id`              |       |
 
 ### Operational
 
@@ -106,50 +117,152 @@ Every error is `application/problem+json`:
 
 - Switch on **`code`**, never on `title` or `detail` (human-readable, may change).
 - `422 VALIDATION_FAILED` adds `errors: [{ field, message }]`, one entry per invalid field. `field` is the
-  dot-separated path within the body, query or route parameters (e.g. `title`, `carryOver.sprintId`).
+  dot-separated path within the body, query or route parameters (e.g. `email`, `scopes.0`); `(root)` means the body
+  as a whole (e.g. an empty PATCH). The `message`s are written to be shown next to the field.
 
 ### Error catalogue
 
 Codes are stable: new ones may be added, existing ones are never renamed or repurposed. "Reserved" codes are part of
 the contract already but no endpoint returns them yet.
 
-| Code                     | HTTP | Meaning                                                        | Returned by                         |
-| ------------------------ | ---- | -------------------------------------------------------------- | ----------------------------------- |
-| `BAD_REQUEST`            | 400  | The body is not valid JSON                                     | Any endpoint with a JSON body       |
-| `UNAUTHENTICATED`        | 401  | Not signed in; redirect to `/login`                            | Reserved (`v0.2.0`)                 |
-| `TOKEN_EXPIRED`          | 401  | Access token expired; call `POST /auth/refresh` once and retry | Reserved (`v0.2.0`)                 |
-| `INVALID_CREDENTIALS`    | 401  | Wrong email or password                                        | Reserved (`v0.2.0`)                 |
-| `FORBIDDEN`              | 403  | Signed in, but the role does not allow this                    | Reserved (`v0.3.0`)                 |
-| `CANNOT_CHANGE_OWN_ROLE` | 403  | Admins cannot change their own role                            | Reserved (`v0.3.0`)                 |
-| `NOT_FOUND`              | 404  | Unknown route or resource                                      | Any unknown route                   |
-| `EMAIL_TAKEN`            | 409  | Sign-up with an existing email                                 | Reserved (`v0.2.0`)                 |
-| `PROJECT_KEY_TAKEN`      | 409  | Project key already in use                                     | Reserved (`v0.4.0`)                 |
-| `SPRINT_ALREADY_ACTIVE`  | 409  | Another sprint is active in the project                        | Reserved (`v0.5.0`)                 |
-| `SPRINT_NOT_PLANNED`     | 409  | Only planned sprints can be started or deleted                 | Reserved (`v0.5.0`)                 |
-| `STATUS_DELETE_BLOCKED`  | 409  | Deleting would break the workflow guards                       | Reserved (`v0.4.0`)                 |
-| `LAST_ADMIN`             | 409  | The last active admin cannot be demoted or removed             | Reserved (`v0.3.0`)                 |
-| `ALREADY_MEMBER`         | 409  | The invited email already belongs to a member                  | Reserved (`v0.3.0`)                 |
-| `CONFLICT_STALE`         | 412  | `If-Match` no longer matches; re-fetch and retry               | Reserved                            |
-| `PAYLOAD_TOO_LARGE`      | 413  | Body larger than 100 kB                                        | Any endpoint with a JSON body       |
-| `VALIDATION_FAILED`      | 422  | Invalid fields, listed in `errors`                             | Reserved (first inputs in `v0.2.0`) |
-| `RATE_LIMITED`           | 429  | Too many requests; retry later                                 | Reserved (`v1.0.0`)                 |
-| `INTERNAL_ERROR`         | 500  | Unexpected failure; quote `requestId` when reporting           | Any endpoint                        |
+| Code                     | HTTP | Meaning                                                                   | Returned by                                                         |
+| ------------------------ | ---- | ------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `BAD_REQUEST`            | 400  | The body is not valid JSON                                                | Any endpoint with a JSON body                                       |
+| `RESET_TOKEN_INVALID`    | 400  | The reset link is unknown, already used or expired; request a new one     | `POST /auth/password/reset` (new in `v0.2.0`)                       |
+| `UNAUTHENTICATED`        | 401  | Not signed in (or the session was revoked); redirect to `/login`          | Every authenticated endpoint, `POST /auth/refresh`                  |
+| `TOKEN_EXPIRED`          | 401  | Access token expired; call `POST /auth/refresh` once and retry            | Every cookie-authenticated endpoint                                 |
+| `INVALID_CREDENTIALS`    | 401  | Wrong email or password (same answer for unknown emails)                  | `POST /auth/login`                                                  |
+| `FORBIDDEN`              | 403  | Not allowed: cross-site write, or an access token on a session-only route | Every write (origin check), `PATCH /me`, `/me/tokens`               |
+| `CANNOT_CHANGE_OWN_ROLE` | 403  | Admins cannot change their own role                                       | Reserved (`v0.3.0`)                                                 |
+| `NOT_FOUND`              | 404  | Unknown route or resource                                                 | Any unknown route, `DELETE /me/tokens/:id`, disabled OAuth provider |
+| `EMAIL_TAKEN`            | 409  | Sign-up with an email that already has an account                         | `POST /auth/signup`                                                 |
+| `PROJECT_KEY_TAKEN`      | 409  | Project key already in use                                                | Reserved (`v0.4.0`)                                                 |
+| `SPRINT_ALREADY_ACTIVE`  | 409  | Another sprint is active in the project                                   | Reserved (`v0.5.0`)                                                 |
+| `SPRINT_NOT_PLANNED`     | 409  | Only planned sprints can be started or deleted                            | Reserved (`v0.5.0`)                                                 |
+| `STATUS_DELETE_BLOCKED`  | 409  | Deleting would break the workflow guards                                  | Reserved (`v0.4.0`)                                                 |
+| `LAST_ADMIN`             | 409  | The last active admin cannot be demoted or removed                        | Reserved (`v0.3.0`)                                                 |
+| `ALREADY_MEMBER`         | 409  | The invited email already belongs to a member                             | Reserved (`v0.3.0`)                                                 |
+| `CONFLICT_STALE`         | 412  | `If-Match` no longer matches; re-fetch and retry                          | `PATCH /me`                                                         |
+| `PAYLOAD_TOO_LARGE`      | 413  | Body larger than 100 kB                                                   | Any endpoint with a JSON body                                       |
+| `VALIDATION_FAILED`      | 422  | Invalid fields, listed in `errors`                                        | Every endpoint with input                                           |
+| `RATE_LIMITED`           | 429  | Too many requests; retry later                                            | Reserved (`v1.0.0`)                                                 |
+| `INTERNAL_ERROR`         | 500  | Unexpected failure; quote `requestId` when reporting                      | Any endpoint                                                        |
 
 ## 5. Authentication
 
-Ships in `v0.2.0` (cookies, refresh, CSRF, OAuth redirects, password-reset and invite link formats). Until then every
-endpoint is public.
+### 5.1 Session check
+
+Call `GET /auth/me` on app load:
+
+- `200` → `{ user: UserProfile, workspace: { id, name } }`; `user.role` is `admin`, `member` or `viewer`.
+- `401 UNAUTHENTICATED` → signed out: redirect to `/login`.
+- `401 TOKEN_EXPIRED` → refresh (§5.3) and retry once.
+
+`POST /auth/signup` (`201`) and `POST /auth/login` (`200`) return the same body and set the session cookies.
+New accounts join the workspace as **member**; only the first account of an empty workspace becomes admin.
+
+### 5.2 Cookies
+
+The browser never sees the tokens: both cookies are `HttpOnly; Secure; SameSite=Lax` and are set and cleared by the
+API. Nothing to store in `localStorage`; just send `credentials: "include"`.
+
+| Cookie            | Path                 | Contains                             | Lifetime                                                                                        |
+| ----------------- | -------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| `devflow_access`  | `/api/v1`            | Access JWT, valid for **15 minutes** | Cookie kept for the session, so an expired JWT still reaches the API and yields `TOKEN_EXPIRED` |
+| `devflow_refresh` | `/api/v1/auth`       | Rotating refresh token               | The session: **30 days** from sign-in, not extended by use                                      |
+| `devflow_oauth`   | `/api/v1/auth/oauth` | OAuth state, during sign-in only     | 10 minutes                                                                                      |
+
+`localhost:3000` and `localhost:4000` are the same site, so the cookies flow between them. Chrome and Firefox accept
+`Secure` cookies on `http://localhost`; if your browser does not, use one of those for local development.
+
+### 5.3 Expiry and refresh
+
+1. A request answers `401` with `code: "TOKEN_EXPIRED"`.
+2. Call `POST /auth/refresh` (no body). `204` → both cookies were rotated; retry the original request once.
+3. Refresh answers `401 UNAUTHENTICATED` → signed out (the API also clears the cookies): redirect to `/login`.
+
+**Run at most one refresh at a time.** Each refresh token works once; presenting a used one is treated as theft and
+revokes the whole session. If several requests hit `TOKEN_EXPIRED` together (or several tabs are open), share one
+in-flight refresh promise and retry them all after it settles.
+
+Any other `401` means signed out. `POST /auth/logout` (`204`) revokes the session and clears the cookies; it also
+succeeds when already signed out. A password reset signs the account out on every device.
+
+### 5.4 CSRF
+
+No token or header to manage. Writes (`POST`, `PUT`, `PATCH`, `DELETE`) must carry the browser's `Origin` header equal
+to `CORS_ORIGIN`, which browsers add automatically; together with `SameSite=Lax` cookies this blocks cross-site
+requests. A write from another origin gets `403 FORBIDDEN`. Requests with `Authorization: Bearer` are exempt.
+
+### 5.5 OAuth (GitHub, Google)
+
+Show a provider only when `GET /config` reports it enabled. To sign in, **navigate the browser** (not `fetch`) to:
+
+```
+http://localhost:4000/api/v1/auth/oauth/github?redirect=/projects
+```
+
+- `redirect` must be a relative path on the frontend (default `/projects`); anything else falls back to `/projects`.
+- Success → redirect to `${CORS_ORIGIN}${redirect}`, signed in.
+- Failure → redirect to `${CORS_ORIGIN}/login?error=<code>`:
+
+| `error`                  | Meaning                                                                       |
+| ------------------------ | ----------------------------------------------------------------------------- |
+| `oauth_denied`           | The user cancelled on the provider's consent screen                           |
+| `oauth_state_mismatch`   | The sign-in link expired (10 min) or was tampered with: start again           |
+| `oauth_email_unverified` | The provider account has no verified email, so it cannot be linked or created |
+| `oauth_failed`           | The provider could not be reached or rejected the request: try again          |
+
+Accounts are matched by provider identity first, then by verified email (an existing password account gets the
+provider linked), otherwise a member account is created. The callback URLs registered with the providers are
+`${API_URL}/api/v1/auth/oauth/{github,google}/callback`.
+
+### 5.6 Password reset
+
+`POST /auth/password/forgot { email }` always answers `202`, whether or not the account exists. The email links to:
+
+```
+${CORS_ORIGIN}/reset-password?token=<token>
+```
+
+The new `/reset-password` page reads `token` and calls `POST /auth/password/reset { token, password }`:
+`204` → show "Password changed, sign in"; `400 RESET_TOKEN_INVALID` → offer to request a new link. Links work once,
+expire after 60 minutes, and only the newest one works. Passwords are 8–128 characters.
+
+### 5.7 Invites
+
+Ships in `v0.3.0`. Planned link format: `${CORS_ORIGIN}/invite?token=<token>`, accepted with
+`POST /invites/:token/accept`.
+
+### 5.8 Personal access tokens
+
+`POST /me/tokens { name, scopes, expiresInDays }` returns `{ token, secret }`. **The secret is shown once**; afterwards
+only `lastFour` is available. Clients use it as `Authorization: Bearer dfp_…`. A token can read (`GET /auth/me`,
+`GET /me`) but cannot change the profile or manage tokens (`403 FORBIDDEN`). Scopes are stored and returned; they gate
+the issue and project endpoints as those arrive (`v0.4.0`+).
 
 ## 6. Realtime
 
 Ships in `v0.6.0` (Socket.IO namespace `/realtime`). No events yet.
 
-## 7. Demo data
+## 7. Demo data and accounts
 
-`v0.1.0` seeds only the demo workspace (Acme Inc). The projects DEV, BIL and MOB arrive in `v0.4.0`, and the demo
-accounts for each role in `v0.2.0`.
+When `SEED_DEMO_DATA=true`, an empty database is seeded with the Acme Inc workspace and the frontend's team
+(`lib/account-data.ts`). Every demo account uses the password **`devflow-demo`**:
+
+| Role   | Email                  | Person       |
+| ------ | ---------------------- | ------------ |
+| admin  | `demo@devflow.local`   | John Rey     |
+| member | `member@devflow.local` | Dmitri Kovac |
+| viewer | `viewer@devflow.local` | Lucas Brandt |
+
+Aiko Mori (`aiko@acme.dev`, admin) and Priya Shah (`priya@acme.dev`, member) exist too. The admin owns the
+frontend's two example access tokens; their secrets were never issued, so they cannot authenticate. The projects
+DEV, BIL and MOB arrive in `v0.4.0`.
 
 ## 8. Known limitations
 
-- Only operational endpoints and `GET /config` exist; the in-browser store remains the source of data.
-- No authentication: nothing is protected yet.
+- No project, issue or sprint endpoints yet: keep the in-browser store for data.
+- Roles are returned but not yet enforced on any endpoint (nothing role-sensitive exists until `v0.3.0`).
+- No rate limits on sign-in, sign-up or password reset until `v1.0.0`.
+- `lastActiveAt` is updated on sign-in and on each refresh (about every 15 minutes of activity), not on every request.
