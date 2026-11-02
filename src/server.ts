@@ -62,6 +62,15 @@ for (const signal of ["SIGTERM", "SIGINT"] as const) {
   process.once(signal, () => void shutdown(signal));
 }
 
+server.once("error", (error: NodeJS.ErrnoException) => {
+  const message =
+    error.code === "EADDRINUSE"
+      ? `port ${env.PORT} is already in use: stop the other process (e.g. \`docker compose stop api\`) or set PORT`
+      : "http server failed to start";
+  logger.fatal({ err: error }, message);
+  void Promise.allSettled([prisma.$disconnect(), redis?.quit()]).finally(() => process.exit(1));
+});
+
 server.listen(env.PORT, () => {
   logger.info({ port: env.PORT, env: env.NODE_ENV }, `api listening on http://localhost:${env.PORT}${API_PREFIX}`);
 });
