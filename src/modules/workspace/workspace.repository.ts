@@ -62,6 +62,16 @@ function repository(db: Db) {
     rotateInviteToken: (id: string, tokenHash: string, expiresAt: Date): Promise<WorkspaceInvite> =>
       db.workspaceInvite.update({ where: { id }, data: { tokenHash, expiresAt } }),
 
+    findInviteByTokenHash: (tokenHash: string) =>
+      db.workspaceInvite.findUnique({
+        where: { tokenHash },
+        include: { workspace: true, invitedBy: { select: { name: true } } },
+      }),
+
+    /** Deletes the invite if this token is still its current one. Atomic: an invite is accepted once. */
+    claimInvite: async (id: string, tokenHash: string): Promise<boolean> =>
+      (await db.workspaceInvite.deleteMany({ where: { id, tokenHash } })).count === 1,
+
     setInviteRole: (id: string, role: Role): Promise<WorkspaceInvite> =>
       db.workspaceInvite.update({ where: { id }, data: { role } }),
     deleteInvite: (id: string) => db.workspaceInvite.delete({ where: { id } }),

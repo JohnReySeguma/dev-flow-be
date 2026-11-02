@@ -67,6 +67,7 @@
             "enum": [
               "BAD_REQUEST",
               "RESET_TOKEN_INVALID",
+              "INVITE_INVALID",
               "UNAUTHENTICATED",
               "TOKEN_EXPIRED",
               "INVALID_CREDENTIALS",
@@ -804,6 +805,93 @@
         "example": {
           "email": "grace@acme.dev",
           "role": "member"
+        }
+      },
+      "InvitePreview": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "member",
+              "viewer"
+            ]
+          },
+          "workspace": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          },
+          "invitedBy": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "email",
+          "role",
+          "workspace",
+          "invitedBy",
+          "expiresAt"
+        ],
+        "example": {
+          "email": "grace@acme.dev",
+          "role": "member",
+          "workspace": {
+            "name": "Acme Inc"
+          },
+          "invitedBy": {
+            "name": "John Rey"
+          },
+          "expiresAt": "2026-11-09T09:00:00.000Z"
+        }
+      },
+      "AcceptInviteRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 48
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "name",
+          "password"
+        ],
+        "example": {
+          "name": "Grace Hopper",
+          "password": "YOUR_PASSWORD"
         }
       }
     },
@@ -1794,6 +1882,105 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TeamMember"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invites/{token}": {
+      "get": {
+        "tags": [
+          "Invites"
+        ],
+        "summary": "Preview an invite",
+        "description": "Public; for the /invite page. 400 INVITE_INVALID when the link is unknown, already used, replaced by a resend or expired.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "token",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The invite.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitePreview"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invites/{token}/accept": {
+      "post": {
+        "tags": [
+          "Invites"
+        ],
+        "summary": "Accept an invite",
+        "description": "Public. Creates the account for the invited email with the invited role and signs it in (session cookies). Errors: 400 INVITE_INVALID, 409 ALREADY_MEMBER (the email already has an account: sign in instead), 422 VALIDATION_FAILED.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "token",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptInviteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Account created and signed in.",
+            "headers": {
+              "Set-Cookie": {
+                "description": "The session cookies, as for /auth/login.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthMe"
                 }
               }
             }

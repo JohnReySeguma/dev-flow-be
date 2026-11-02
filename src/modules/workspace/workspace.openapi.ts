@@ -2,7 +2,16 @@ import type { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
 import { paginationQuery } from "../../lib/pagination.js";
 import { problemResponse } from "../../openapi/problem.js";
-import { changeRoleBody, inviteBody, teamMember, teamMemberPage, workspaceResponse } from "./workspace.schemas.js";
+import { authMeResponse } from "../auth/auth.schemas.js";
+import {
+  acceptInviteBody,
+  changeRoleBody,
+  inviteBody,
+  invitePreviewResponse,
+  teamMember,
+  teamMemberPage,
+  workspaceResponse,
+} from "./workspace.schemas.js";
 
 const json = <T>(schema: T) => ({ content: { "application/json": { schema } } });
 const anyCaller = [{ cookieAuth: [] }, { bearerAuth: [] }];
@@ -74,5 +83,37 @@ export function registerWorkspaceDocs(registry: OpenAPIRegistry) {
     security: [{ cookieAuth: [] }],
     request: { params: z.object({ id: z.uuid() }) },
     responses: { 200: { description: "The pending invite.", ...json(teamMember) }, default: problemResponse },
+  });
+  registry.registerPath({
+    method: "get",
+    path: "/invites/{token}",
+    tags: ["Invites"],
+    summary: "Preview an invite",
+    description:
+      "Public; for the /invite page. 400 INVITE_INVALID when the link is unknown, already used, replaced by a " +
+      "resend or expired.",
+    request: { params: z.object({ token: z.string() }) },
+    responses: { 200: { description: "The invite.", ...json(invitePreviewResponse) }, default: problemResponse },
+  });
+  registry.registerPath({
+    method: "post",
+    path: "/invites/{token}/accept",
+    tags: ["Invites"],
+    summary: "Accept an invite",
+    description:
+      "Public. Creates the account for the invited email with the invited role and signs it in (session cookies). " +
+      "Errors: 400 INVITE_INVALID, 409 ALREADY_MEMBER (the email already has an account: sign in instead), " +
+      "422 VALIDATION_FAILED.",
+    request: { params: z.object({ token: z.string() }), body: json(acceptInviteBody) },
+    responses: {
+      201: {
+        description: "Account created and signed in.",
+        headers: {
+          "Set-Cookie": { description: "The session cookies, as for /auth/login.", schema: { type: "string" } },
+        },
+        ...json(authMeResponse),
+      },
+      default: problemResponse,
+    },
   });
 }

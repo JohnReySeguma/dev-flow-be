@@ -39,12 +39,17 @@ export function createAuthService({ users, workspaces, sessions, accessTokens, l
   }
 
   /**
-   * Adds a user to the workspace. The first user of an empty workspace becomes its admin;
-   * everyone after that joins as a member.
+   * Adds a user to the workspace. Without an explicit role (an invite sets one), the first user
+   * of an empty workspace becomes its admin and everyone after that joins as a member.
    */
-  async function createUser(input: { name: string; email: string; passwordHash: string | null }): Promise<User> {
+  async function createUser(input: {
+    name: string;
+    email: string;
+    passwordHash: string | null;
+    role?: Role;
+  }): Promise<User> {
     const workspace = (await workspaces.findDefault()) ?? (await workspaces.create(DEFAULT_WORKSPACE_NAME));
-    const role: Role = (await users.countInWorkspace(workspace.id)) === 0 ? "admin" : "member";
+    const role: Role = input.role ?? ((await users.countInWorkspace(workspace.id)) === 0 ? "admin" : "member");
     try {
       return await users.create({
         workspaceId: workspace.id,

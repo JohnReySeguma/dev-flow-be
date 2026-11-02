@@ -1,8 +1,9 @@
+import request from "supertest";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { seed } from "../prisma/seed.js";
 import { createLogger } from "../src/lib/logger.js";
 import { createTestApp } from "./helpers/app.js";
-import { FRONTEND_ORIGIN } from "./helpers/cookies.js";
+import { FRONTEND_ORIGIN, sessionCookieHeader } from "./helpers/cookies.js";
 import { truncateAll } from "./helpers/db.js";
 import { asBrowser, signIn } from "./helpers/session.js";
 
@@ -93,5 +94,87 @@ describe("POST /api/v1/workspace/invites/:id/resend", () => {
 
     expect((await admin.post(`/api/v1/workspace/invites/${member.id}/resend`)).status).toBe(404);
     expect((await admin.post("/api/v1/workspace/invites/nope/resend")).status).toBe(404);
+  });
+});
+
+describe("accepting an invite", () => {
+  async function invite(address = "grace@acme.dev", role = "viewer") {
+    await admin.post("/api/v1/workspace/invites").send({ email: address, role });
+    return tokenFrom(email.sent.at(-1)?.text);
+  }
+  const preview = (token: string) => request(app).get(`/api/v1/invites/${encodeURIComponent(token)}`);
+  const accept = (token: string, body: object = { name: "Grace Hopper", password: "compiler-1952" }) =>
+    request(app)
+      .post(`/api/v1/invites/${encodeURIComponent(token)}/accept`)
+      .set("Origin", FRONTEND_ORIGIN)
+      .send(body);
+
+  it("previews the invite for the /invite page without signing in", async () => {
+    const res = await preview(await invite());
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      email: "grace@acme.dev",
+      role: "viewer",
+      workspace: { name: "Acme Inc" },
+      invitedBy: { name: "John Rey" },
+    });
+  });
+
+  it("creates the account with the invited role and signs it in", async () => {
+    const res = await accept(await invite());
+
+    expect(res.status).toBe(201);
+    expect(res.body.user).toMatchObject({ name: "Grace Hopper", email: "grace@acme.dev", role: "viewer" });
+    const me = await request(app).get("/api/v1/auth/me").set("Cookie", sessionCookieHeader(res));
+    expect(me.status).toBe(200);
+    const members = await admin.get("/api/v1/workspace/members");
+    expect(members.body.items.find((m: { email: string }) => m.email === "grace@acme.dev")).toMatchObject({
+      status: "active",
+      role: "viewer",
+    });
+  });
+
+  it("works once", async () => {
+    const token = await invite();
+    await accept(token);
+
+    const again = await accept(token, { name: "Mallory", password: "another-password" });
+
+    expect(again.status).toBe(400);
+    expect(again.body.code).toBe("INVITE_INVALID");
+  });
+
+  it("rejects expired, unknown and resent-away links", async () => {
+    const token = await invite();
+    const created = await prisma.workspaceInvite.findFirstOrThrow();
+    await admin.post(`/api/v1/workspace/invites/${created.id}/resend`);
+
+    expect((await accept(token)).body.code).toBe("INVITE_INVALID");
+    expect((await preview("made-up")).body.code).toBe("INVITE_INVALID");
+
+    const fresh = tokenFrom(email.sent.at(-1)?.text);
+    await prisma.workspaceInvite.updateMany({ data: { expiresAt: new Date(Date.now() - 1000) } });
+    expect((await accept(fresh)).body.code).toBe("INVITE_INVALID");
+  });
+
+  it("answers ALREADY_MEMBER when the email signed up in the meantime", async () => {
+    const token = await invite();
+    await request(app)
+      .post("/api/v1/auth/signup")
+      .set("Origin", FRONTEND_ORIGIN)
+      .send({ name: "Grace", email: "grace@acme.dev", password: "compiler-1952" });
+
+    const res = await accept(token);
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe("ALREADY_MEMBER");
+  });
+
+  it("validates the name and password", async () => {
+    const res = await accept(await invite(), { name: "", password: "short" });
+
+    expect(res.status).toBe(422);
+    expect(res.body.errors.map((e: { field: string }) => e.field)).toEqual(["name", "password"]);
   });
 });

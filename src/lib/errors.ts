@@ -7,6 +7,7 @@ import type { ZodError } from "zod";
 export const ERROR_CATALOGUE = {
   BAD_REQUEST: { status: 400, title: "Malformed request" },
   RESET_TOKEN_INVALID: { status: 400, title: "Reset link is invalid or has expired" },
+  INVITE_INVALID: { status: 400, title: "Invite link is invalid or has expired" },
   UNAUTHENTICATED: { status: 401, title: "Authentication required" },
   TOKEN_EXPIRED: { status: 401, title: "Access token expired" },
   INVALID_CREDENTIALS: { status: 401, title: "Invalid email or password" },

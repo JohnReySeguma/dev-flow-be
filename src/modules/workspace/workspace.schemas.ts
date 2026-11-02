@@ -56,7 +56,35 @@ export const inviteBody = z
   })
   .meta({ id: "InviteRequest", example: { email: "grace@acme.dev", role: "member" } });
 
+export const invitePreviewResponse = z
+  .object({
+    email: z.email(),
+    role: roleSchema,
+    workspace: z.object({ name: z.string() }),
+    invitedBy: z.object({ name: z.string() }).nullable(),
+    expiresAt: z.iso.datetime(),
+  })
+  .meta({
+    id: "InvitePreview",
+    example: {
+      email: "grace@acme.dev",
+      role: "member",
+      workspace: { name: "Acme Inc" },
+      invitedBy: { name: "John Rey" },
+      expiresAt: "2026-11-09T09:00:00.000Z",
+    },
+  });
+
+export const acceptInviteBody = z
+  .object({
+    name: z.string().trim().min(1, "Tell us what to call you.").max(48, "Use at most 48 characters."),
+    password: z.string().min(8, "Use at least 8 characters.").max(128, "Use at most 128 characters."),
+  })
+  .meta({ id: "AcceptInviteRequest", example: { name: "Grace Hopper", password: "YOUR_PASSWORD" } });
+
 export type WorkspaceView = z.infer<typeof workspaceResponse>;
+export type InvitePreview = z.infer<typeof invitePreviewResponse>;
+export type AcceptInviteInput = z.infer<typeof acceptInviteBody>;
 export type InviteInput = z.infer<typeof inviteBody>;
 export type ChangeRoleInput = z.infer<typeof changeRoleBody>;
 export type TeamMember = z.infer<typeof teamMember>;

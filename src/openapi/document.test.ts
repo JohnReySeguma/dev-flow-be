@@ -19,6 +19,8 @@ describe("OpenAPI document", () => {
       "/config",
       "/health",
       "/health/ready",
+      "/invites/{token}",
+      "/invites/{token}/accept",
       "/me",
       "/me/tokens",
       "/me/tokens/{id}",
