@@ -71,13 +71,27 @@ export function createIssuesService(deps: { issues: IssuesRepository; projects: 
 
   /** Live Sync: tells the project's room, after the change committed. */
   const announce = (
-    event: "issue.created" | "issue.updated" | "issue.moved",
+    event: "issue.created" | "issue.updated",
     result: VersionedIssue,
     projectKey: string,
     actorId: string | null,
   ) => {
     events.publish(result.issue.projectId, event, { projectKey, actorId, issue: result.issue });
   };
+
+  /**
+   * issue.moved also says where the issue now ranks, the way a move request does: the issue it
+   * sits before, or null when it is last. Clients don't see ranks, so they need this to re-order.
+   */
+  async function announceMoved(moved: IssueWithContext, actorId: string | null) {
+    const after = await issues.issueAfter(moved.projectId, moved);
+    events.publish(moved.projectId, "issue.moved", {
+      projectKey: moved.project.key,
+      actorId,
+      issue: versioned(moved).issue,
+      beforeIssueKey: after ? `${moved.project.key}-${after.number}` : null,
+    });
+  }
 
   /** Checks that referenced statuses, sprints and assignees belong to this project and workspace. */
   async function checkReferences(
@@ -277,7 +291,7 @@ export function createIssuesService(deps: { issues: IssuesRepository; projects: 
         throw invalid("beforeIssueKey", "Pick another issue of the same project.");
       }
 
-      const result = await issues.transaction(async (tx) => {
+      const moved = await issues.transaction(async (tx) => {
         await tx.lockProject(current.projectId);
         const status = await checkReferences(tx, auth, current.projectId, {
           ...(input.statusId !== undefined && { statusId: input.statusId }),
@@ -302,14 +316,14 @@ export function createIssuesService(deps: { issues: IssuesRepository; projects: 
           data.statusId = status.id;
           data.resolvedAt = nextResolvedAt(current.resolvedAt, current.status.category, status.category, new Date());
         }
-        const moved = await tx.update(current.id, data);
-        if (!moved) throw new AppError("NOT_FOUND", `No issue ${issueKey}.`);
-        if (moved.statusId !== current.statusId) await record(tx, moved, "status", auth.userId);
-        if (moved.sprintId !== current.sprintId) await record(tx, moved, "sprint", auth.userId);
-        return versioned(moved);
+        const updated = await tx.update(current.id, data);
+        if (!updated) throw new AppError("NOT_FOUND", `No issue ${issueKey}.`);
+        if (updated.statusId !== current.statusId) await record(tx, updated, "status", auth.userId);
+        if (updated.sprintId !== current.sprintId) await record(tx, updated, "sprint", auth.userId);
+        return updated;
       });
-      announce("issue.moved", result, current.project.key, auth.userId);
-      return result;
+      await announceMoved(moved, auth.userId);
+      return versioned(moved);
     },
 
     async remove(auth: AuthContext, issueKey: string, projectKey?: string): Promise<void> {
@@ -362,12 +376,9 @@ export function createIssuesService(deps: { issues: IssuesRepository; projects: 
           return updated;
         });
         if (!result) continue;
-        announce(
-          result.statusId === current.statusId ? "issue.updated" : "issue.moved",
-          versioned(result),
-          result.project.key,
-          null,
-        );
+        if (result.statusId === current.statusId)
+          announce("issue.updated", versioned(result), result.project.key, null);
+        else await announceMoved(result, null);
         changed.push(issueKeyOf(result));
       }
       return changed;

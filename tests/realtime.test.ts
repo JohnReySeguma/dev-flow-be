@@ -120,7 +120,7 @@ describe("Live Sync events", () => {
 
     const moved = nextEvent<Payload>(socket, "issue.moved");
     await member.post("/api/v1/issues/DEV-134/move").send({ beforeIssueKey: "DEV-104" });
-    expect((await moved).issue.id).toBe("DEV-134");
+    expect(await moved).toMatchObject({ issue: { id: "DEV-134" }, beforeIssueKey: "DEV-104" });
 
     const commented = nextEvent<Payload>(socket, "issue.updated");
     await member.post("/api/v1/issues/DEV-134/comments").send({ body: "On it." });

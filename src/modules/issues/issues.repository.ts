@@ -77,6 +77,17 @@ function repository(db: Db) {
       )?.rank ?? null,
 
     /** The rank at the bottom of the project, ignoring `excludeId`. */
+    /** The issue ranked right after this one, or null when it is last. */
+    issueAfter: (projectId: string, issue: RankCursor): Promise<{ number: number } | null> =>
+      db.issue.findFirst({
+        where: {
+          projectId,
+          OR: [{ rank: { gt: issue.rank } }, { rank: issue.rank, id: { gt: issue.id } }],
+        },
+        orderBy: [{ rank: "asc" }, { id: "asc" }],
+        select: { number: true },
+      }),
+
     lastRank: async (projectId: string, excludeId: string): Promise<string | null> =>
       (
         await db.issue.findFirst({

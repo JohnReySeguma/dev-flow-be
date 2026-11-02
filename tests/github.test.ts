@@ -222,6 +222,11 @@ describe("Live Sync", () => {
 
     const moved = nextEvent<Payload>(socket, "issue.moved");
     await deliver("pull_request", pr("closed", { number: 421, title: "DEV-1", ref: "x", merged: true }));
-    expect(await moved).toMatchObject({ actorId: null, issue: { id: "DEV-1", resolvedAt: expect.any(String) } });
+    expect(await moved).toMatchObject({
+      actorId: null,
+      issue: { id: "DEV-1", resolvedAt: expect.any(String) },
+      // Merging changes the status, not the ranking: new issues go on top, so DEV-1 stays last.
+      beforeIssueKey: null,
+    });
   });
 });
