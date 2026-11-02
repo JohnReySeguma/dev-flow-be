@@ -6,6 +6,93 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.0.0-beta.2] - 2026-11-03
+
+API v2: DevFlow is multi-workspace. Every account gets its own workspace, everything except the account lives in a
+workspace under `/api/v2/workspaces/{slug}`, and `/api/v1` is removed. The frontend can start moving to v2 now
+(`docs/FRONTEND_BRIEF.md` Step 4).
+
+### Frontend impact
+
+- **BREAKING: new prefix.** Every endpoint moves from `/api/v1` to `/api/v2`; `/api/v1` answers `404`. Set
+  `NEXT_PUBLIC_API_URL=http://localhost:4000/api/v2` and regenerate the types from the `v2.0.0-beta.2` tag.
+- **BREAKING: sessions.** The cookies move to `Path=/api/v2` and `/api/v2/auth`, so everyone signs in again once.
+- **BREAKING: workspace routes.** Everything that belonged to "the" workspace moves under `/workspaces/:ws` (the slug):
+
+  | v1                                           | v2                                                                                 |
+  | -------------------------------------------- | ---------------------------------------------------------------------------------- |
+  | `GET /workspace`                             | `GET /workspaces/:ws`                                                              |
+  | `/workspace/members…`, `/workspace/invites…` | `/workspaces/:ws/members…`, `/workspaces/:ws/invites…`                             |
+  | `POST /workspace/demo/reset`                 | `POST /workspaces/:ws/demo/reset`                                                  |
+  | `GET /bootstrap`                             | `GET /workspaces/:ws/bootstrap`                                                    |
+  | `/projects…`, `/issues…`, `/sprints…`        | `/workspaces/:ws/projects…`, `/workspaces/:ws/issues…`, `/workspaces/:ws/sprints…` |
+
+  A workspace you are not a member of answers `404 NOT_FOUND`, like one that does not exist.
+
+- **BREAKING: responses.**
+  - `GET /auth/me`, sign-up, sign-in and invite acceptance return `{ user, workspaces: [{ id, slug, name, role, isDemo }] }`
+    instead of `{ user, workspace }`.
+  - `UserProfile` has no `role` (roles are per workspace) and gains `isDemo`.
+  - `Workspace` (`GET /workspaces/:ws`, `/bootstrap`) gains `slug` and `isDemo`.
+  - `AccessToken` gains `workspace: { id, slug, name }`.
+- **BREAKING: requests.** `POST /me/tokens` requires `workspace` (a slug you are a member of); the token works only
+  there. Socket.IO moves to `/api/v2/socket.io` and `project:join` / `project:leave` take
+  `{ workspace, projectKey }`; every event carries `workspaceId`.
+- **BREAKING: behaviour.**
+  - Sign-up (and a first OAuth sign-in) creates the account's own workspace, as admin, with a copy of the sample
+    projects, instead of joining a shared workspace as member.
+  - Accepting an invite joins that workspace only.
+  - Removing a member ends their membership instead of deleting their account.
+  - Demo reset resets the workspace's sample projects and keeps the ones people created. It works whatever
+    `SEED_DEMO_DATA` says.
+- **Can connect now:** the workspace switcher and "Create workspace" (`GET /workspaces`, `POST /workspaces`), rename,
+  delete and leave (`PATCH`/`DELETE /workspaces/:ws`, `POST /workspaces/:ws/leave`). Details: `docs/INTEGRATION.md`
+  §1.2 and §5.10.
+- **New error codes:** `DEMO_WORKSPACE_LOCKED` (403), `DEMO_ACCOUNT_LOCKED` (403); OAuth error `oauth_account_locked`.
+  `LAST_ADMIN` is now also returned by leave.
+- **Not yet:** inviting someone who already has an account (`beta.3`), email verification (`beta.4`), GitHub per
+  workspace (`beta.5`; deliveries apply to the demo workspace until then).
+
+### Added
+
+- `GET /workspaces`, `POST /workspaces { name, sampleData }`, `PATCH`/`DELETE /workspaces/:ws` and
+  `POST /workspaces/:ws/leave`.
+- Sample data: new workspaces start with a copy of DEV, BIL and MOB (the demo admin's issues assigned to the creator,
+  the rest unassigned, no comments); copies are flagged `is_sample`.
+- The demo workspace and the five demo accounts are locked against changes every visitor would see (rename, delete,
+  leave, invites and member changes; profile, tokens, new workspaces, password reset and OAuth takeover).
+- `npm run demo:reset` (`node dist/src/jobs/demo-reset.js` in the image) restores the demo workspace, for a nightly
+  cron on a public deployment (`docs/DEPLOYMENT.md` §5.1).
+
+### Changed
+
+- The OAuth callbacks (`/api/auth/oauth/{provider}/callback`) and the GitHub webhook
+  (`/api/integrations/github/webhook`) are version-free, so future API versions never require reconfiguring GitHub
+  or Google. **Update the registered URLs** (README, GitHub integration; `docs/DEPLOYMENT.md` §2).
+- Every request under `/workspaces/:ws` resolves the caller's membership once; services act in that workspace with
+  the caller's role there.
+
+### Removed
+
+- `/api/v1`.
+
+### Migration
+
+- `20261103020000_sample_projects` adds `projects.is_sample` and marks DEV, BIL and MOB in the demo workspace.
+- `20261103030000_demo_accounts` adds `users.is_demo` and marks the five demo accounts that are members of the demo
+  workspace.
+
+### Handoff checklist
+
+- [x] `docs/openapi.json` regenerated and valid
+- [x] `docs/INTEGRATION.md` coverage matrix updated (every path, the workspace endpoints)
+- [x] New error codes added to the catalogue (`DEMO_WORKSPACE_LOCKED`, `DEMO_ACCOUNT_LOCKED`, `oauth_account_locked`)
+- [x] New realtime events documented with examples (no new events; the join payload and `workspaceId` changed)
+- [x] **Frontend impact** section in `CHANGELOG.md`, BREAKING changes marked
+- [x] Seed and demo accounts still work on a fresh database, and on one migrated from `beta.1`
+- [x] `docker compose up --build` instructions in the README still accurate
+- [x] Known limitations or stubs listed (`docs/INTEGRATION.md` §9)
+
 ## [2.0.0-beta.1] - 2026-11-03
 
 First step towards multiple workspaces (API v2): the data model. A user can now belong to several workspaces with a
@@ -421,7 +508,8 @@ Foundation: configuration, database, error format, health checks, feature flags,
 - [x] `docker compose up --build` instructions in the README still accurate
 - [x] Known limitations or stubs listed (`docs/INTEGRATION.md` §8)
 
-[Unreleased]: https://github.com/JohnReySeguma/dev-flow-be/compare/v2.0.0-beta.1...HEAD
+[Unreleased]: https://github.com/JohnReySeguma/dev-flow-be/compare/v2.0.0-beta.2...HEAD
+[2.0.0-beta.2]: https://github.com/JohnReySeguma/dev-flow-be/compare/v2.0.0-beta.1...v2.0.0-beta.2
 [2.0.0-beta.1]: https://github.com/JohnReySeguma/dev-flow-be/compare/v1.0.1...v2.0.0-beta.1
 [1.0.1]: https://github.com/JohnReySeguma/dev-flow-be/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.6.0...v1.0.0
