@@ -2,6 +2,7 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import express, { type Express } from "express";
 import helmet from "helmet";
+import swaggerUi from "swagger-ui-express";
 import type { Env } from "./config/env.js";
 import type { Features } from "./config/features.js";
 import type { Logger } from "./lib/logger.js";
@@ -11,6 +12,7 @@ import { errorHandler, notFoundHandler } from "./middleware/error-handler.js";
 import { requestLogger } from "./middleware/request-logger.js";
 import { createConfigRouter } from "./modules/config/config.routes.js";
 import { createHealthRouter } from "./modules/health/health.routes.js";
+import { buildOpenApiDocument } from "./openapi/document.js";
 
 export const API_PREFIX = "/api/v1";
 
@@ -28,7 +30,8 @@ export function createApp({ env, features, logger, prisma, redis }: AppDeps): Ex
   const app = express();
 
   app.use(requestLogger(logger));
-  app.use(helmet());
+  // upgrade-insecure-requests would break the Swagger UI assets when served over plain http.
+  app.use(helmet({ contentSecurityPolicy: { directives: { upgradeInsecureRequests: null } } }));
   app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
   app.use(express.json({ limit: "100kb" }));
   app.use(cookieParser());
@@ -36,6 +39,12 @@ export function createApp({ env, features, logger, prisma, redis }: AppDeps): Ex
   const api = express.Router();
   api.use("/health", createHealthRouter({ prisma, redis }));
   api.use("/config", createConfigRouter({ features }));
+
+  const openApi = buildOpenApiDocument();
+  api.get("/openapi.json", (_req, res) => {
+    res.json(openApi);
+  });
+  api.use("/docs", swaggerUi.serve, swaggerUi.setup(openApi, { customSiteTitle: "DevFlow API" }));
   app.use(API_PREFIX, api);
 
   app.use(notFoundHandler);

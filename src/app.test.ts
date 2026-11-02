@@ -39,6 +39,16 @@ describe("createApp", () => {
     expect(other.headers["access-control-allow-origin"]).not.toBe("https://evil.example");
   });
 
+  it("serves the OpenAPI document and Swagger UI", async () => {
+    const spec = await request(app).get("/api/v1/openapi.json");
+    const docs = await request(app).get("/api/v1/docs/");
+
+    expect(spec.status).toBe(200);
+    expect(spec.body.openapi).toBe("3.1.0");
+    expect(docs.status).toBe(200);
+    expect(docs.text).toContain("swagger-ui");
+  });
+
   it("sets security headers and hides the framework", async () => {
     const res = await request(app).get("/api/v1/nope");
 
