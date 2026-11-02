@@ -108,6 +108,27 @@ export const updateIssueBody = z
   .refine((body) => Object.keys(body).length > 0, "Send at least one field to change.")
   .meta({ id: "UpdateIssueRequest", example: { priority: "high", estimate: 8 } });
 
+export const moveIssueBody = z
+  .object({
+    statusId: z.uuid().optional().meta({ description: "New board column." }),
+    sprintId: z.uuid().nullable().optional().meta({ description: "New sprint, or null for the backlog." }),
+    beforeIssueKey: z
+      .string()
+      .optional()
+      .meta({ description: "Place the issue directly before this one (same project), e.g. DEV-121." }),
+  })
+  .refine(
+    (body) => body.statusId !== undefined || body.sprintId !== undefined || body.beforeIssueKey !== undefined,
+    "Send statusId, sprintId or beforeIssueKey.",
+  )
+  .meta({
+    id: "MoveIssueRequest",
+    description:
+      "Placement: before beforeIssueKey when given; otherwise a status change floats the issue to the top and a " +
+      "sprint change sends it to the end, as the frontend's moveIssueToStatus and moveIssueToSprint do.",
+    example: { sprintId: null, beforeIssueKey: "DEV-121" },
+  });
+
 export const listIssuesQuery = paginationQuery.extend({
   sprint: z
     .union([z.literal("backlog"), z.literal("active"), z.uuid()])
@@ -138,3 +159,4 @@ export type IssueView = z.infer<typeof issue>;
 export type CreateIssueInput = z.infer<typeof createIssueBody>;
 export type UpdateIssueInput = z.infer<typeof updateIssueBody>;
 export type ListIssuesQuery = z.infer<typeof listIssuesQuery>;
+export type MoveIssueInput = z.infer<typeof moveIssueBody>;

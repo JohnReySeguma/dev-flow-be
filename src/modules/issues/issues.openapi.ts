@@ -7,6 +7,7 @@ import {
   issueLookupQuery,
   issuePage,
   listIssuesQuery,
+  moveIssueBody,
   updateIssueBody,
 } from "./issues.schemas.js";
 
@@ -74,6 +75,21 @@ export function registerIssuesDocs(registry: OpenAPIRegistry) {
     },
     responses: {
       200: { description: "The updated issue.", headers: etagHeader, ...json(issue) },
+      default: problemResponse,
+    },
+  });
+  registry.registerPath({
+    method: "post",
+    path: "/issues/{issueKey}/move",
+    tags: ["Issues"],
+    summary: "Move an issue (board drop, backlog drag, ranking)",
+    description:
+      "Members and admins; tokens need issues:write. Changes statusId and/or sprintId and re-ranks the issue " +
+      "without renumbering others. Placement rules: see MoveIssueRequest.",
+    security: anyCaller,
+    request: { params: issueParam, query: issueLookupQuery, body: json(moveIssueBody) },
+    responses: {
+      200: { description: "The moved issue.", headers: etagHeader, ...json(issue) },
       default: problemResponse,
     },
   });

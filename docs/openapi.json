@@ -1489,6 +1489,33 @@
           "estimate": 8
         }
       },
+      "MoveIssueRequest": {
+        "type": "object",
+        "properties": {
+          "statusId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "New board column."
+          },
+          "sprintId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "New sprint, or null for the backlog."
+          },
+          "beforeIssueKey": {
+            "type": "string",
+            "description": "Place the issue directly before this one (same project), e.g. DEV-121."
+          }
+        },
+        "description": "Placement: before beforeIssueKey when given; otherwise a status change floats the issue to the top and a sprint change sends it to the end, as the frontend's moveIssueToStatus and moveIssueToSprint do.",
+        "example": {
+          "sprintId": null,
+          "beforeIssueKey": "DEV-121"
+        }
+      },
       "AddStatusRequest": {
         "type": "object",
         "properties": {
@@ -3387,6 +3414,85 @@
         "responses": {
           "204": {
             "description": "Deleted."
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/issues/{issueKey}/move": {
+      "post": {
+        "tags": [
+          "Issues"
+        ],
+        "summary": "Move an issue (board drop, backlog drag, ranking)",
+        "description": "Members and admins; tokens need issues:write. Changes statusId and/or sprintId and re-ranks the issue without renumbering others. Placement rules: see MoveIssueRequest.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "DEV-104 (any case), or 104 with ?project=DEV.",
+              "example": "DEV-104"
+            },
+            "required": true,
+            "description": "DEV-104 (any case), or 104 with ?project=DEV.",
+            "name": "issueKey",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Project key; required when :issueKey is a bare number such as 104."
+            },
+            "required": false,
+            "description": "Project key; required when :issueKey is a bare number such as 104.",
+            "name": "project",
+            "in": "query"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveIssueRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The moved issue.",
+            "headers": {
+              "ETag": {
+                "description": "Version of the issue; send it back as If-Match.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Issue"
+                }
+              }
+            }
           },
           "default": {
             "description": "Error, as RFC 9457 problem details.",

@@ -2,7 +2,13 @@ import { Router, type RequestHandler } from "express";
 import { requireRole, requireScope } from "../../middleware/permissions.js";
 import { validate } from "../../middleware/validate.js";
 import { createIssuesController } from "./issues.controller.js";
-import { createIssueBody, issueLookupQuery, listIssuesQuery, updateIssueBody } from "./issues.schemas.js";
+import {
+  createIssueBody,
+  issueLookupQuery,
+  listIssuesQuery,
+  moveIssueBody,
+  updateIssueBody,
+} from "./issues.schemas.js";
 import type { IssuesService } from "./issues.service.js";
 
 /**
@@ -32,6 +38,7 @@ export function createIssuesRouter(deps: { issues: IssuesService; requireAuth: R
   router.use(deps.requireAuth);
   router.get("/:issueKey", read, lookup, controller.get);
   router.patch("/:issueKey", ...write, lookup, validate({ body: updateIssueBody }), controller.update);
+  router.post("/:issueKey/move", ...write, lookup, validate({ body: moveIssueBody }), controller.move);
   router.delete("/:issueKey", ...write, lookup, controller.remove);
   return router;
 }

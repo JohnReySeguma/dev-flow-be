@@ -252,3 +252,84 @@ describe("DELETE /api/v1/issues/:issueKey", () => {
     expect(res.status).toBe(403);
   });
 });
+
+describe("POST /api/v1/issues/:issueKey/move", () => {
+  const order = async () =>
+    (await viewer.get("/api/v1/projects/DEV/issues")).body.items.map((i: { id: string }) => i.id);
+  const move = (key: string, body: object) => member.post(`/api/v1/issues/${key}/move`).send(body);
+
+  beforeEach(async () => {
+    for (const title of ["one", "two", "three", "four"]) await create({ title });
+    // Newest first: DEV-4, DEV-3, DEV-2, DEV-1.
+  });
+
+  it("places an issue directly before another (backlog drag)", async () => {
+    const res = await move("DEV-1", { beforeIssueKey: "DEV-3" });
+
+    expect(res.status).toBe(200);
+    expect(await order()).toEqual(["DEV-4", "DEV-1", "DEV-3", "DEV-2"]);
+  });
+
+  it("can move to the very top", async () => {
+    await move("DEV-2", { beforeIssueKey: "DEV-4" });
+
+    expect(await order()).toEqual(["DEV-2", "DEV-4", "DEV-3", "DEV-1"]);
+  });
+
+  it("floats an issue to the top when only its status changes (board drop)", async () => {
+    const res = await move("DEV-1", { statusId: statuses.done });
+
+    expect(res.body).toMatchObject({ statusId: statuses.done, resolvedAt: expect.any(String) });
+    expect((await order())[0]).toBe("DEV-1");
+  });
+
+  it("sends an issue to the end when its sprint changes without a target", async () => {
+    const planned = await sprint("planned", 1);
+
+    const res = await move("DEV-4", { sprintId: planned.id });
+
+    expect(res.body.sprintId).toBe(planned.id);
+    expect((await order()).at(-1)).toBe("DEV-4");
+  });
+
+  it("changes sprint and position in one call", async () => {
+    const planned = await sprint("planned", 1);
+    await move("DEV-3", { sprintId: planned.id });
+
+    await move("DEV-1", { sprintId: planned.id, beforeIssueKey: "DEV-3" });
+
+    expect(
+      (await viewer.get(`/api/v1/projects/DEV/issues?sprint=${planned.id}`)).body.items.map(
+        (i: { id: string }) => i.id,
+      ),
+    ).toEqual(["DEV-1", "DEV-3"]);
+  });
+
+  it("keeps a consistent order when many moves happen at once", async () => {
+    await Promise.all(["DEV-1", "DEV-2", "DEV-3"].map((key) => move(key, { beforeIssueKey: "DEV-4" })));
+
+    const ranks = (await prisma.issue.findMany({ select: { rank: true } })).map((i) => i.rank);
+    expect(new Set(ranks).size).toBe(ranks.length);
+    expect((await order()).at(-1)).toBe("DEV-4");
+  });
+
+  it("records status and sprint changes", async () => {
+    const planned = await sprint("planned", 1);
+
+    await move("DEV-1", { statusId: statuses.progress, sprintId: planned.id });
+
+    const kinds = (
+      await prisma.issueEvent.findMany({
+        where: { issue: { number: 1, projectId } },
+        orderBy: { createdAt: "asc" },
+      })
+    ).map((e) => e.kind);
+    expect(kinds).toEqual(["created", "status", "sprint"]);
+  });
+
+  it("validates the request", async () => {
+    expect((await move("DEV-1", {})).status).toBe(422);
+    expect((await move("DEV-1", { beforeIssueKey: "DEV-1" })).body.errors[0].field).toBe("beforeIssueKey");
+    expect((await move("DEV-1", { beforeIssueKey: "DEV-99" })).status).toBe(404);
+  });
+});

@@ -8,7 +8,13 @@ import type { AuthContext } from "../auth/auth.types.js";
 import type { ProjectsService } from "../projects/projects.service.js";
 import { toIssueView } from "./issues.mapper.js";
 import type { IssueFilters, IssuesRepository, IssueWithContext, IssueWrite, RankCursor } from "./issues.repository.js";
-import type { CreateIssueInput, IssueView, ListIssuesQuery, UpdateIssueInput } from "./issues.schemas.js";
+import type {
+  CreateIssueInput,
+  IssueView,
+  ListIssuesQuery,
+  MoveIssueInput,
+  UpdateIssueInput,
+} from "./issues.schemas.js";
 
 export type VersionedIssue = { issue: IssueView; etag: string };
 
@@ -227,6 +233,57 @@ export function createIssuesService(deps: { issues: IssuesRepository; projects: 
         if (updated.sprintId !== current.sprintId) await record(tx, updated, "sprint", auth.userId);
         if (updated.estimate !== current.estimate) await record(tx, updated, "estimate", auth.userId);
         return versioned(updated);
+      });
+    },
+
+    /**
+     * Board drop and backlog ranking: changes the status and/or sprint and re-ranks the issue.
+     * Placement: before `beforeIssueKey` when given; otherwise a status-only change floats the
+     * issue to the top and a sprint change sends it to the end.
+     */
+    async move(
+      auth: AuthContext,
+      issueKey: string,
+      input: MoveIssueInput,
+      projectKey?: string,
+    ): Promise<VersionedIssue> {
+      const current = await find(auth, issueKey, projectKey);
+      const before =
+        input.beforeIssueKey === undefined ? null : await find(auth, input.beforeIssueKey, current.project.key);
+      if (before && (before.projectId !== current.projectId || before.id === current.id)) {
+        throw invalid("beforeIssueKey", "Pick another issue of the same project.");
+      }
+
+      return issues.transaction(async (tx) => {
+        await tx.lockProject(current.projectId);
+        const status = await checkReferences(tx, auth, current.projectId, {
+          ...(input.statusId !== undefined && { statusId: input.statusId }),
+          ...(input.sprintId !== undefined && { sprintId: input.sprintId }),
+        });
+
+        let rank: string;
+        if (before) {
+          // Re-read the target under the lock: its rank may have changed since it was looked up.
+          const target = await tx.findByNumber(before.projectId, before.number);
+          if (!target) throw new AppError("NOT_FOUND", `No issue ${input.beforeIssueKey ?? ""}.`);
+          rank = generateKeyBetween(await tx.rankBefore(current.projectId, target, current.id), target.rank);
+        } else if (input.sprintId !== undefined) {
+          rank = generateKeyBetween(await tx.lastRank(current.projectId, current.id), null);
+        } else {
+          rank = generateKeyBetween(null, await tx.firstRank(current.projectId, current.id));
+        }
+
+        const data: IssueWrite = { rank };
+        if (input.sprintId !== undefined) data.sprintId = input.sprintId;
+        if (status && status.id !== current.statusId) {
+          data.statusId = status.id;
+          data.resolvedAt = nextResolvedAt(current.resolvedAt, current.status.category, status.category, new Date());
+        }
+        const moved = await tx.update(current.id, data);
+        if (!moved) throw new AppError("NOT_FOUND", `No issue ${issueKey}.`);
+        if (moved.statusId !== current.statusId) await record(tx, moved, "status", auth.userId);
+        if (moved.sprintId !== current.sprintId) await record(tx, moved, "sprint", auth.userId);
+        return versioned(moved);
       });
     },
 

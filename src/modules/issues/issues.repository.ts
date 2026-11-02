@@ -55,11 +55,40 @@ function repository(db: Db) {
       return row.number;
     },
 
-    /** The rank of the issue currently at the top of the project, if any. */
-    firstRank: async (projectId: string): Promise<string | null> =>
+    /** Serialises rank changes per project, so two moves never compute the same rank. */
+    lockProject: async (projectId: string): Promise<void> => {
+      await db.$queryRaw`SELECT "id" FROM "projects" WHERE "id" = ${projectId}::uuid FOR UPDATE`;
+    },
+
+    /** The rank just before `issue` in project order, ignoring `excludeId` (the issue being moved). */
+    rankBefore: async (projectId: string, issue: RankCursor, excludeId: string): Promise<string | null> =>
       (
         await db.issue.findFirst({
-          where: { projectId },
+          where: {
+            projectId,
+            id: { not: excludeId },
+            OR: [{ rank: { lt: issue.rank } }, { rank: issue.rank, id: { lt: issue.id } }],
+          },
+          orderBy: [{ rank: "desc" }, { id: "desc" }],
+          select: { rank: true },
+        })
+      )?.rank ?? null,
+
+    /** The rank at the bottom of the project, ignoring `excludeId`. */
+    lastRank: async (projectId: string, excludeId: string): Promise<string | null> =>
+      (
+        await db.issue.findFirst({
+          where: { projectId, id: { not: excludeId } },
+          orderBy: [{ rank: "desc" }, { id: "desc" }],
+          select: { rank: true },
+        })
+      )?.rank ?? null,
+
+    /** The rank of the issue currently at the top of the project, if any. */
+    firstRank: async (projectId: string, excludeId?: string): Promise<string | null> =>
+      (
+        await db.issue.findFirst({
+          where: { projectId, ...(excludeId && { id: { not: excludeId } }) },
           orderBy: [{ rank: "asc" }, { id: "asc" }],
           select: { rank: true },
         })

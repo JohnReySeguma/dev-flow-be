@@ -1,6 +1,6 @@
 import type { Request, RequestHandler } from "express";
 import { authOf } from "../../middleware/require-auth.js";
-import type { CreateIssueInput, ListIssuesQuery, UpdateIssueInput } from "./issues.schemas.js";
+import type { CreateIssueInput, ListIssuesQuery, MoveIssueInput, UpdateIssueInput } from "./issues.schemas.js";
 import type { IssuesService } from "./issues.service.js";
 
 // validate({ query }) has already replaced req.query with the parsed value.
@@ -34,10 +34,20 @@ export function createIssuesController(issues: IssuesService) {
     res.set("ETag", etag).json(issue);
   };
 
+  const move: RequestHandler = async (req, res) => {
+    const { issue, etag } = await issues.move(
+      authOf(req),
+      issueKeyOf(req),
+      req.body as MoveIssueInput,
+      lookupProject(req),
+    );
+    res.set("ETag", etag).json(issue);
+  };
+
   const remove: RequestHandler = async (req, res) => {
     await issues.remove(authOf(req), issueKeyOf(req), lookupProject(req));
     res.status(204).end();
   };
 
-  return { list, create, get, update, remove };
+  return { list, create, get, update, move, remove };
 }
