@@ -25,7 +25,7 @@ describe("connecting", () => {
   it("accepts a personal access token", async () => {
     const admin = asBrowser(app, await signIn(app, "demo@devflow.local"));
     const { secret } = (
-      await admin.post("/api/v1/me/tokens").send({ name: "cli", scopes: ["issues:read"], expiresInDays: null })
+      await admin.post("/api/v2/me/tokens").send({ name: "cli", scopes: ["issues:read"], expiresInDays: null })
     ).body;
 
     await expect(connected(client({ token: secret }))).resolves.toBeUndefined();
@@ -124,19 +124,19 @@ describe("Live Sync events", () => {
     const socket = await joinedTo("DEV");
 
     const created = nextEvent<Payload>(socket, "issue.created");
-    await member.post("/api/v1/projects/DEV/issues").send({ title: "Live!" });
+    await member.post("/api/v2/projects/DEV/issues").send({ title: "Live!" });
     expect(await created).toMatchObject({ projectKey: "DEV", actorId, issue: { id: "DEV-134", title: "Live!" } });
 
     const moved = nextEvent<Payload>(socket, "issue.moved");
-    await member.post("/api/v1/issues/DEV-134/move").send({ beforeIssueKey: "DEV-104" });
+    await member.post("/api/v2/issues/DEV-134/move").send({ beforeIssueKey: "DEV-104" });
     expect(await moved).toMatchObject({ issue: { id: "DEV-134" }, beforeIssueKey: "DEV-104" });
 
     const commented = nextEvent<Payload>(socket, "issue.updated");
-    await member.post("/api/v1/issues/DEV-134/comments").send({ body: "On it." });
+    await member.post("/api/v2/issues/DEV-134/comments").send({ body: "On it." });
     expect((await commented).issue.comments).toBe(1);
 
     const deleted = nextEvent<Payload>(socket, "issue.deleted");
-    await member.delete("/api/v1/issues/DEV-134");
+    await member.delete("/api/v2/issues/DEV-134");
     expect(await deleted).toEqual({ projectKey: "DEV", actorId, issueKey: "DEV-134" });
   });
 
@@ -149,7 +149,7 @@ describe("Live Sync events", () => {
     const here = await joinedTo("DEV");
 
     const created = nextEvent(here, "issue.created");
-    await member.post("/api/v1/projects/DEV/issues").send({ title: "Only DEV hears this" });
+    await member.post("/api/v2/projects/DEV/issues").send({ title: "Only DEV hears this" });
     await created;
 
     expect(received).toBe(false);
@@ -160,7 +160,7 @@ describe("Live Sync events", () => {
     const sprint8 = (await prisma.sprint.findFirstOrThrow({ where: { number: 8, project: { key: "BIL" } } })).id;
 
     const completed = nextEvent<Payload>(socket, "sprint.completed");
-    await member.post(`/api/v1/sprints/${sprint8}/complete`).send({ carryOver: { kind: "new-sprint" } });
+    await member.post(`/api/v2/sprints/${sprint8}/complete`).send({ carryOver: { kind: "new-sprint" } });
     const payload = await completed;
 
     expect(payload.sprint).toMatchObject({ number: 8, status: "completed" });
@@ -175,7 +175,7 @@ describe("Live Sync events", () => {
     expect(payload.issues.every((i: { sprintId: string }) => i.sprintId === payload.carriedOverTo.id)).toBe(true);
 
     const started = nextEvent<Payload>(socket, "sprint.started");
-    await member.post(`/api/v1/sprints/${payload.carriedOverTo.id}/start`).send({ name: "Sprint 9", durationDays: 14 });
+    await member.post(`/api/v2/sprints/${payload.carriedOverTo.id}/start`).send({ name: "Sprint 9", durationDays: 14 });
     expect((await started).sprint).toMatchObject({ number: 9, status: "active" });
   });
 
@@ -184,11 +184,11 @@ describe("Live Sync events", () => {
     const admin = asBrowser(app, await signIn(app, "demo@devflow.local"));
 
     const workflow = nextEvent<Payload>(socket, "workflow.updated");
-    await admin.post("/api/v1/projects/DEV/statuses").send({ name: "QA", category: "in_progress" });
+    await admin.post("/api/v2/projects/DEV/statuses").send({ name: "QA", category: "in_progress" });
     expect((await workflow).project.workflow.map((s: { name: string }) => s.name)).toContain("QA");
 
     const project = nextEvent<Payload>(socket, "project.updated");
-    await admin.patch("/api/v1/projects/DEV").send({ description: "Live." });
+    await admin.patch("/api/v2/projects/DEV").send({ description: "Live." });
     expect((await project).project.description).toBe("Live.");
   });
 });

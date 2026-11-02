@@ -27,7 +27,7 @@ async function clearCounters() {
 }
 
 const login = (password: string, email = "member@devflow.local") =>
-  request(app).post("/api/v1/auth/login").set("Origin", FRONTEND_ORIGIN).send({ email, password });
+  request(app).post("/api/v2/auth/login").set("Origin", FRONTEND_ORIGIN).send({ email, password });
 
 beforeEach(async () => {
   await clearCounters();
@@ -58,7 +58,7 @@ describe("rate limits", () => {
 
   it("caps invite token guesses", async () => {
     const statuses = [];
-    for (let i = 0; i < 3; i++) statuses.push((await request(app).get(`/api/v1/invites/guess-${i}`)).status);
+    for (let i = 0; i < 3; i++) statuses.push((await request(app).get(`/api/v2/invites/guess-${i}`)).status);
 
     expect(statuses).toEqual([400, 400, 429]);
   });
@@ -66,8 +66,8 @@ describe("rate limits", () => {
   it("limits every API request per client, but never health checks", async () => {
     const tight = createTestApp({ rateLimits: { api: { windowMs: MINUTE, limit: 2 } } });
     const config = [];
-    for (let i = 0; i < 3; i++) config.push((await request(tight.app).get("/api/v1/config")).status);
-    const health = await request(tight.app).get("/api/v1/health");
+    for (let i = 0; i < 3; i++) config.push((await request(tight.app).get("/api/v2/config")).status);
+    const health = await request(tight.app).get("/api/v2/health");
     await tight.close();
 
     expect(config).toEqual([200, 200, 429]);

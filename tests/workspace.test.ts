@@ -14,26 +14,26 @@ beforeEach(async () => {
   await seed(prisma, createLogger(env), undefined, { tracker: false });
 });
 
-describe("GET /api/v1/workspace", () => {
+describe("GET /api/v2/workspace", () => {
   it.each([
     ["demo@devflow.local", "admin"],
     ["member@devflow.local", "member"],
     ["viewer@devflow.local", "viewer"],
   ])("tells %s their role (%s)", async (email, role) => {
-    const res = await asBrowser(app, await signIn(app, email)).get("/api/v1/workspace");
+    const res = await asBrowser(app, await signIn(app, email)).get("/api/v2/workspace");
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ name: "Acme Inc", role });
   });
 
   it("requires authentication", async () => {
-    expect((await request(app).get("/api/v1/workspace")).status).toBe(401);
+    expect((await request(app).get("/api/v2/workspace")).status).toBe(401);
   });
 
   it("needs the issues:read scope for access tokens", async () => {
     const admin = asBrowser(app, await signIn(app, "demo@devflow.local"));
     const tokenWith = async (scopes: string[]) =>
-      (await admin.post("/api/v1/me/tokens").send({ name: scopes.join(","), scopes, expiresInDays: null })).body
+      (await admin.post("/api/v2/me/tokens").send({ name: scopes.join(","), scopes, expiresInDays: null })).body
         .secret as string;
     const get = async (secret: string, path: string) =>
       (await request(app).get(path).set("Authorization", `Bearer ${secret}`)).status;
@@ -41,18 +41,18 @@ describe("GET /api/v1/workspace", () => {
     const reader = await tokenWith(["issues:read"]);
 
     expect([
-      await get(webhooksOnly, "/api/v1/workspace"),
-      await get(webhooksOnly, "/api/v1/workspace/members"),
+      await get(webhooksOnly, "/api/v2/workspace"),
+      await get(webhooksOnly, "/api/v2/workspace/members"),
     ]).toEqual([403, 403]);
-    expect([await get(reader, "/api/v1/workspace"), await get(reader, "/api/v1/workspace/members")]).toEqual([
+    expect([await get(reader, "/api/v2/workspace"), await get(reader, "/api/v2/workspace/members")]).toEqual([
       200, 200,
     ]);
   });
 });
 
-describe("GET /api/v1/workspace/members", () => {
+describe("GET /api/v2/workspace/members", () => {
   it("lists the team in the frontend's TeamMember shape, oldest first", async () => {
-    const res = await asBrowser(app, await signIn(app, "viewer@devflow.local")).get("/api/v1/workspace/members");
+    const res = await asBrowser(app, await signIn(app, "viewer@devflow.local")).get("/api/v2/workspace/members");
 
     expect(res.status).toBe(200);
     expect(res.body.nextCursor).toBeNull();
@@ -81,7 +81,7 @@ describe("GET /api/v1/workspace/members", () => {
       },
     });
 
-    const res = await asBrowser(app, await signIn(app, "demo@devflow.local")).get("/api/v1/workspace/members");
+    const res = await asBrowser(app, await signIn(app, "demo@devflow.local")).get("/api/v2/workspace/members");
 
     expect(res.body.items.at(-1)).toMatchObject({
       name: "grace",
@@ -109,7 +109,7 @@ describe("GET /api/v1/workspace/members", () => {
     const seen: string[] = [];
     let cursor: string | null = null;
     do {
-      const res = await browser.get(`/api/v1/workspace/members?limit=2${cursor ? `&cursor=${cursor}` : ""}`);
+      const res = await browser.get(`/api/v2/workspace/members?limit=2${cursor ? `&cursor=${cursor}` : ""}`);
       expect(res.body.items.length).toBeLessThanOrEqual(2);
       seen.push(...res.body.items.map((m: { email: string }) => m.email));
       cursor = res.body.nextCursor;
@@ -129,15 +129,15 @@ describe("managing members", () => {
     const memberCookie = await signIn(app, "member@devflow.local");
     const dmitri = await idOf("member@devflow.local");
 
-    const res = await (await admin()).patch(`/api/v1/workspace/members/${dmitri}`).send({ role: "viewer" });
+    const res = await (await admin()).patch(`/api/v2/workspace/members/${dmitri}`).send({ role: "viewer" });
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ email: "member@devflow.local", role: "viewer", status: "active" });
-    expect((await asBrowser(app, memberCookie).get("/api/v1/workspace")).body.role).toBe("viewer");
+    expect((await asBrowser(app, memberCookie).get("/api/v2/workspace")).body.role).toBe("viewer");
   });
 
   it("forbids changing your own role", async () => {
-    const res = await (await admin()).patch(`/api/v1/workspace/members/${await idOf("demo@devflow.local")}`).send({
+    const res = await (await admin()).patch(`/api/v2/workspace/members/${await idOf("demo@devflow.local")}`).send({
       role: "member",
     });
 
@@ -155,8 +155,8 @@ describe("managing members", () => {
     const aiko = asBrowser(app, await signIn(app, "aiko@acme.dev"));
 
     const results = await Promise.all([
-      john.patch(`/api/v1/workspace/members/${await idOf("aiko@acme.dev")}`).send({ role: "member" }),
-      aiko.patch(`/api/v1/workspace/members/${await idOf("demo@devflow.local")}`).send({ role: "member" }),
+      john.patch(`/api/v2/workspace/members/${await idOf("aiko@acme.dev")}`).send({ role: "member" }),
+      aiko.patch(`/api/v2/workspace/members/${await idOf("demo@devflow.local")}`).send({ role: "member" }),
     ]);
 
     expect(results.map((r) => r.status).sort()).toEqual([200, 409]);
@@ -167,15 +167,15 @@ describe("managing members", () => {
     const lucasCookie = await signIn(app, "viewer@devflow.local");
     const lucas = await idOf("viewer@devflow.local");
 
-    const res = await (await admin()).delete(`/api/v1/workspace/members/${lucas}`);
+    const res = await (await admin()).delete(`/api/v2/workspace/members/${lucas}`);
 
     expect(res.status).toBe(204);
     expect(await prisma.user.findUnique({ where: { id: lucas } })).toBeNull();
-    expect((await asBrowser(app, lucasCookie).get("/api/v1/workspace")).status).toBe(401);
+    expect((await asBrowser(app, lucasCookie).get("/api/v2/workspace")).status).toBe(401);
   });
 
   it("forbids removing yourself", async () => {
-    const res = await (await admin()).delete(`/api/v1/workspace/members/${await idOf("demo@devflow.local")}`);
+    const res = await (await admin()).delete(`/api/v2/workspace/members/${await idOf("demo@devflow.local")}`);
 
     expect(res.status).toBe(403);
     expect(res.body.code).toBe("CANNOT_REMOVE_SELF");
@@ -194,13 +194,13 @@ describe("managing members", () => {
     });
     const browser = await admin();
 
-    expect((await browser.patch(`/api/v1/workspace/members/${invite.id}`).send({ role: "viewer" })).body).toMatchObject(
+    expect((await browser.patch(`/api/v2/workspace/members/${invite.id}`).send({ role: "viewer" })).body).toMatchObject(
       {
         status: "invited",
         role: "viewer",
       },
     );
-    expect((await browser.delete(`/api/v1/workspace/members/${invite.id}`)).status).toBe(204);
+    expect((await browser.delete(`/api/v2/workspace/members/${invite.id}`)).status).toBe(204);
     expect(await prisma.workspaceInvite.count()).toBe(0);
   });
 
@@ -208,7 +208,7 @@ describe("managing members", () => {
     const dmitri = await idOf("member@devflow.local");
     const asMember = asBrowser(app, await signIn(app, "member@devflow.local"));
 
-    const res = await asMember.patch(`/api/v1/workspace/members/${dmitri}`).send({ role: "admin" });
+    const res = await asMember.patch(`/api/v2/workspace/members/${dmitri}`).send({ role: "admin" });
 
     expect(res.status).toBe(403);
     expect(res.body.detail).toBe("This action needs the admin role.");
@@ -217,10 +217,10 @@ describe("managing members", () => {
   it("is 404 for an unknown or malformed id and 422 for an unknown role", async () => {
     const browser = await admin();
 
-    expect((await browser.delete("/api/v1/workspace/members/0193f1c2-0000-7000-8000-000000000999")).status).toBe(404);
-    expect((await browser.delete("/api/v1/workspace/members/nope")).status).toBe(404);
+    expect((await browser.delete("/api/v2/workspace/members/0193f1c2-0000-7000-8000-000000000999")).status).toBe(404);
+    expect((await browser.delete("/api/v2/workspace/members/nope")).status).toBe(404);
     expect(
-      (await browser.patch(`/api/v1/workspace/members/${await idOf("member@devflow.local")}`).send({ role: "owner" }))
+      (await browser.patch(`/api/v2/workspace/members/${await idOf("member@devflow.local")}`).send({ role: "owner" }))
         .status,
     ).toBe(422);
   });

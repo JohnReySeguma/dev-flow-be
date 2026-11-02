@@ -57,11 +57,18 @@ export function buildOpenApiDocument() {
         "the health checks is rate-limited per client and answers 429 RATE_LIMITED with Retry-After when " +
         "a limit is reached (limits: docs/INTEGRATION.md §4.1).",
     },
-    servers: [{ url: "/api/v1" }],
+    servers: [{ url: "/api/v2" }],
   });
   addRateLimitResponses(document);
+  for (const path of PROVIDER_PATHS) {
+    const item = (document.paths as Record<string, { servers?: unknown }> | undefined)?.[path];
+    if (item) item.servers = [{ url: "/api", description: "Version-free: the URL registered with the provider." }];
+  }
   return document;
 }
+
+/** Served under /api instead of /api/v2 (app.ts PROVIDER_PREFIX). */
+const PROVIDER_PATHS = ["/auth/oauth/{provider}/callback", "/integrations/github/webhook"];
 
 const HTTP_METHODS = ["get", "put", "post", "delete", "patch"] as const;
 

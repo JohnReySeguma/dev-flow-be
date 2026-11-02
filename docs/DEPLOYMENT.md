@@ -7,7 +7,7 @@
 
 | Component  | Notes                                                                                                   |
 | ---------- | ------------------------------------------------------------------------------------------------------- |
-| API        | The image built from `Dockerfile` (Node 22, non-root `node` user, `HEALTHCHECK` on `/api/v1/health`)    |
+| API        | The image built from `Dockerfile` (Node 22, non-root `node` user, `HEALTHCHECK` on `/api/v2/health`)    |
 | PostgreSQL | 16. Use a managed database or a volume you back up                                                      |
 | Redis      | 7. Optional with one API instance; **required with several** (Live Sync fan-out and shared rate limits) |
 
@@ -42,17 +42,17 @@ and point `GITHUB_APP_PRIVATE_KEY_PATH` at it, as `docker-compose.yml` does.
   browsers only send them over HTTPS (or to `localhost`).
 - **Same site:** cookies are `SameSite=Lax`. Serve the frontend and the API from the same site, e.g.
   `app.example.com` and `api.example.com`, or the browser will not send the session to the API.
-- **WebSockets:** the proxy must allow upgrades on `/api/v1/socket.io` and keep idle connections open for at least a
+- **WebSockets:** the proxy must allow upgrades on `/api/v2/socket.io` and keep idle connections open for at least a
   minute.
 - **Several instances:** set `REDIS_URL` on every instance. Socket.IO's HTTP long-polling fallback also needs sticky
-  sessions on `/api/v1/socket.io`; with WebSocket-only clients it does not.
+  sessions on `/api/v2/socket.io`; with WebSocket-only clients it does not.
 - **Exposure:** only the API port should be public. Keep PostgreSQL and Redis on a private network;
   `docker-compose.yml` publishes them on `127.0.0.1` for local development only.
 
 ## 4. Health and shutdown
 
-- `GET /api/v1/health` (liveness) answers `200` whenever the process runs; use it for restarts.
-- `GET /api/v1/health/ready` checks the database and Redis and answers `503` when one is down; use it for routing
+- `GET /api/v2/health` (liveness) answers `200` whenever the process runs; use it for restarts.
+- `GET /api/v2/health/ready` checks the database and Redis and answers `503` when one is down; use it for routing
   traffic. Neither is rate-limited.
 - On `SIGTERM` the API stops accepting connections, disconnects sockets (clients reconnect to another instance),
   finishes in-flight requests, then closes Redis and the database. Allow about 10 seconds before a hard kill.

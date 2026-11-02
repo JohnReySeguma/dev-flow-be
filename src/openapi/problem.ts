@@ -26,7 +26,7 @@ export const problemDetails = z
       title: "Another sprint is already active",
       status: 409,
       detail: "Sprint 25 is already active in DEV.",
-      instance: "/api/v1/sprints/0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e6f/start",
+      instance: "/api/v2/workspaces/acme-inc/sprints/0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e6f/start",
       code: "SPRINT_ALREADY_ACTIVE",
       requestId: "6f1c2a9e-3b7d-4c8e-9f0a-1b2c3d4e5f60",
     },

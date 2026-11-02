@@ -7,14 +7,14 @@ import { redactUrl, requestLogger } from "./request-logger.js";
 
 describe("redactUrl", () => {
   it.each([
-    ["/api/v1/invites/abcDEF123-_/accept", "/api/v1/invites/[redacted]/accept"],
-    ["/api/v1/invites/abcDEF123", "/api/v1/invites/[redacted]"],
+    ["/api/v2/invites/abcDEF123-_/accept", "/api/v2/invites/[redacted]/accept"],
+    ["/api/v2/invites/abcDEF123", "/api/v2/invites/[redacted]"],
     [
-      "/api/v1/auth/oauth/github/callback?code=gh-code&state=s1",
-      "/api/v1/auth/oauth/github/callback?code=[redacted]&state=[redacted]",
+      "/api/auth/oauth/github/callback?code=gh-code&state=s1",
+      "/api/auth/oauth/github/callback?code=[redacted]&state=[redacted]",
     ],
     ["/reset?token=t1&x=1", "/reset?token=[redacted]&x=1"],
-    ["/api/v1/me/tokens?limit=2", "/api/v1/me/tokens?limit=2"],
+    ["/api/v2/me/tokens?limit=2", "/api/v2/me/tokens?limit=2"],
   ])("%s → %s", (url, expected) => {
     expect(redactUrl(url)).toBe(expected);
   });
@@ -31,14 +31,14 @@ describe("requestLogger", () => {
     });
     const app = express();
     app.use(requestLogger(pino({ level: "info" }, sink)));
-    app.get("/api/v1/invites/:token", (_req, res) => {
+    app.get("/api/v2/invites/:token", (_req, res) => {
       res.status(204).end();
     });
 
-    await request(app).get("/api/v1/invites/super-secret-token");
+    await request(app).get("/api/v2/invites/super-secret-token");
 
     const logged = lines.join("");
-    expect(logged).toContain("/api/v1/invites/[redacted]");
+    expect(logged).toContain("/api/v2/invites/[redacted]");
     expect(logged).not.toContain("super-secret-token");
   });
 });

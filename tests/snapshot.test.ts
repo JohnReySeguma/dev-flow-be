@@ -18,7 +18,7 @@ beforeEach(async () => {
   member = asBrowser(app, await signIn(app, "member@devflow.local"));
   viewer = asBrowser(app, await signIn(app, "viewer@devflow.local"));
 
-  const project = await member.post("/api/v1/projects").send({ name: "DevFlow Core", key: "DEV" });
+  const project = await member.post("/api/v2/projects").send({ name: "DevFlow Core", key: "DEV" });
   const completed = await prisma.sprint.create({
     data: {
       projectId: project.body.id,
@@ -37,7 +37,7 @@ beforeEach(async () => {
   });
   ids = { project: project.body.id, done: project.body.workflow[3].id, active: active.id, completed: completed.id };
 
-  const create = (body: object) => member.post("/api/v1/projects/DEV/issues").send(body);
+  const create = (body: object) => member.post("/api/v2/projects/DEV/issues").send(body);
   await create({ title: "Backlog A", estimate: 2 });
   await create({ title: "Backlog B" });
   await create({ title: "Sprint done", sprintId: active.id, estimate: 5, statusId: ids.done });
@@ -50,9 +50,9 @@ beforeEach(async () => {
   });
 });
 
-describe("GET /api/v1/projects (summaries)", () => {
+describe("GET /api/v2/projects (summaries)", () => {
   it("adds active-sprint progress, backlog count and lead", async () => {
-    const res = await viewer.get("/api/v1/projects");
+    const res = await viewer.get("/api/v2/projects");
 
     expect(res.body.items[0]).toMatchObject({
       key: "DEV",
@@ -63,9 +63,9 @@ describe("GET /api/v1/projects (summaries)", () => {
   });
 });
 
-describe("GET /api/v1/projects/:key/snapshot", () => {
+describe("GET /api/v2/projects/:key/snapshot", () => {
   it("returns the project, every sprint and the open issues in rank order", async () => {
-    const res = await viewer.get("/api/v1/projects/dev/snapshot");
+    const res = await viewer.get("/api/v2/projects/dev/snapshot");
 
     expect(res.status).toBe(200);
     expect(res.body.project.key).toBe("DEV");
@@ -89,9 +89,9 @@ describe("GET /api/v1/projects/:key/snapshot", () => {
   });
 });
 
-describe("GET /api/v1/bootstrap", () => {
+describe("GET /api/v2/bootstrap", () => {
   it("returns me, the workspace with my role, the feature flags and every project", async () => {
-    const res = await viewer.get("/api/v1/bootstrap");
+    const res = await viewer.get("/api/v2/bootstrap");
 
     expect(res.status).toBe(200);
     expect(res.body.me).toMatchObject({ email: "viewer@devflow.local", role: "viewer" });

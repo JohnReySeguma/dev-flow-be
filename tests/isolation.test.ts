@@ -35,37 +35,37 @@ beforeAll(async () => {
 
   acme = asBrowser(app, await signIn(app, "demo@devflow.local"));
   globex = asBrowser(app, await signIn(app, "hank@globex.dev"));
-  await globex.post("/api/v1/projects").send({ name: "Globex Core", key: "DEV" });
-  await globex.post("/api/v1/projects/DEV/issues").send({ title: "Globex secret plan" });
+  await globex.post("/api/v2/projects").send({ name: "Globex Core", key: "DEV" });
+  await globex.post("/api/v2/projects/DEV/issues").send({ title: "Globex secret plan" });
 });
 
 describe("workspace isolation", () => {
   it("lists only the caller's own projects", async () => {
-    const [mine, theirs] = await Promise.all([acme.get("/api/v1/projects"), globex.get("/api/v1/projects")]);
+    const [mine, theirs] = await Promise.all([acme.get("/api/v2/projects"), globex.get("/api/v2/projects")]);
 
     expect(mine.body.items.map((p: { key: string }) => p.key)).toEqual(["DEV", "BIL", "MOB"]);
     expect(theirs.body.items.map((p: { name: string }) => p.name)).toEqual(["Globex Core"]);
   });
 
   it("resolves the same project and issue keys in each workspace separately", async () => {
-    const [mine, theirs] = await Promise.all([acme.get("/api/v1/issues/DEV-1"), globex.get("/api/v1/issues/DEV-1")]);
+    const [mine, theirs] = await Promise.all([acme.get("/api/v2/issues/DEV-1"), globex.get("/api/v2/issues/DEV-1")]);
 
     expect(theirs.body.title).toBe("Globex secret plan");
     expect(mine.body.title).not.toBe("Globex secret plan");
-    expect((await acme.get("/api/v1/projects/DEV/snapshot")).body.project.name).toBe("DevFlow Core");
+    expect((await acme.get("/api/v2/projects/DEV/snapshot")).body.project.name).toBe("DevFlow Core");
   });
 
   it("lists only the caller's own members", async () => {
-    const res = await globex.get("/api/v1/workspace/members");
+    const res = await globex.get("/api/v2/workspace/members");
 
     expect(res.body.items.map((m: { email: string }) => m.email)).toEqual(["hank@globex.dev"]);
-    expect((await globex.get("/api/v1/workspace")).body).toMatchObject({ name: "Globex", role: "admin" });
+    expect((await globex.get("/api/v2/workspace")).body).toMatchObject({ name: "Globex", role: "admin" });
   });
 
   it("does not let one workspace assign or manage another's people", async () => {
-    const assign = await acme.post("/api/v1/projects/DEV/issues").send({ title: "x", assigneeId: hankId });
-    const demote = await acme.patch(`/api/v1/workspace/members/${hankId}`).send({ role: "viewer" });
-    const remove = await acme.delete(`/api/v1/workspace/members/${hankId}`);
+    const assign = await acme.post("/api/v2/projects/DEV/issues").send({ title: "x", assigneeId: hankId });
+    const demote = await acme.patch(`/api/v2/workspace/members/${hankId}`).send({ role: "viewer" });
+    const remove = await acme.delete(`/api/v2/workspace/members/${hankId}`);
 
     expect(assign.status).toBe(422);
     expect(demote.status).toBe(404);
@@ -74,7 +74,7 @@ describe("workspace isolation", () => {
   });
 
   it("keeps a token in the workspace it was created in", async () => {
-    const created = await globex.post("/api/v1/me/tokens").send({
+    const created = await globex.post("/api/v2/me/tokens").send({
       name: "ci",
       scopes: ["issues:read"],
       expiresInDays: null,
@@ -88,6 +88,6 @@ describe("workspace isolation", () => {
     const cookie = await signIn(app, "hank@globex.dev");
     await prisma.workspaceMember.deleteMany({ where: { userId: hankId } });
 
-    expect((await asBrowser(app, cookie).get("/api/v1/projects")).status).toBe(401);
+    expect((await asBrowser(app, cookie).get("/api/v2/projects")).status).toBe(401);
   });
 });

@@ -54,7 +54,7 @@ type Deps = {
 };
 
 export function createOAuthService({ providers, auth, users, sessions, secret, apiUrl, logger }: Deps) {
-  const redirectUri = (name: OAuthProviderName) => `${apiUrl}/api/v1/auth/oauth/${name}/callback`;
+  const redirectUri = (name: OAuthProviderName) => `${apiUrl}/api/auth/oauth/${name}/callback`;
 
   function readState(token: string | undefined, name: OAuthProviderName, state: string | undefined): StateClaims {
     try {

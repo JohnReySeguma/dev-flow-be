@@ -8,7 +8,7 @@ import { originCheck } from "./middleware/origin-check.js";
 import { createRateLimiters, type RATE_LIMITS } from "./middleware/rate-limit.js";
 import { requestLogger } from "./middleware/request-logger.js";
 import { requireAuth, requireSession } from "./middleware/require-auth.js";
-import { createAuthRouter } from "./modules/auth/auth.routes.js";
+import { createAuthRouter, createOAuthCallbackRouter } from "./modules/auth/auth.routes.js";
 import { createBootstrapRouter } from "./modules/bootstrap/bootstrap.routes.js";
 import { createCommentsRouter } from "./modules/comments/comments.routes.js";
 import { createConfigRouter } from "./modules/config/config.routes.js";
@@ -26,7 +26,13 @@ import { createWorkspaceRouter } from "./modules/workspace/workspace.routes.js";
 import { buildOpenApiDocument } from "./openapi/document.js";
 import { createServices, type ServiceDeps, type Services } from "./services.js";
 
-export const API_PREFIX = "/api/v1";
+export const API_PREFIX = "/api/v2";
+
+/**
+ * URLs registered with GitHub and Google live outside the versioned prefix, so a future API
+ * version never requires reconfiguring the providers.
+ */
+export const PROVIDER_PREFIX = "/api";
 
 /**
  * Response headers the frontend reads: ETag (for If-Match), the request id (for error reports) and
@@ -61,7 +67,7 @@ export function createApp(deps: AppDeps): Express {
   app.use(cors({ origin: env.CORS_ORIGIN, credentials: true, exposedHeaders: EXPOSED_HEADERS }));
   // Before express.json: webhook signatures cover the raw body. Outside `api`: no Origin check.
   app.use(
-    `${API_PREFIX}/integrations/github`,
+    `${PROVIDER_PREFIX}/integrations/github`,
     limit.webhook,
     createGitHubRouter({
       github: services.github,
@@ -73,6 +79,15 @@ export function createApp(deps: AppDeps): Express {
 
   const authenticated = requireAuth({ auth: services.auth, tokens: services.tokens });
   const withAuth = { requireAuth: authenticated };
+  const authDeps = {
+    auth: services.auth,
+    passwords: services.passwords,
+    oauth: services.oauth,
+    frontendUrl: env.CORS_ORIGIN,
+    ...withAuth,
+  };
+  // Version-free, like the webhook; a GET, so the origin check does not apply.
+  app.use(`${PROVIDER_PREFIX}/auth/oauth`, limit.api, createOAuthCallbackRouter(authDeps));
 
   const api = express.Router();
   api.use(originCheck(env.CORS_ORIGIN));
@@ -103,16 +118,7 @@ export function createApp(deps: AppDeps): Express {
   );
   api.use("/me/tokens", createTokensRouter({ tokens: services.tokens, ...withAuth, requireSession }));
   api.use("/me", createMeRouter({ users: services.users, ...withAuth, requireSession }));
-  api.use(
-    "/auth",
-    createAuthRouter({
-      auth: services.auth,
-      passwords: services.passwords,
-      oauth: services.oauth,
-      frontendUrl: env.CORS_ORIGIN,
-      ...withAuth,
-    }),
-  );
+  api.use("/auth", createAuthRouter(authDeps));
 
   const openApi = buildOpenApiDocument();
   api.get("/openapi.json", (_req, res) => {

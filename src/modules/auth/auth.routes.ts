@@ -6,13 +6,15 @@ import type { AuthService } from "./auth.service.js";
 import type { OAuthService } from "./oauth.service.js";
 import type { PasswordResetService } from "./password-reset.service.js";
 
-export function createAuthRouter(deps: {
+type AuthRouterDeps = {
   auth: AuthService;
   passwords: PasswordResetService;
   oauth: OAuthService;
   frontendUrl: string;
   requireAuth: RequestHandler;
-}): Router {
+};
+
+export function createAuthRouter(deps: AuthRouterDeps): Router {
   const controller = createAuthController(deps);
 
   const router = Router();
@@ -23,7 +25,15 @@ export function createAuthRouter(deps: {
   router.post("/password/forgot", validate({ body: forgotPasswordBody }), controller.forgotPassword);
   router.post("/password/reset", validate({ body: resetPasswordBody }), controller.resetPassword);
   router.get("/oauth/:provider", controller.startOAuth);
-  router.get("/oauth/:provider/callback", controller.finishOAuth);
   router.get("/me", deps.requireAuth, controller.me);
+  return router;
+}
+
+/** Mounted at /api/auth/oauth, outside the versioned prefix: the URL registered with the providers. */
+export function createOAuthCallbackRouter(deps: AuthRouterDeps): Router {
+  const controller = createAuthController(deps);
+
+  const router = Router();
+  router.get("/:provider/callback", controller.finishOAuth);
   return router;
 }

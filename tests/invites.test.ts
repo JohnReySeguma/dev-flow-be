@@ -21,9 +21,9 @@ beforeEach(async () => {
 
 const tokenFrom = (text = "") => decodeURIComponent(/\/invite\?token=(\S+)/.exec(text)?.[1] ?? "");
 
-describe("POST /api/v1/workspace/invites", () => {
+describe("POST /api/v2/workspace/invites", () => {
   it("creates a pending invite and emails a link to the frontend's invite page", async () => {
-    const res = await admin.post("/api/v1/workspace/invites").send({ email: "Grace@Acme.dev", role: "member" });
+    const res = await admin.post("/api/v2/workspace/invites").send({ email: "Grace@Acme.dev", role: "member" });
 
     expect(res.status).toBe(201);
     expect(res.body).toMatchObject({ email: "grace@acme.dev", role: "member", status: "invited", name: "grace" });
@@ -36,12 +36,12 @@ describe("POST /api/v1/workspace/invites", () => {
   });
 
   it("refuses an existing member or a pending invite with ALREADY_MEMBER", async () => {
-    await admin.post("/api/v1/workspace/invites").send({ email: "grace@acme.dev", role: "member" });
+    await admin.post("/api/v2/workspace/invites").send({ email: "grace@acme.dev", role: "member" });
 
     const member = await admin
-      .post("/api/v1/workspace/invites")
+      .post("/api/v2/workspace/invites")
       .send({ email: "MEMBER@devflow.local", role: "viewer" });
-    const pending = await admin.post("/api/v1/workspace/invites").send({ email: "grace@acme.dev", role: "viewer" });
+    const pending = await admin.post("/api/v2/workspace/invites").send({ email: "grace@acme.dev", role: "viewer" });
 
     for (const res of [member, pending]) {
       expect(res.status).toBe(409);
@@ -53,7 +53,7 @@ describe("POST /api/v1/workspace/invites", () => {
   it("keeps the invite and reports EMAIL_DELIVERY_FAILED when the email cannot be sent", async () => {
     email.failNext = true;
 
-    const res = await admin.post("/api/v1/workspace/invites").send({ email: "grace@acme.dev", role: "member" });
+    const res = await admin.post("/api/v2/workspace/invites").send({ email: "grace@acme.dev", role: "member" });
 
     expect(res.status).toBe(502);
     expect(res.body.code).toBe("EMAIL_DELIVERY_FAILED");
@@ -63,25 +63,25 @@ describe("POST /api/v1/workspace/invites", () => {
   it("is admin-only", async () => {
     const member = asBrowser(app, await signIn(app, "member@devflow.local"));
 
-    expect((await member.post("/api/v1/workspace/invites").send({ email: "x@acme.dev", role: "member" })).status).toBe(
+    expect((await member.post("/api/v2/workspace/invites").send({ email: "x@acme.dev", role: "member" })).status).toBe(
       403,
     );
   });
 
   it("validates the email and role", async () => {
-    const res = await admin.post("/api/v1/workspace/invites").send({ email: "nope", role: "owner" });
+    const res = await admin.post("/api/v2/workspace/invites").send({ email: "nope", role: "owner" });
 
     expect(res.status).toBe(422);
     expect(res.body.errors.map((e: { field: string }) => e.field)).toEqual(["email", "role"]);
   });
 });
 
-describe("POST /api/v1/workspace/invites/:id/resend", () => {
+describe("POST /api/v2/workspace/invites/:id/resend", () => {
   it("emails a new link and retires the old one", async () => {
-    const created = await admin.post("/api/v1/workspace/invites").send({ email: "grace@acme.dev", role: "member" });
+    const created = await admin.post("/api/v2/workspace/invites").send({ email: "grace@acme.dev", role: "member" });
     const firstHash = (await prisma.workspaceInvite.findFirstOrThrow()).tokenHash;
 
-    const res = await admin.post(`/api/v1/workspace/invites/${created.body.id}/resend`);
+    const res = await admin.post(`/api/v2/workspace/invites/${created.body.id}/resend`);
 
     expect(res.status).toBe(200);
     expect(email.sent).toHaveLength(2);
@@ -92,20 +92,20 @@ describe("POST /api/v1/workspace/invites/:id/resend", () => {
   it("is 404 for an unknown invite or a member id", async () => {
     const member = await prisma.user.findUniqueOrThrow({ where: { email: "member@devflow.local" } });
 
-    expect((await admin.post(`/api/v1/workspace/invites/${member.id}/resend`)).status).toBe(404);
-    expect((await admin.post("/api/v1/workspace/invites/nope/resend")).status).toBe(404);
+    expect((await admin.post(`/api/v2/workspace/invites/${member.id}/resend`)).status).toBe(404);
+    expect((await admin.post("/api/v2/workspace/invites/nope/resend")).status).toBe(404);
   });
 });
 
 describe("accepting an invite", () => {
   async function invite(address = "grace@acme.dev", role = "viewer") {
-    await admin.post("/api/v1/workspace/invites").send({ email: address, role });
+    await admin.post("/api/v2/workspace/invites").send({ email: address, role });
     return tokenFrom(email.sent.at(-1)?.text);
   }
-  const preview = (token: string) => request(app).get(`/api/v1/invites/${encodeURIComponent(token)}`);
+  const preview = (token: string) => request(app).get(`/api/v2/invites/${encodeURIComponent(token)}`);
   const accept = (token: string, body: object = { name: "Grace Hopper", password: "compiler-1952" }) =>
     request(app)
-      .post(`/api/v1/invites/${encodeURIComponent(token)}/accept`)
+      .post(`/api/v2/invites/${encodeURIComponent(token)}/accept`)
       .set("Origin", FRONTEND_ORIGIN)
       .send(body);
 
@@ -126,9 +126,9 @@ describe("accepting an invite", () => {
 
     expect(res.status).toBe(201);
     expect(res.body.user).toMatchObject({ name: "Grace Hopper", email: "grace@acme.dev", role: "viewer" });
-    const me = await request(app).get("/api/v1/auth/me").set("Cookie", sessionCookieHeader(res));
+    const me = await request(app).get("/api/v2/auth/me").set("Cookie", sessionCookieHeader(res));
     expect(me.status).toBe(200);
-    const members = await admin.get("/api/v1/workspace/members");
+    const members = await admin.get("/api/v2/workspace/members");
     expect(members.body.items.find((m: { email: string }) => m.email === "grace@acme.dev")).toMatchObject({
       status: "active",
       role: "viewer",
@@ -148,7 +148,7 @@ describe("accepting an invite", () => {
   it("rejects expired, unknown and resent-away links", async () => {
     const token = await invite();
     const created = await prisma.workspaceInvite.findFirstOrThrow();
-    await admin.post(`/api/v1/workspace/invites/${created.id}/resend`);
+    await admin.post(`/api/v2/workspace/invites/${created.id}/resend`);
 
     expect((await accept(token)).body.code).toBe("INVITE_INVALID");
     expect((await preview("made-up")).body.code).toBe("INVITE_INVALID");
@@ -161,7 +161,7 @@ describe("accepting an invite", () => {
   it("answers ALREADY_MEMBER when the email signed up in the meantime", async () => {
     const token = await invite();
     await request(app)
-      .post("/api/v1/auth/signup")
+      .post("/api/v2/auth/signup")
       .set("Origin", FRONTEND_ORIGIN)
       .send({ name: "Grace", email: "grace@acme.dev", password: "compiler-1952" });
 

@@ -12,8 +12,8 @@ import type { ProjectsService } from "../modules/projects/projects.service.js";
 import type { TokensService } from "../modules/tokens/tokens.service.js";
 import { projectRoom, type EventBus } from "./events.js";
 
-/** Under /api/v1 so the browser sends the /api/v1-scoped session cookie with the handshake. */
-export const SOCKET_PATH = "/api/v1/socket.io";
+/** Under /api/v2 so the browser sends the /api/v2-scoped session cookie with the handshake. */
+export const SOCKET_PATH = "/api/v2/socket.io";
 export const REALTIME_NAMESPACE = "/realtime";
 
 type SocketData = { auth: AuthContext; projects: Map<string, string> };

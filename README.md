@@ -39,7 +39,7 @@ npm install
 npm run db:up                 # postgres + redis in Docker, waits until healthy
 npm run db:migrate            # apply migrations to the dev database
 npm run db:seed               # demo data (only into an empty database)
-npm run dev                   # http://localhost:4000/api/v1
+npm run dev                   # http://localhost:4000/api/v2
 ```
 
 Generate a `JWT_SECRET` (at least 32 characters):
@@ -50,9 +50,9 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 Then open:
 
-- `http://localhost:4000/api/v1/health/ready` — readiness (database and Redis)
-- `http://localhost:4000/api/v1/config` — enabled optional features
-- `http://localhost:4000/api/v1/docs` — Swagger UI
+- `http://localhost:4000/api/v2/health/ready` — readiness (database and Redis)
+- `http://localhost:4000/api/v2/config` — enabled optional features
+- `http://localhost:4000/api/v2/docs` — Swagger UI
 
 ## Run with Docker
 
@@ -61,8 +61,8 @@ The full stack — API, Postgres and Redis — exactly as a reviewer runs it:
 ```bash
 cp .env.example .env      # then fill in values (JWT_SECRET is required)
 docker compose up --build
-# API:  http://localhost:4000/api/v1
-# Docs: http://localhost:4000/api/v1/docs
+# API:  http://localhost:4000/api/v2
+# Docs: http://localhost:4000/api/v2/docs
 ```
 
 The container applies migrations, seeds an empty database when `SEED_DEMO_DATA=true`, then starts the server.
@@ -147,7 +147,7 @@ handler as RFC 9457 `application/problem+json` with a stable `code`.
 
 Optional. Create a GitHub App (Settings → Developer settings → GitHub Apps) with:
 
-- **Webhook URL:** `<API_URL>/api/v1/integrations/github/webhook`. GitHub must reach it, so for local development
+- **Webhook URL:** `<API_URL>/api/integrations/github/webhook`. GitHub must reach it, so for local development
   use a tunnel to port 4000.
 - **Webhook secret:** a random string, also set as `GITHUB_WEBHOOK_SECRET`.
 - **Content type** `application/json`; **permissions** Pull requests and Contents (read-only); **events** Pull request
@@ -175,8 +175,8 @@ Try it:
 
 ```bash
 curl -i -c cookies.txt -H "Origin: http://localhost:3000" -H "Content-Type: application/json" \
-  -d '{"email":"demo@devflow.local","password":"devflow-demo"}' http://localhost:4000/api/v1/auth/login
-curl -b cookies.txt http://localhost:4000/api/v1/auth/me
+  -d '{"email":"demo@devflow.local","password":"devflow-demo"}' http://localhost:4000/api/v2/auth/login
+curl -b cookies.txt http://localhost:4000/api/v2/auth/me
 ```
 
 ## Contributing

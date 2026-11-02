@@ -2,12 +2,12 @@
   "openapi": "3.1.0",
   "info": {
     "title": "DevFlow API",
-    "version": "1.0.1",
+    "version": "2.0.0-beta.1",
     "description": "REST API for DevFlow, a sprint-based issue tracker. Errors use RFC 9457 problem details; see docs/INTEGRATION.md for the error catalogue and integration contract. Every endpoint except the health checks is rate-limited per client and answers 429 RATE_LIMITED with Retry-After when a limit is reached (limits: docs/INTEGRATION.md §4.1)."
   },
   "servers": [
     {
-      "url": "/api/v1"
+      "url": "/api/v2"
     }
   ],
   "components": {
@@ -133,7 +133,7 @@
           "title": "Another sprint is already active",
           "status": 409,
           "detail": "Sprint 25 is already active in DEV.",
-          "instance": "/api/v1/sprints/0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e6f/start",
+          "instance": "/api/v2/workspaces/acme-inc/sprints/0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e6f/start",
           "code": "SPRINT_ALREADY_ACTIVE",
           "requestId": "6f1c2a9e-3b7d-4c8e-9f0a-1b2c3d4e5f60"
         }
@@ -2875,7 +2875,7 @@
             "description": "Signed up and signed in.",
             "headers": {
               "Set-Cookie": {
-                "description": "`devflow_access` (Path=/api/v1) and `devflow_refresh` (Path=/api/v1/auth); both HttpOnly, Secure, SameSite=Lax.",
+                "description": "`devflow_access` (Path=/api/v2) and `devflow_refresh` (Path=/api/v2/auth); both HttpOnly, Secure, SameSite=Lax.",
                 "schema": {
                   "type": "string"
                 }
@@ -2947,7 +2947,7 @@
             "description": "Signed in.",
             "headers": {
               "Set-Cookie": {
-                "description": "`devflow_access` (Path=/api/v1) and `devflow_refresh` (Path=/api/v1/auth); both HttpOnly, Secure, SameSite=Lax.",
+                "description": "`devflow_access` (Path=/api/v2) and `devflow_refresh` (Path=/api/v2/auth); both HttpOnly, Secure, SameSite=Lax.",
                 "schema": {
                   "type": "string"
                 }
@@ -3010,7 +3010,7 @@
             "description": "New cookies set.",
             "headers": {
               "Set-Cookie": {
-                "description": "`devflow_access` (Path=/api/v1) and `devflow_refresh` (Path=/api/v1/auth); both HttpOnly, Secure, SameSite=Lax.",
+                "description": "`devflow_access` (Path=/api/v2) and `devflow_refresh` (Path=/api/v2/auth); both HttpOnly, Secure, SameSite=Lax.",
                 "schema": {
                   "type": "string"
                 }
@@ -3297,7 +3297,7 @@
           "Auth"
         ],
         "summary": "OAuth callback (called by the provider)",
-        "description": "Registered with GitHub and Google as {API_URL}/api/v1/auth/oauth/{provider}/callback. Always redirects to the frontend.",
+        "description": "Registered with GitHub and Google as {API_URL}/api/auth/oauth/{provider}/callback, outside /api/v2 so new API versions keep the registered URL. Always redirects to the frontend.",
         "parameters": [
           {
             "schema": {
@@ -3319,7 +3319,7 @@
             "description": "Redirect to the frontend.",
             "headers": {
               "Set-Cookie": {
-                "description": "`devflow_access` (Path=/api/v1) and `devflow_refresh` (Path=/api/v1/auth); both HttpOnly, Secure, SameSite=Lax.",
+                "description": "`devflow_access` (Path=/api/v2) and `devflow_refresh` (Path=/api/v2/auth); both HttpOnly, Secure, SameSite=Lax.",
                 "schema": {
                   "type": "string"
                 }
@@ -3361,7 +3361,13 @@
             }
           }
         }
-      }
+      },
+      "servers": [
+        {
+          "url": "/api",
+          "description": "Version-free: the URL registered with the provider."
+        }
+      ]
     },
     "/auth/me": {
       "get": {
@@ -7028,7 +7034,13 @@
             }
           }
         }
-      }
+      },
+      "servers": [
+        {
+          "url": "/api",
+          "description": "Version-free: the URL registered with the provider."
+        }
+      ]
     }
   },
   "webhooks": {}
