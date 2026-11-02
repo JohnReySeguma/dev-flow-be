@@ -4,9 +4,10 @@ import type { IssueEventKind, StatusCategory } from "../../generated/prisma/clie
 import { AppError, type FieldError } from "../../lib/errors.js";
 import { ifMatchSatisfied, versionTag } from "../../lib/etag.js";
 import type { Page } from "../../lib/pagination.js";
+import type { EventBus } from "../../realtime/events.js";
 import type { AuthContext } from "../auth/auth.types.js";
 import type { ProjectsService } from "../projects/projects.service.js";
-import { toIssueView } from "./issues.mapper.js";
+import { issueKeyOf, toIssueView } from "./issues.mapper.js";
 import type { IssueFilters, IssuesRepository, IssueWithContext, IssueWrite, RankCursor } from "./issues.repository.js";
 import type {
   CreateIssueInput,
@@ -57,8 +58,18 @@ function decodeRankCursor(cursor: string): RankCursor {
   }
 }
 
-export function createIssuesService(deps: { issues: IssuesRepository; projects: ProjectsService }) {
-  const { issues, projects } = deps;
+export function createIssuesService(deps: { issues: IssuesRepository; projects: ProjectsService; events: EventBus }) {
+  const { issues, projects, events } = deps;
+
+  /** Live Sync: tells the project's room, after the change committed. */
+  const announce = (
+    event: "issue.created" | "issue.updated" | "issue.moved",
+    result: VersionedIssue,
+    projectKey: string,
+    actorId: string | null,
+  ) => {
+    events.publish(result.issue.projectId, event, { projectKey, actorId, issue: result.issue });
+  };
 
   /** Checks that referenced statuses, sprints and assignees belong to this project and workspace. */
   async function checkReferences(
@@ -168,7 +179,7 @@ export function createIssuesService(deps: { issues: IssuesRepository; projects: 
     /** New issues take the next number and go to the top of the project's ranking. */
     async create(auth: AuthContext, projectKey: string, input: CreateIssueInput): Promise<VersionedIssue> {
       const project = await projects.find(auth, projectKey);
-      return issues.transaction(async (tx) => {
+      const result = await issues.transaction(async (tx) => {
         const chosen = await checkReferences(tx, auth, project.id, {
           ...(input.statusId !== undefined && { statusId: input.statusId }),
           sprintId: input.sprintId,
@@ -195,6 +206,8 @@ export function createIssuesService(deps: { issues: IssuesRepository; projects: 
         await record(tx, issue, "created", auth.userId);
         return versioned(issue);
       });
+      announce("issue.created", result, project.key, auth.userId);
+      return result;
     },
 
     /** With `ifMatch`, rejects the change (412) if the issue changed since the client read it. */
@@ -212,7 +225,7 @@ export function createIssuesService(deps: { issues: IssuesRepository; projects: 
         throw stale();
       }
 
-      return issues.transaction(async (tx) => {
+      const result = await issues.transaction(async (tx) => {
         const status = await checkReferences(tx, auth, current.projectId, {
           ...(input.statusId !== undefined && { statusId: input.statusId }),
           ...(input.sprintId !== undefined && { sprintId: input.sprintId }),
@@ -234,6 +247,8 @@ export function createIssuesService(deps: { issues: IssuesRepository; projects: 
         if (updated.estimate !== current.estimate) await record(tx, updated, "estimate", auth.userId);
         return versioned(updated);
       });
+      announce("issue.updated", result, current.project.key, auth.userId);
+      return result;
     },
 
     /**
@@ -254,7 +269,7 @@ export function createIssuesService(deps: { issues: IssuesRepository; projects: 
         throw invalid("beforeIssueKey", "Pick another issue of the same project.");
       }
 
-      return issues.transaction(async (tx) => {
+      const result = await issues.transaction(async (tx) => {
         await tx.lockProject(current.projectId);
         const status = await checkReferences(tx, auth, current.projectId, {
           ...(input.statusId !== undefined && { statusId: input.statusId }),
@@ -285,10 +300,24 @@ export function createIssuesService(deps: { issues: IssuesRepository; projects: 
         if (moved.sprintId !== current.sprintId) await record(tx, moved, "sprint", auth.userId);
         return versioned(moved);
       });
+      announce("issue.moved", result, current.project.key, auth.userId);
+      return result;
     },
 
     async remove(auth: AuthContext, issueKey: string, projectKey?: string): Promise<void> {
-      await issues.delete((await find(auth, issueKey, projectKey)).id);
+      const issue = await find(auth, issueKey, projectKey);
+      await issues.delete(issue.id);
+      events.publish(issue.projectId, "issue.deleted", {
+        projectKey: issue.project.key,
+        actorId: auth.userId,
+        issueKey: issueKeyOf(issue),
+      });
+    },
+
+    /** Re-reads an issue another module changed (e.g. its comment count) and announces it. */
+    async announceUpdated(issue: IssueWithContext, actorId: string | null): Promise<void> {
+      const fresh = await issues.findByNumber(issue.projectId, issue.number);
+      if (fresh) announce("issue.updated", versioned(fresh), fresh.project.key, actorId);
     },
   };
 }

@@ -45,7 +45,10 @@ export function createCommentsService(deps: { comments: CommentsRepository; issu
       projectKey?: string,
     ): Promise<CommentView> {
       const issue = await issues.find(auth, issueKey, projectKey);
-      return toView(issueKeyOf(issue))(await comments.create(issue.id, auth.userId, input.body));
+      const comment = toView(issueKeyOf(issue))(await comments.create(issue.id, auth.userId, input.body));
+      // Clients learn about the new comment count through the issue.
+      await issues.announceUpdated(issue, auth.userId);
+      return comment;
     },
   };
 }

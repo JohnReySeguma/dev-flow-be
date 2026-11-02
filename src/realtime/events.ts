@@ -11,8 +11,10 @@ export const REALTIME_EVENTS = [
   "sprint.updated",
   "sprint.started",
   "sprint.completed",
+  "sprint.deleted",
   "workflow.updated",
   "project.updated",
+  "project.deleted",
   "presence.updated",
 ] as const;
 

@@ -2,6 +2,7 @@ import { Prisma } from "../../generated/prisma/client.js";
 import { AppError } from "../../lib/errors.js";
 import { ifMatchSatisfied, versionTag } from "../../lib/etag.js";
 import { decodeCursor, toPage, type Page, type PaginationQuery } from "../../lib/pagination.js";
+import type { EventBus } from "../../realtime/events.js";
 import type { AuthContext } from "../auth/auth.types.js";
 import { toIssueView } from "../issues/issues.mapper.js";
 import type { IssueView } from "../issues/issues.schemas.js";
@@ -29,8 +30,8 @@ const versioned = (project: ProjectWithWorkflow): VersionedProject => ({
 
 const stale = () => new AppError("CONFLICT_STALE", "The project changed since it was loaded. Reload and try again.");
 
-export function createProjectsService(deps: { projects: ProjectsRepository }) {
-  const { projects } = deps;
+export function createProjectsService(deps: { projects: ProjectsRepository; events: EventBus }) {
+  const { projects, events } = deps;
 
   /** Resolves `:key` (any case) within the caller's workspace, or 404. */
   async function find(auth: AuthContext, key: string): Promise<ProjectWithWorkflow> {
@@ -135,11 +136,19 @@ export function createProjectsService(deps: { projects: ProjectsRepository }) {
       const data = Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined));
       const updated = await projects.update(current.id, data, ifMatch === undefined ? undefined : current.updatedAt);
       if (!updated) throw stale();
-      return versioned(updated);
+      const result = versioned(updated);
+      events.publish(current.id, "project.updated", {
+        projectKey: current.key,
+        actorId: auth.userId,
+        project: result.project,
+      });
+      return result;
     },
 
     async remove(auth: AuthContext, key: string): Promise<void> {
-      await projects.delete((await find(auth, key)).id);
+      const project = await find(auth, key);
+      await projects.delete(project.id);
+      events.publish(project.id, "project.deleted", { projectKey: project.key, actorId: auth.userId });
     },
   };
 }

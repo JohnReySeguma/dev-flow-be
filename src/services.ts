@@ -66,9 +66,9 @@ export function createServices(deps: ServiceDeps) {
     accessTokens: createAccessTokens(env.JWT_SECRET),
     logger,
   });
-  const projects = createProjectsService({ projects: createProjectsRepository(prisma) });
-  const issues = createIssuesService({ issues: createIssuesRepository(prisma), projects });
-  const sprints = createSprintsService({ sprints: createSprintsRepository(prisma), projects });
+  const projects = createProjectsService({ projects: createProjectsRepository(prisma), events });
+  const issues = createIssuesService({ issues: createIssuesRepository(prisma), projects, events });
+  const sprints = createSprintsService({ sprints: createSprintsRepository(prisma), projects, events });
   const config = createConfigService(features);
   const usersService = createUsersService(users);
   const workspace = createWorkspaceService({
@@ -98,7 +98,7 @@ export function createServices(deps: ServiceDeps) {
     issues,
     sprints,
     reports: createReportsService({ reports: createReportsRepository(prisma), sprints, projects }),
-    workflow: createWorkflowService({ workflow: createWorkflowRepository(prisma), projects }),
+    workflow: createWorkflowService({ workflow: createWorkflowRepository(prisma), projects, events }),
     comments: createCommentsService({ comments: createCommentsRepository(prisma), issues }),
     bootstrap: createBootstrapService({ users: usersService, workspace, config, projects }),
   };
