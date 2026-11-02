@@ -9,6 +9,7 @@ import type { Logger } from "./lib/logger.js";
 import type { PrismaClient } from "./lib/prisma.js";
 import type { Redis } from "./lib/redis.js";
 import { errorHandler, notFoundHandler } from "./middleware/error-handler.js";
+import { originCheck } from "./middleware/origin-check.js";
 import { requestLogger } from "./middleware/request-logger.js";
 import { requireAuth } from "./middleware/require-auth.js";
 import { createAccessTokens } from "./modules/auth/access-token.js";
@@ -55,6 +56,7 @@ export function createApp({ env, features, logger, prisma, redis }: AppDeps): Ex
   const authenticated = requireAuth(auth);
 
   const api = express.Router();
+  api.use(originCheck(env.CORS_ORIGIN));
   api.use("/health", createHealthRouter({ prisma, redis }));
   api.use("/config", createConfigRouter({ features }));
   api.use("/auth", createAuthRouter({ auth, requireAuth: authenticated }));

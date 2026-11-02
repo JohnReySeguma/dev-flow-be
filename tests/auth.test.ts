@@ -190,3 +190,17 @@ describe("POST /api/v1/auth/refresh", () => {
     expect((await refresh(cookie)).status).toBe(401);
   });
 });
+
+describe("cross-site request protection", () => {
+  it("rejects a logout posted from another site", async () => {
+    const cookie = sessionCookieHeader(await signup());
+
+    const res = await request(app)
+      .post("/api/v1/auth/logout")
+      .set("Origin", "https://evil.example")
+      .set("Cookie", cookie);
+
+    expect(res.status).toBe(403);
+    expect((await me(cookie)).status).toBe(200);
+  });
+});
