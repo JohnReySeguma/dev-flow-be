@@ -626,6 +626,140 @@
           ],
           "expiresInDays": 30
         }
+      },
+      "Workspace": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "member",
+              "viewer"
+            ],
+            "description": "The signed-in user's role in this workspace."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "role"
+        ],
+        "example": {
+          "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e00",
+          "name": "Acme Inc",
+          "role": "admin"
+        }
+      },
+      "TeamMemberPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TeamMember"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass as ?cursor= for the next page; null on the last."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "example": {
+          "items": [
+            {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e03",
+              "name": "Dmitri Kovac",
+              "email": "member@devflow.local",
+              "initials": "DK",
+              "gradient": "from-sky-500 to-cyan-500",
+              "role": "member",
+              "status": "active",
+              "lastActiveAt": "2026-10-31T22:40:00.000Z"
+            }
+          ],
+          "nextCursor": null
+        }
+      },
+      "TeamMember": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "description": "For invites: the local part of the email."
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "initials": {
+            "type": "string"
+          },
+          "gradient": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "member",
+              "viewer"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "invited"
+            ]
+          },
+          "lastActiveAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Null for pending invites."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "initials",
+          "gradient",
+          "role",
+          "status",
+          "lastActiveAt"
+        ],
+        "example": {
+          "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e03",
+          "name": "Dmitri Kovac",
+          "email": "member@devflow.local",
+          "initials": "DK",
+          "gradient": "from-sky-500 to-cyan-500",
+          "role": "member",
+          "status": "active",
+          "lastActiveAt": "2026-10-31T22:40:00.000Z"
+        }
       }
     },
     "parameters": {}
@@ -1333,6 +1467,105 @@
         "responses": {
           "204": {
             "description": "Revoked."
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspace": {
+      "get": {
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "The workspace and your role in it",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The workspace.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Workspace"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspace/members": {
+      "get": {
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "Members and pending invites",
+        "description": "Oldest first. Pending invites have status `invited` and lastActiveAt null. Any role.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of members.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamMemberPage"
+                }
+              }
+            }
           },
           "default": {
             "description": "Error, as RFC 9457 problem details.",

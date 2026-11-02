@@ -29,6 +29,8 @@ import { createTokensService } from "./modules/tokens/tokens.service.js";
 import { createMeRouter } from "./modules/users/users.routes.js";
 import { createUsersService } from "./modules/users/users.service.js";
 import { createWorkspaceRepository } from "./modules/workspace/workspace.repository.js";
+import { createWorkspaceRouter } from "./modules/workspace/workspace.routes.js";
+import { createWorkspaceService } from "./modules/workspace/workspace.service.js";
 import { buildOpenApiDocument } from "./openapi/document.js";
 
 export const API_PREFIX = "/api/v1";
@@ -58,10 +60,11 @@ export function createApp({ env, features, logger, prisma, redis, email, fetch: 
 
   // Composition root: repositories → services, shared by the routers that need them.
   const users = createUsersRepository(prisma);
+  const workspaces = createWorkspaceRepository(prisma);
   const sessions = createAuthRepository(prisma);
   const auth = createAuthService({
     users,
-    workspaces: createWorkspaceRepository(prisma),
+    workspaces,
     sessions,
     accessTokens: createAccessTokens(env.JWT_SECRET),
     logger,
@@ -83,6 +86,10 @@ export function createApp({ env, features, logger, prisma, redis, email, fetch: 
   api.use(originCheck(env.CORS_ORIGIN));
   api.use("/health", createHealthRouter({ prisma, redis }));
   api.use("/config", createConfigRouter({ features }));
+  api.use(
+    "/workspace",
+    createWorkspaceRouter({ workspace: createWorkspaceService({ workspaces }), requireAuth: authenticated }),
+  );
   api.use("/me/tokens", createTokensRouter({ tokens, requireAuth: authenticated, requireSession }));
   api.use("/me", createMeRouter({ users: createUsersService(users), requireAuth: authenticated, requireSession }));
   api.use(
