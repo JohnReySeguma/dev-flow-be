@@ -20,6 +20,9 @@ import { createAuthRouter } from "./modules/auth/auth.routes.js";
 import { createAuthService } from "./modules/auth/auth.service.js";
 import { createOAuthService } from "./modules/auth/oauth.service.js";
 import { createPasswordResetService } from "./modules/auth/password-reset.service.js";
+import { createCommentsRepository } from "./modules/comments/comments.repository.js";
+import { createCommentsRouter } from "./modules/comments/comments.routes.js";
+import { createCommentsService } from "./modules/comments/comments.service.js";
 import { createConfigRouter } from "./modules/config/config.routes.js";
 import { createHealthRouter } from "./modules/health/health.routes.js";
 import { createUsersRepository } from "./modules/users/users.repository.js";
@@ -108,6 +111,13 @@ export function createApp({ env, features, logger, prisma, redis, email, fetch: 
     }),
   );
   api.use("/projects", createProjectsRouter({ projects, requireAuth: authenticated }));
+  api.use(
+    "/issues/:issueKey/comments",
+    createCommentsRouter({
+      comments: createCommentsService({ comments: createCommentsRepository(prisma), issues }),
+      requireAuth: authenticated,
+    }),
+  );
   api.use("/issues", createIssuesRouter({ issues, requireAuth: authenticated }));
 
   const invites = createInvitesService({ workspaces, auth, users, email, logger, frontendUrl: env.CORS_ORIGIN });

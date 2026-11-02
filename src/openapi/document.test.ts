@@ -22,6 +22,7 @@ describe("OpenAPI document", () => {
       "/invites/{token}",
       "/invites/{token}/accept",
       "/issues/{issueKey}",
+      "/issues/{issueKey}/comments",
       "/issues/{issueKey}/move",
       "/me",
       "/me/tokens",

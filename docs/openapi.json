@@ -1587,6 +1587,128 @@
             "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e24"
           ]
         }
+      },
+      "CommentPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Comment"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass as ?cursor= for the next page; null on the last."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "example": {
+          "items": [
+            {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e40",
+              "issueKey": "DEV-104",
+              "author": {
+                "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e02",
+                "name": "Aiko Mori",
+                "initials": "AM",
+                "gradient": "from-rose-500 to-orange-500"
+              },
+              "body": "Reproduced with two tabs open; the second refresh revokes the session.",
+              "createdAt": "2026-10-31T14:20:00.000Z"
+            }
+          ],
+          "nextCursor": null
+        }
+      },
+      "Comment": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "issueKey": {
+            "type": "string"
+          },
+          "author": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string"
+              },
+              "initials": {
+                "type": "string"
+              },
+              "gradient": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "initials",
+              "gradient"
+            ],
+            "description": "Null when the author has left the workspace."
+          },
+          "body": {
+            "type": "string",
+            "description": "Markdown; sanitise when rendering."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "issueKey",
+          "author",
+          "body",
+          "createdAt"
+        ],
+        "example": {
+          "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e40",
+          "issueKey": "DEV-104",
+          "author": {
+            "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e02",
+            "name": "Aiko Mori",
+            "initials": "AM",
+            "gradient": "from-rose-500 to-orange-500"
+          },
+          "body": "Reproduced with two tabs open; the second refresh revokes the session.",
+          "createdAt": "2026-10-31T14:20:00.000Z"
+        }
+      },
+      "CreateCommentRequest": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 10000
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "example": {
+          "body": "Looks good to me. Merging after CI."
+        }
       }
     },
     "parameters": {}
@@ -3744,6 +3866,153 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/issues/{issueKey}/comments": {
+      "get": {
+        "tags": [
+          "Comments"
+        ],
+        "summary": "An issue's comment thread",
+        "description": "Oldest first. Any role; tokens need issues:read.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "DEV-104"
+            },
+            "required": true,
+            "name": "issueKey",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Project key; required when :issueKey is a bare number such as 104."
+            },
+            "required": false,
+            "description": "Project key; required when :issueKey is a bare number such as 104.",
+            "name": "project",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of comments.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Comments"
+        ],
+        "summary": "Comment on an issue",
+        "description": "Members and admins; tokens need issues:write. The body is Markdown, stored as written; sanitise it when rendering. Increments the issue's comments count.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "DEV-104"
+            },
+            "required": true,
+            "name": "issueKey",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Project key; required when :issueKey is a bare number such as 104."
+            },
+            "required": false,
+            "description": "Project key; required when :issueKey is a bare number such as 104.",
+            "name": "project",
+            "in": "query"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCommentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The new comment.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comment"
                 }
               }
             }
