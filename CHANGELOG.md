@@ -6,6 +6,32 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-02
+
+### Frontend impact
+
+- No endpoint changes. The OpenAPI examples for passwords, reset tokens and access-token secrets are now placeholders
+  (`YOUR_PASSWORD`, `RESET_TOKEN_FROM_EMAIL`, `dfp_YOUR_ACCESS_TOKEN`); regenerate types from this tag if you copy
+  examples.
+- Realtime will be served at `/api/v1/socket.io` (from `v0.6.0`), next to the `/api/v1`-scoped session cookie.
+- **BREAKING:** none.
+
+### Fixed
+
+- Credential examples in `docs/openapi.json` looked like real secrets and triggered secret-scanner warnings. No real
+  credential was ever committed.
+
+### Handoff checklist
+
+- [x] `docs/openapi.json` regenerated and valid
+- [x] `docs/INTEGRATION.md` coverage matrix updated (unchanged)
+- [x] New error codes added to the catalogue (none)
+- [x] New realtime events documented with examples (none; endpoint path documented)
+- [x] **Frontend impact** section in `CHANGELOG.md`
+- [x] Seed and demo accounts still work on a fresh database
+- [x] `docker compose up --build` instructions in the README still accurate
+- [x] Known limitations or stubs listed (unchanged)
+
 ## [0.2.0] - 2026-11-02
 
 Authentication: accounts, sessions, OAuth, password reset, profile and personal access tokens.
@@ -104,6 +130,7 @@ Foundation: configuration, database, error format, health checks, feature flags,
 - [x] `docker compose up --build` instructions in the README still accurate
 - [x] Known limitations or stubs listed (`docs/INTEGRATION.md` §8)
 
-[Unreleased]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/JohnReySeguma/dev-flow-be/releases/tag/v0.1.0
