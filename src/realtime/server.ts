@@ -22,7 +22,13 @@ type Ack = (response: { ok: true; projectKey: string } | { ok: false; code: stri
 function cookieValue(header: string | undefined, name: string): string | undefined {
   for (const part of header?.split(";") ?? []) {
     const [key, ...rest] = part.trim().split("=");
-    if (key === name) return decodeURIComponent(rest.join("="));
+    if (key !== name) continue;
+    // A malformed escape is anyone's to send: treat it as no cookie, never throw (it would crash the process).
+    try {
+      return decodeURIComponent(rest.join("="));
+    } catch {
+      return undefined;
+    }
   }
   return undefined;
 }
