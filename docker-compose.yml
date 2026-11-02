@@ -14,6 +14,10 @@ services:
     environment:
       # Overrides for the container network; everything else comes from .env.
       NODE_ENV: production
+      # Production requires these to be chosen explicitly. This stack is for review, so it keeps the
+      # demo data and logged emails unless .env says otherwise.
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-console}
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/devflow
       REDIS_URL: redis://redis:6379
       GITHUB_APP_PRIVATE_KEY_PATH: /run/secrets/github-app.pem
