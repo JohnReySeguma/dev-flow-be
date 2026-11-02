@@ -5,7 +5,8 @@ projects with custom workflows, backlogs, sprints, reports, GitHub integration a
 
 > **Status:** `v0.1.0` foundation — configuration, database, error format, health checks, feature flags, OpenAPI,
 > Docker and CI. Domain endpoints arrive milestone by milestone ([`docs/BRIEF.md` §7](docs/BRIEF.md)).
-> Frontend integration details live in [`docs/INTEGRATION.md`](docs/INTEGRATION.md).
+> Frontend integration: the contract is [`docs/INTEGRATION.md`](docs/INTEGRATION.md); the step-by-step plan is
+> [`docs/FRONTEND_BRIEF.md`](docs/FRONTEND_BRIEF.md).
 
 ## Stack
 
