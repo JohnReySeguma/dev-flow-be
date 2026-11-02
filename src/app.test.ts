@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createApp } from "./app.js";
 import { parseEnv } from "./config/env.js";
 import { createLogger } from "./lib/logger.js";
+import type { PrismaClient } from "./lib/prisma.js";
 
 const env = parseEnv({
   NODE_ENV: "test",
@@ -10,7 +11,8 @@ const env = parseEnv({
   JWT_SECRET: "x".repeat(32),
   CORS_ORIGIN: "http://localhost:3000",
 });
-const app = createApp({ env, logger: createLogger(env) });
+// These tests never reach a route that queries; integration tests cover the real database.
+const app = createApp({ env, logger: createLogger(env), prisma: {} as PrismaClient, redis: null });
 
 describe("createApp", () => {
   it("answers unknown API routes with a problem+json 404", async () => {

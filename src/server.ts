@@ -2,6 +2,8 @@ import { createServer } from "node:http";
 import { API_PREFIX, createApp } from "./app.js";
 import { EnvError, loadEnv, type Env } from "./config/env.js";
 import { createLogger } from "./lib/logger.js";
+import { createPrismaClient } from "./lib/prisma.js";
+import { createRedisClient } from "./lib/redis.js";
 import { createShutdown } from "./lib/shutdown.js";
 
 function readEnv(): Env {
@@ -18,7 +20,9 @@ function readEnv(): Env {
 
 const env = readEnv();
 const logger = createLogger(env);
-const app = createApp({ env, logger });
+const prisma = createPrismaClient(env.DATABASE_URL);
+const redis = createRedisClient(env.REDIS_URL, logger);
+const app = createApp({ env, logger, prisma, redis });
 const server = createServer(app);
 
 const shutdown = createShutdown({
@@ -36,6 +40,17 @@ const shutdown = createShutdown({
           server.closeIdleConnections();
         }),
     },
+    ...(redis
+      ? [
+          {
+            name: "redis",
+            close: async () => {
+              await redis.quit();
+            },
+          },
+        ]
+      : []),
+    { name: "database", close: () => prisma.$disconnect() },
   ],
 });
 
