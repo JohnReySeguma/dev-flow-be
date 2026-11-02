@@ -20,5 +20,71 @@ model Workspace {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
+  users User[]
+
   @@map("workspaces")
+}
+
+/// viewer = read-only · member = edit issues and sprints · admin = also members, workflow, project delete
+enum Role {
+  admin
+  member
+  viewer
+}
+
+model User {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  workspaceId  String    @map("workspace_id") @db.Uuid
+  /// Always stored lower-case.
+  email        String    @unique
+  name         String
+  handle       String    @unique
+  /// Tailwind gradient classes for the initials avatar (frontend AVATAR_GRADIENTS).
+  gradient     String
+  timezone     String    @default("UTC")
+  bio          String    @default("")
+  role         Role      @default(member)
+  /// Argon2id. Null for accounts that only sign in with OAuth.
+  passwordHash String?   @map("password_hash")
+  lastActiveAt DateTime? @map("last_active_at") @db.Timestamptz(3)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  sessions  Session[]
+
+  @@index([workspaceId])
+  @@map("users")
+}
+
+/// One sign-in: a family of rotating refresh tokens. Revoking it signs that device out.
+model Session {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  /// Absolute lifetime; refreshing does not extend it.
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(3)
+  userAgent String?   @map("user_agent")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokens RefreshToken[]
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  sessionId String    @map("session_id") @db.Uuid
+  /// SHA-256 of the token; the token itself is only ever in the client's cookie.
+  tokenHash String    @unique @map("token_hash")
+  /// Set when rotated. Presenting a used token again revokes the whole session.
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@map("refresh_tokens")
 }

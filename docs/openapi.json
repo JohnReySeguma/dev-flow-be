@@ -11,6 +11,14 @@
     }
   ],
   "components": {
+    "securitySchemes": {
+      "cookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "devflow_access",
+        "description": "Session cookie set by /auth/login, /auth/signup and OAuth. Send requests with credentials."
+      }
+    },
     "schemas": {
       "Liveness": {
         "type": "object",
@@ -208,6 +216,161 @@
           "githubIntegration": false,
           "email": false
         }
+      },
+      "AuthMe": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/UserProfile"
+          },
+          "workspace": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ]
+          }
+        },
+        "required": [
+          "user",
+          "workspace"
+        ],
+        "example": {
+          "user": {
+            "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
+            "name": "John Rey",
+            "handle": "jrey",
+            "initials": "JR",
+            "gradient": "from-violet-500 to-indigo-600",
+            "email": "demo@devflow.local",
+            "role": "admin",
+            "timezone": "America/New_York",
+            "bio": "Frontend platform lead. Owns the board, realtime sync and the design system."
+          },
+          "workspace": {
+            "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e00",
+            "name": "Acme Inc"
+          }
+        }
+      },
+      "UserProfile": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "handle": {
+            "type": "string"
+          },
+          "initials": {
+            "type": "string"
+          },
+          "gradient": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "member",
+              "viewer"
+            ]
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "bio": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "handle",
+          "initials",
+          "gradient",
+          "email",
+          "role",
+          "timezone",
+          "bio"
+        ],
+        "example": {
+          "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
+          "name": "John Rey",
+          "handle": "jrey",
+          "initials": "JR",
+          "gradient": "from-violet-500 to-indigo-600",
+          "email": "demo@devflow.local",
+          "role": "admin",
+          "timezone": "America/New_York",
+          "bio": "Frontend platform lead. Owns the board, realtime sync and the design system."
+        }
+      },
+      "SignupRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 48
+          },
+          "email": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "name",
+          "email",
+          "password"
+        ],
+        "example": {
+          "name": "Ada Lovelace",
+          "email": "ada@acme.dev",
+          "password": "correct horse battery"
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "example": {
+          "email": "demo@devflow.local",
+          "password": "devflow-demo"
+        }
       }
     },
     "parameters": {}
@@ -306,6 +469,162 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicConfig"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/signup": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Create an account and sign in",
+        "description": "Joins the workspace as a member (the first user of an empty workspace becomes admin). Errors: 409 EMAIL_TAKEN, 422 VALIDATION_FAILED.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignupRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Signed up and signed in.",
+            "headers": {
+              "Set-Cookie": {
+                "description": "`devflow_access` (Path=/api/v1) and `devflow_refresh` (Path=/api/v1/auth); both HttpOnly, Secure, SameSite=Lax.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthMe"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Sign in with email and password",
+        "description": "Errors: 401 INVALID_CREDENTIALS, 422 VALIDATION_FAILED.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Signed in.",
+            "headers": {
+              "Set-Cookie": {
+                "description": "`devflow_access` (Path=/api/v1) and `devflow_refresh` (Path=/api/v1/auth); both HttpOnly, Secure, SameSite=Lax.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthMe"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Sign out",
+        "description": "Revokes the current session and clears both cookies. Succeeds even when already signed out.",
+        "responses": {
+          "204": {
+            "description": "Signed out."
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Current user and workspace",
+        "description": "Call on app load. 401 UNAUTHENTICATED → signed out; 401 TOKEN_EXPIRED → call POST /auth/refresh once and retry.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The signed-in user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthMe"
                 }
               }
             }
