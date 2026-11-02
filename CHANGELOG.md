@@ -6,6 +6,49 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-02
+
+Sprint lifecycle and reports.
+
+### Frontend impact
+
+- **Can connect now** (details in `docs/INTEGRATION.md` §6.5 and §6.6): the remaining `lib/tracker/store.ts` functions
+  and the reports page.
+  - `createSprint` → `POST /projects/:key/sprints`; `updateSprint` → `PATCH /sprints/:id`; `deleteSprint` →
+    `DELETE /sprints/:id` (planned only).
+  - `startSprint` → `POST /sprints/:id/start { name, goal, durationDays }`.
+  - `completeSprint` → `POST /sprints/:id/complete { carryOver }`, answering `{ sprint, carriedOverTo }`.
+  - Reports page: `GET /sprints/:id/burndown` (the same `BurndownDay[]` the view builds today),
+    `GET /projects/:key/reports/velocity` and `.../history`.
+- **Behaviour:** one active sprint per project; burndown now comes from the issue history, so mid-sprint scope,
+  estimate and status changes are counted correctly.
+- **New error code:** `SPRINT_NOT_ACTIVE` (409). Now returned: `SPRINT_ALREADY_ACTIVE`, `SPRINT_NOT_PLANNED`.
+- **BREAKING:** none.
+
+### Added
+
+- Sprint list (with status filter), create (`Sprint {n+1}`), rename, and delete (planned only, issues return to the
+  backlog).
+- Start (one active sprint per project, enforced under a project lock; committed points snapshotted) and complete (report,
+  carry-over to the backlog, a planned sprint or a new sprint, in one transaction).
+- Burndown from `issue_events`, velocity and sprint history.
+
+### Changed
+
+- The demo's active-sprint issues join their sprint at its start, so the demo burndown starts at the committed points.
+- The integration test setup explains an unreachable test database instead of crashing at startup.
+
+### Handoff checklist
+
+- [x] `docs/openapi.json` regenerated and valid
+- [x] `docs/INTEGRATION.md` coverage matrix updated: every `store.ts` function and the reports page are now served
+- [x] New error codes added to the catalogue (`SPRINT_NOT_ACTIVE`)
+- [x] New realtime events documented with examples (none in this release)
+- [x] **Frontend impact** section in `CHANGELOG.md`
+- [x] Seed and demo accounts still work on a fresh database
+- [x] `docker compose up --build` instructions in the README still accurate
+- [x] Known limitations or stubs listed (`docs/INTEGRATION.md` §9)
+
 ## [0.4.0] - 2026-11-02
 
 Projects, workflow statuses, issues with ranking and comments, bootstrap and snapshots, and the demo tracker.
@@ -222,7 +265,8 @@ Foundation: configuration, database, error format, health checks, feature flags,
 - [x] `docker compose up --build` instructions in the README still accurate
 - [x] Known limitations or stubs listed (`docs/INTEGRATION.md` §8)
 
-[Unreleased]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.2.0...v0.2.1
