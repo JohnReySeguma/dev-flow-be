@@ -20,7 +20,7 @@ export async function startRealtimeTestServer(options: { env?: Partial<Env> } = 
   const redis = createRedisClient(env.REDIS_URL, logger);
   const deps = { env, features: resolveFeatures(env), logger, prisma, redis, email: createMemoryEmailProvider() };
   const services = createServices(deps);
-  const app = createApp({ ...deps, services });
+  const app = createApp({ ...deps, services, rateLimits: false });
   const httpServer = createServer(app);
   const realtime = createRealtimeServer({
     httpServer,

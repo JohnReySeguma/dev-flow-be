@@ -16,6 +16,11 @@ export const envSchema = z
       .default("http://localhost:3000"),
     /** Public base URL of this API, used for OAuth callback URLs. */
     API_URL: z.url({ error: "must be the API base URL, e.g. http://localhost:4000" }).default("http://localhost:4000"),
+    /**
+     * Reverse proxies in front of the API (0 = none). Set it behind a load balancer or TLS proxy so
+     * rate limits and logs see the client's IP from X-Forwarded-For instead of the proxy's.
+     */
+    TRUST_PROXY: z.coerce.number().int().min(0).max(10).default(0),
     JWT_SECRET: z.string({ error: "is required" }).min(32, "must be at least 32 characters"),
     SEED_DEMO_DATA: booleanString.default(true),
 
