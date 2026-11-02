@@ -89,6 +89,10 @@ plain Node.js on the host so code changes reload instantly.
 - **Keep the Redis fallback anyway:** when `REDIS_URL` is empty, use in-process implementations (Socket.IO's default
   adapter, an in-memory rate limiter). CI and quick experiments rely on it.
 - Read every setting from environment variables with validated defaults. Nothing may hard-code container hostnames.
+- **The project owner's `.env` already exists** and holds real OAuth, GitHub App and SMTP secrets, and the GitHub App
+  private key (`*.pem`) sits in the project root. **Never overwrite, delete, print, log or commit either file.** When
+  you need new variables (e.g. `DATABASE_URL`, `JWT_SECRET`), append them to `.env` with their `.env.example`
+  defaults and tell the owner what you added. Read only the variables you need, and never echo their values.
 
 ### 3.2 Delivery — Docker for review and production
 
