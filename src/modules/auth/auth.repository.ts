@@ -1,3 +1,4 @@
+import type { OAuthProvider, User } from "../../generated/prisma/client.js";
 import type { PrismaClient } from "../../lib/prisma.js";
 
 export function createAuthRepository(prisma: PrismaClient) {
@@ -48,6 +49,17 @@ export function createAuthRepository(prisma: PrismaClient) {
       ]),
 
     findPasswordResetToken: (tokenHash: string) => prisma.passwordResetToken.findUnique({ where: { tokenHash } }),
+
+    findUserByOAuthAccount: async (provider: OAuthProvider, providerAccountId: string): Promise<User | null> =>
+      (
+        await prisma.oAuthAccount.findUnique({
+          where: { provider_providerAccountId: { provider, providerAccountId } },
+          include: { user: true },
+        })
+      )?.user ?? null,
+
+    linkOAuthAccount: (userId: string, provider: OAuthProvider, providerAccountId: string) =>
+      prisma.oAuthAccount.create({ data: { userId, provider, providerAccountId } }),
 
     /** Atomic, like refresh tokens: a reset link can be used once. */
     claimPasswordResetToken: async (id: string, at: Date): Promise<boolean> =>

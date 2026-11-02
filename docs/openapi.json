@@ -742,6 +742,105 @@
         }
       }
     },
+    "/auth/oauth/{provider}": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Start GitHub or Google sign-in",
+        "description": "Navigate the browser here (not fetch). Redirects to the provider; after consent the provider returns to the callback, which redirects to {CORS_ORIGIN}{redirect} signed in, or to {CORS_ORIGIN}/login?error=<code> with code oauth_denied, oauth_state_mismatch, oauth_email_unverified or oauth_failed. 404 NOT_FOUND when the provider is disabled.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "github",
+                "google"
+              ],
+              "description": "Must be enabled (see GET /config)."
+            },
+            "required": true,
+            "description": "Must be enabled (see GET /config).",
+            "name": "provider",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Relative frontend path to land on. Default /projects.",
+              "example": "/projects"
+            },
+            "required": false,
+            "description": "Relative frontend path to land on. Default /projects.",
+            "name": "redirect",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to the provider."
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/oauth/{provider}/callback": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "OAuth callback (called by the provider)",
+        "description": "Registered with GitHub and Google as {API_URL}/api/v1/auth/oauth/{provider}/callback. Always redirects to the frontend.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "github",
+                "google"
+              ],
+              "description": "Must be enabled (see GET /config)."
+            },
+            "required": true,
+            "description": "Must be enabled (see GET /config).",
+            "name": "provider",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to the frontend.",
+            "headers": {
+              "Set-Cookie": {
+                "description": "`devflow_access` (Path=/api/v1) and `devflow_refresh` (Path=/api/v1/auth); both HttpOnly, Secure, SameSite=Lax.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/me": {
       "get": {
         "tags": [

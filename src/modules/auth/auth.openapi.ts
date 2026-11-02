@@ -1,4 +1,5 @@
 import type { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
+import { z } from "zod";
 import { problemResponse } from "../../openapi/problem.js";
 import { authMeResponse, forgotPasswordBody, loginBody, resetPasswordBody, signupBody } from "./auth.schemas.js";
 
@@ -81,6 +82,40 @@ export function registerAuthDocs(registry: OpenAPIRegistry) {
       "Errors: 400 RESET_TOKEN_INVALID, 422 VALIDATION_FAILED.",
     request: { body: json(resetPasswordBody) },
     responses: { 204: { description: "Password changed." }, default: problemResponse },
+  });
+  const provider = z.enum(["github", "google"]).meta({ description: "Must be enabled (see GET /config)." });
+  registry.registerPath({
+    method: "get",
+    path: "/auth/oauth/{provider}",
+    tags: ["Auth"],
+    summary: "Start GitHub or Google sign-in",
+    description:
+      "Navigate the browser here (not fetch). Redirects to the provider; after consent the provider returns to the " +
+      "callback, which redirects to {CORS_ORIGIN}{redirect} signed in, or to {CORS_ORIGIN}/login?error=<code> with " +
+      "code oauth_denied, oauth_state_mismatch, oauth_email_unverified or oauth_failed. 404 NOT_FOUND when the provider is disabled.",
+    request: {
+      params: z.object({ provider }),
+      query: z.object({
+        redirect: z
+          .string()
+          .optional()
+          .meta({ description: "Relative frontend path to land on. Default /projects.", example: "/projects" }),
+      }),
+    },
+    responses: { 302: { description: "Redirect to the provider." }, default: problemResponse },
+  });
+  registry.registerPath({
+    method: "get",
+    path: "/auth/oauth/{provider}/callback",
+    tags: ["Auth"],
+    summary: "OAuth callback (called by the provider)",
+    description:
+      "Registered with GitHub and Google as {API_URL}/api/v1/auth/oauth/{provider}/callback. Always redirects to the frontend.",
+    request: { params: z.object({ provider }) },
+    responses: {
+      302: { description: "Redirect to the frontend.", headers: setsSessionCookies },
+      default: problemResponse,
+    },
   });
   registry.registerPath({
     method: "get",

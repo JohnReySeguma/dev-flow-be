@@ -27,6 +27,23 @@ export function clearSessionCookies(res: Response): void {
   res.clearCookie(REFRESH_COOKIE, { ...base, path: REFRESH_PATH });
 }
 
+export const OAUTH_STATE_COOKIE = "devflow_oauth";
+const OAUTH_PATH = "/api/v1/auth/oauth";
+
+/** Holds the signed OAuth state and PKCE verifier between the redirect and the callback. */
+export function setOAuthStateCookie(res: Response, token: string, maxAgeSeconds: number): void {
+  res.cookie(OAUTH_STATE_COOKIE, token, { ...base, path: OAUTH_PATH, maxAge: maxAgeSeconds * 1000 });
+}
+
+export function clearOAuthStateCookie(res: Response): void {
+  res.clearCookie(OAUTH_STATE_COOKIE, { ...base, path: OAUTH_PATH });
+}
+
+export function readOAuthStateCookie(req: Request): string | undefined {
+  const value = (req.cookies as Record<string, unknown>)[OAUTH_STATE_COOKIE];
+  return typeof value === "string" && value ? value : undefined;
+}
+
 export function readSessionCookies(req: Request): { accessToken?: string; refreshToken?: string } {
   const cookies = req.cookies as Record<string, unknown>;
   const access = cookies[ACCESS_COOKIE];

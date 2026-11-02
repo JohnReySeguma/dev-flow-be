@@ -6,6 +6,7 @@ import swaggerUi from "swagger-ui-express";
 import type { Env } from "./config/env.js";
 import type { Features } from "./config/features.js";
 import type { EmailProvider } from "./integrations/email/index.js";
+import { createOAuthProviders } from "./integrations/oauth/index.js";
 import type { Logger } from "./lib/logger.js";
 import type { PrismaClient } from "./lib/prisma.js";
 import type { Redis } from "./lib/redis.js";
@@ -17,6 +18,7 @@ import { createAccessTokens } from "./modules/auth/access-token.js";
 import { createAuthRepository } from "./modules/auth/auth.repository.js";
 import { createAuthRouter } from "./modules/auth/auth.routes.js";
 import { createAuthService } from "./modules/auth/auth.service.js";
+import { createOAuthService } from "./modules/auth/oauth.service.js";
 import { createPasswordResetService } from "./modules/auth/password-reset.service.js";
 import { createConfigRouter } from "./modules/config/config.routes.js";
 import { createHealthRouter } from "./modules/health/health.routes.js";
@@ -34,10 +36,12 @@ export type AppDeps = {
   /** Null when REDIS_URL is not set. */
   redis: Redis | null;
   email: EmailProvider;
+  /** Used for OAuth provider calls; tests replace it. */
+  fetch?: typeof fetch;
 };
 
 /** Builds the Express app. It never listens, so tests can drive it with Supertest. */
-export function createApp({ env, features, logger, prisma, redis, email }: AppDeps): Express {
+export function createApp({ env, features, logger, prisma, redis, email, fetch: fetchImpl }: AppDeps): Express {
   const app = express();
 
   app.use(requestLogger(logger));
@@ -58,13 +62,25 @@ export function createApp({ env, features, logger, prisma, redis, email }: AppDe
     logger,
   });
   const passwords = createPasswordResetService({ users, sessions, email, logger, frontendUrl: env.CORS_ORIGIN });
+  const oauth = createOAuthService({
+    providers: createOAuthProviders(env, fetchImpl),
+    auth,
+    users,
+    sessions,
+    secret: env.JWT_SECRET,
+    apiUrl: env.API_URL,
+    logger,
+  });
   const authenticated = requireAuth(auth);
 
   const api = express.Router();
   api.use(originCheck(env.CORS_ORIGIN));
   api.use("/health", createHealthRouter({ prisma, redis }));
   api.use("/config", createConfigRouter({ features }));
-  api.use("/auth", createAuthRouter({ auth, passwords, requireAuth: authenticated }));
+  api.use(
+    "/auth",
+    createAuthRouter({ auth, passwords, oauth, frontendUrl: env.CORS_ORIGIN, requireAuth: authenticated }),
+  );
 
   const openApi = buildOpenApiDocument();
   api.get("/openapi.json", (_req, res) => {

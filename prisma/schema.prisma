@@ -53,6 +53,7 @@ model User {
   workspace           Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   sessions            Session[]
   passwordResetTokens PasswordResetToken[]
+  oauthAccounts       OAuthAccount[]
 
   @@index([workspaceId])
   @@map("users")
@@ -103,4 +104,24 @@ model PasswordResetToken {
 
   @@index([userId])
   @@map("password_reset_tokens")
+}
+
+enum OAuthProvider {
+  github
+  google
+}
+
+/// A GitHub or Google identity linked to a user; one user can link both.
+model OAuthAccount {
+  id                String        @id @default(uuid(7)) @db.Uuid
+  userId            String        @map("user_id") @db.Uuid
+  provider          OAuthProvider
+  providerAccountId String        @map("provider_account_id")
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("oauth_accounts")
 }

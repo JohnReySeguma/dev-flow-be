@@ -14,6 +14,8 @@ export const envSchema = z
     CORS_ORIGIN: z
       .url({ error: "must be the frontend URL, e.g. http://localhost:3000" })
       .default("http://localhost:3000"),
+    /** Public base URL of this API, used for OAuth callback URLs. */
+    API_URL: z.url({ error: "must be the API base URL, e.g. http://localhost:4000" }).default("http://localhost:4000"),
     JWT_SECRET: z.string({ error: "is required" }).min(32, "must be at least 32 characters"),
     SEED_DEMO_DATA: booleanString.default(true),
 
