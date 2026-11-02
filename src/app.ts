@@ -36,6 +36,9 @@ import { createIssuesService } from "./modules/issues/issues.service.js";
 import { createProjectsRepository } from "./modules/projects/projects.repository.js";
 import { createProjectsRouter } from "./modules/projects/projects.routes.js";
 import { createProjectsService } from "./modules/projects/projects.service.js";
+import { createSprintsRepository } from "./modules/sprints/sprints.repository.js";
+import { createProjectSprintsRouter, createSprintsRouter } from "./modules/sprints/sprints.routes.js";
+import { createSprintsService } from "./modules/sprints/sprints.service.js";
 import { createTokensRepository } from "./modules/tokens/tokens.repository.js";
 import { createTokensRouter } from "./modules/tokens/tokens.routes.js";
 import { createTokensService } from "./modules/tokens/tokens.service.js";
@@ -108,6 +111,7 @@ export function createApp({ env, features, logger, prisma, redis, email, fetch: 
   });
   const projects = createProjectsService({ projects: createProjectsRepository(prisma) });
   const issues = createIssuesService({ issues: createIssuesRepository(prisma), projects });
+  const sprints = createSprintsService({ sprints: createSprintsRepository(prisma), projects });
   const invites = createInvitesService({ workspaces, auth, users, email, logger, frontendUrl: env.CORS_ORIGIN });
 
   const api = express.Router();
@@ -122,6 +126,8 @@ export function createApp({ env, features, logger, prisma, redis, email, fetch: 
     }),
   );
   api.use("/projects/:key/issues", createProjectIssuesRouter({ issues, requireAuth: authenticated }));
+  api.use("/projects/:key/sprints", createProjectSprintsRouter({ sprints, requireAuth: authenticated }));
+  api.use("/sprints", createSprintsRouter({ sprints, requireAuth: authenticated }));
   api.use(
     "/projects/:key/statuses",
     createWorkflowRouter({
