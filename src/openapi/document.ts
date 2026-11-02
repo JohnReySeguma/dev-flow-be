@@ -7,6 +7,7 @@ import { registerIssuesDocs } from "../modules/issues/issues.openapi.js";
 import { registerProjectsDocs } from "../modules/projects/projects.openapi.js";
 import { registerTokensDocs } from "../modules/tokens/tokens.openapi.js";
 import { registerUsersDocs } from "../modules/users/users.openapi.js";
+import { registerWorkflowDocs } from "../modules/workflow/workflow.openapi.js";
 import { registerWorkspaceDocs } from "../modules/workspace/workspace.openapi.js";
 
 /** Assembles the OpenAPI 3.1 document from every module's Zod schemas. */
@@ -33,6 +34,7 @@ export function buildOpenApiDocument() {
   registerWorkspaceDocs(registry);
   registerProjectsDocs(registry);
   registerIssuesDocs(registry);
+  registerWorkflowDocs(registry);
 
   return new OpenApiGeneratorV31(registry.definitions).generateDocument({
     openapi: "3.1.0",

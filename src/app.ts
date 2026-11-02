@@ -36,6 +36,9 @@ import { createMeRouter } from "./modules/users/users.routes.js";
 import { createUsersService } from "./modules/users/users.service.js";
 import { createInviteAcceptRouter } from "./modules/workspace/invites.routes.js";
 import { createInvitesService } from "./modules/workspace/invites.service.js";
+import { createWorkflowRepository } from "./modules/workflow/workflow.repository.js";
+import { createWorkflowRouter } from "./modules/workflow/workflow.routes.js";
+import { createWorkflowService } from "./modules/workflow/workflow.service.js";
 import { createWorkspaceRepository } from "./modules/workspace/workspace.repository.js";
 import { createWorkspaceRouter } from "./modules/workspace/workspace.routes.js";
 import { createWorkspaceService } from "./modules/workspace/workspace.service.js";
@@ -97,6 +100,13 @@ export function createApp({ env, features, logger, prisma, redis, email, fetch: 
   const projects = createProjectsService({ projects: createProjectsRepository(prisma) });
   const issues = createIssuesService({ issues: createIssuesRepository(prisma), projects });
   api.use("/projects/:key/issues", createProjectIssuesRouter({ issues, requireAuth: authenticated }));
+  api.use(
+    "/projects/:key/statuses",
+    createWorkflowRouter({
+      workflow: createWorkflowService({ workflow: createWorkflowRepository(prisma), projects }),
+      requireAuth: authenticated,
+    }),
+  );
   api.use("/projects", createProjectsRouter({ projects, requireAuth: authenticated }));
   api.use("/issues", createIssuesRouter({ issues, requireAuth: authenticated }));
 

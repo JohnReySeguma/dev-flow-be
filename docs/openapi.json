@@ -80,6 +80,7 @@
               "SPRINT_ALREADY_ACTIVE",
               "SPRINT_NOT_PLANNED",
               "STATUS_DELETE_BLOCKED",
+              "STATUS_UPDATE_BLOCKED",
               "LAST_ADMIN",
               "ALREADY_MEMBER",
               "CONFLICT_STALE",
@@ -1486,6 +1487,78 @@
         "example": {
           "priority": "high",
           "estimate": 8
+        }
+      },
+      "AddStatusRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "todo",
+              "in_progress",
+              "done"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "category"
+        ],
+        "example": {
+          "name": "QA",
+          "category": "in_progress"
+        }
+      },
+      "UpdateStatusRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "todo",
+              "in_progress",
+              "done"
+            ]
+          }
+        },
+        "example": {
+          "category": "done"
+        }
+      },
+      "ReorderStatusesRequest": {
+        "type": "object",
+        "properties": {
+          "statusIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "statusIds"
+        ],
+        "description": "Every status id of the project, exactly once, in the new left-to-right order.",
+        "example": {
+          "statusIds": [
+            "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e21",
+            "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e23",
+            "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e22",
+            "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e24"
+          ]
         }
       }
     },
@@ -3314,6 +3387,260 @@
         "responses": {
           "204": {
             "description": "Deleted."
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{key}/statuses": {
+      "post": {
+        "tags": [
+          "Workflow"
+        ],
+        "summary": "Add a status (board column)",
+        "description": "Admins only; tokens need projects:admin. Inserted before the first done status, unless its category is done (then last).",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "DEV"
+            },
+            "required": true,
+            "name": "key",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The project with its updated workflow.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{key}/statuses/{id}": {
+      "patch": {
+        "tags": [
+          "Workflow"
+        ],
+        "summary": "Rename a status or change its category",
+        "description": "Admins only. Changing into or out of done sets or clears resolvedAt on its issues. 409 STATUS_UPDATE_BLOCKED when it would leave the workflow without a to-do or done status.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "DEV"
+            },
+            "required": true,
+            "name": "key",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The project with its updated workflow.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Workflow"
+        ],
+        "summary": "Delete a status",
+        "description": "Admins only. Moves its issues to ?moveTo= (required when it has issues), then deletes it. 409 STATUS_DELETE_BLOCKED keeps at least two statuses and at least one to-do and one done status.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "DEV"
+            },
+            "required": true,
+            "name": "key",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Status that receives the deleted status's issues. Required when it has issues."
+            },
+            "required": false,
+            "description": "Status that receives the deleted status's issues. Required when it has issues.",
+            "name": "moveTo",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The project with its updated workflow.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{key}/statuses/order": {
+      "put": {
+        "tags": [
+          "Workflow"
+        ],
+        "summary": "Reorder the workflow",
+        "description": "Admins only. 422 unless statusIds lists every status of the project exactly once.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "DEV"
+            },
+            "required": true,
+            "name": "key",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReorderStatusesRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The project with its updated workflow.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
           },
           "default": {
             "description": "Error, as RFC 9457 problem details.",

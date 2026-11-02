@@ -17,6 +17,7 @@ export function asBrowser(app: Express, cookie: string) {
     get: (path: string) => agent.get(path).set("Cookie", cookie),
     post: (path: string) => agent.post(path).set("Origin", FRONTEND_ORIGIN).set("Cookie", cookie),
     patch: (path: string) => agent.patch(path).set("Origin", FRONTEND_ORIGIN).set("Cookie", cookie),
+    put: (path: string) => agent.put(path).set("Origin", FRONTEND_ORIGIN).set("Cookie", cookie),
     delete: (path: string) => agent.delete(path).set("Origin", FRONTEND_ORIGIN).set("Cookie", cookie),
   };
 }
