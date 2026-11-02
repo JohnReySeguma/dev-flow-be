@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createApp } from "./app.js";
 import { parseEnv } from "./config/env.js";
 import { resolveFeatures } from "./config/features.js";
+import { createConsoleEmailProvider } from "./integrations/email/console.provider.js";
 import { createLogger } from "./lib/logger.js";
 import type { PrismaClient } from "./lib/prisma.js";
 
@@ -19,6 +20,7 @@ const app = createApp({
   logger: createLogger(env),
   prisma: {} as PrismaClient,
   redis: null,
+  email: createConsoleEmailProvider(createLogger(env)),
 });
 
 describe("createApp", () => {

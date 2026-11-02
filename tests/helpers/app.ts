@@ -3,6 +3,7 @@ import { resolveFeatures } from "../../src/config/features.js";
 import { createLogger } from "../../src/lib/logger.js";
 import { createPrismaClient } from "../../src/lib/prisma.js";
 import { createRedisClient } from "../../src/lib/redis.js";
+import { createMemoryEmailProvider } from "./email.js";
 import { testEnv } from "./env.js";
 
 /** The real app wired to the test database (and Redis when configured). Call `close()` in afterAll. */
@@ -11,12 +12,13 @@ export function createTestApp() {
   const logger = createLogger(env);
   const prisma = createPrismaClient(env.DATABASE_URL);
   const redis = createRedisClient(env.REDIS_URL, logger);
-  const app = createApp({ env, features: resolveFeatures(env), logger, prisma, redis });
+  const email = createMemoryEmailProvider();
+  const app = createApp({ env, features: resolveFeatures(env), logger, prisma, redis, email });
 
   async function close() {
     await prisma.$disconnect();
     redis?.disconnect();
   }
 
-  return { app, env, prisma, close };
+  return { app, env, prisma, email, close };
 }

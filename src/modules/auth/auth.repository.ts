@@ -33,6 +33,25 @@ export function createAuthRepository(prisma: PrismaClient) {
 
     addRefreshToken: (sessionId: string, tokenHash: string) =>
       prisma.refreshToken.create({ data: { sessionId, tokenHash } }),
+
+    revokeAllSessions: (userId: string, at: Date) =>
+      prisma.session.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: at } }),
+
+    /** Issues a reset token and invalidates any earlier unused one, so only the newest link works. */
+    createPasswordResetToken: (data: { userId: string; tokenHash: string; expiresAt: Date }) =>
+      prisma.$transaction([
+        prisma.passwordResetToken.updateMany({
+          where: { userId: data.userId, usedAt: null },
+          data: { usedAt: new Date() },
+        }),
+        prisma.passwordResetToken.create({ data }),
+      ]),
+
+    findPasswordResetToken: (tokenHash: string) => prisma.passwordResetToken.findUnique({ where: { tokenHash } }),
+
+    /** Atomic, like refresh tokens: a reset link can be used once. */
+    claimPasswordResetToken: async (id: string, at: Date): Promise<boolean> =>
+      (await prisma.passwordResetToken.updateMany({ where: { id, usedAt: null }, data: { usedAt: at } })).count === 1,
   };
 }
 

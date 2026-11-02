@@ -2,13 +2,14 @@ import type { Request, RequestHandler } from "express";
 import { AppError } from "../../lib/errors.js";
 import { authOf } from "../../middleware/require-auth.js";
 import { clearSessionCookies, readSessionCookies, setSessionCookies } from "./auth.cookies.js";
-import type { LoginInput, SignupInput } from "./auth.schemas.js";
+import type { ForgotPasswordInput, LoginInput, ResetPasswordInput, SignupInput } from "./auth.schemas.js";
 import type { AuthService } from "./auth.service.js";
 import type { RequestMeta } from "./auth.types.js";
+import type { PasswordResetService } from "./password-reset.service.js";
 
 const metaOf = (req: Request): RequestMeta => ({ userAgent: req.get("user-agent") });
 
-export function createAuthController(auth: AuthService) {
+export function createAuthController(auth: AuthService, passwords: PasswordResetService) {
   const signup: RequestHandler = async (req, res) => {
     const { session, me } = await auth.signup(req.body as SignupInput, metaOf(req));
     setSessionCookies(res, session);
@@ -40,9 +41,21 @@ export function createAuthController(auth: AuthService) {
     res.status(204).end();
   };
 
+  const forgotPassword: RequestHandler = (req, res) => {
+    // Not awaited on purpose: the answer must not depend on whether the account exists.
+    void passwords.requestReset((req.body as ForgotPasswordInput).email);
+    res.status(202).end();
+  };
+
+  const resetPassword: RequestHandler = async (req, res) => {
+    const { token, password } = req.body as ResetPasswordInput;
+    await passwords.reset(token, password);
+    res.status(204).end();
+  };
+
   const me: RequestHandler = async (req, res) => {
     res.set("Cache-Control", "no-store").json(await auth.me(authOf(req).userId));
   };
 
-  return { signup, login, refresh, logout, me };
+  return { signup, login, refresh, logout, forgotPassword, resetPassword, me };
 }

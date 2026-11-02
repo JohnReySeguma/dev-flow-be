@@ -1,6 +1,6 @@
 import type { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 import { problemResponse } from "../../openapi/problem.js";
-import { authMeResponse, loginBody, signupBody } from "./auth.schemas.js";
+import { authMeResponse, forgotPasswordBody, loginBody, resetPasswordBody, signupBody } from "./auth.schemas.js";
 
 const setsSessionCookies = {
   "Set-Cookie": {
@@ -59,6 +59,28 @@ export function registerAuthDocs(registry: OpenAPIRegistry) {
     summary: "Sign out",
     description: "Revokes the current session and clears both cookies. Succeeds even when already signed out.",
     responses: { 204: { description: "Signed out." }, default: problemResponse },
+  });
+  registry.registerPath({
+    method: "post",
+    path: "/auth/password/forgot",
+    tags: ["Auth"],
+    summary: "Email a password reset link",
+    description:
+      "Always 202, whether or not the account exists. The email links to {CORS_ORIGIN}/reset-password?token=…; " +
+      "the link works once and expires after 60 minutes.",
+    request: { body: json(forgotPasswordBody) },
+    responses: { 202: { description: "Accepted." }, default: problemResponse },
+  });
+  registry.registerPath({
+    method: "post",
+    path: "/auth/password/reset",
+    tags: ["Auth"],
+    summary: "Set a new password with the emailed token",
+    description:
+      "Signs the account out on every device; the user then signs in with the new password. " +
+      "Errors: 400 RESET_TOKEN_INVALID, 422 VALIDATION_FAILED.",
+    request: { body: json(resetPasswordBody) },
+    responses: { 204: { description: "Password changed." }, default: problemResponse },
   });
   registry.registerPath({
     method: "get",

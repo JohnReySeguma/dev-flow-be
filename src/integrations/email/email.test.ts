@@ -33,3 +33,20 @@ describe("smtp email provider", () => {
     expect(sendMail).toHaveBeenCalledWith({ from: "DevFlow <no-reply@devflow.local>", ...message });
   });
 });
+
+describe("password reset email", () => {
+  it("links to the reset page and escapes the name in HTML", async () => {
+    const { passwordResetEmail } = await import("./templates.js");
+
+    const mail = passwordResetEmail({
+      to: "ada@acme.dev",
+      name: "<Ada>",
+      link: "http://localhost:3000/reset-password?token=abc",
+      expiresInMinutes: 60,
+    });
+
+    expect(mail.text).toContain("http://localhost:3000/reset-password?token=abc");
+    expect(mail.html).toContain("&#60;Ada&#62;");
+    expect(mail.html).not.toContain("<Ada>");
+  });
+});

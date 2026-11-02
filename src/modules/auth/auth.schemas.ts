@@ -7,11 +7,13 @@ const email = z
   .toLowerCase()
   .pipe(z.email({ error: "Enter a valid email address." }).max(254));
 
+const newPassword = z.string().min(8, "Use at least 8 characters.").max(128, "Use at most 128 characters.");
+
 export const signupBody = z
   .object({
     name: z.string().trim().min(1, "Tell us what to call you.").max(48, "Use at most 48 characters."),
     email,
-    password: z.string().min(8, "Use at least 8 characters.").max(128, "Use at most 128 characters."),
+    password: newPassword,
   })
   .meta({
     id: "SignupRequest",
@@ -21,6 +23,17 @@ export const signupBody = z
 export const loginBody = z
   .object({ email, password: z.string().min(1, "Password is required.").max(128) })
   .meta({ id: "LoginRequest", example: { email: "demo@devflow.local", password: "devflow-demo" } });
+
+export const forgotPasswordBody = z
+  .object({ email })
+  .meta({ id: "ForgotPasswordRequest", example: { email: "demo@devflow.local" } });
+
+export const resetPasswordBody = z
+  .object({ token: z.string().min(1, "The reset token is missing.").max(256), password: newPassword })
+  .meta({
+    id: "ResetPasswordRequest",
+    example: { token: "Zq3nXl0w8bJ7r2mYc5dV1aKf9sHt4uPo6eLgQiWjNxE", password: "a new long password" },
+  });
 
 export const authMeResponse = z
   .object({
@@ -37,4 +50,6 @@ export const authMeResponse = z
 
 export type SignupInput = z.infer<typeof signupBody>;
 export type LoginInput = z.infer<typeof loginBody>;
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordBody>;
+export type ResetPasswordInput = z.infer<typeof resetPasswordBody>;
 export type AuthMe = z.infer<typeof authMeResponse>;
