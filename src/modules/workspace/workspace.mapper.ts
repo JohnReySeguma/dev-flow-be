@@ -1,18 +1,19 @@
-import type { User, WorkspaceInvite } from "../../generated/prisma/client.js";
+import type { WorkspaceInvite } from "../../generated/prisma/client.js";
 import { initialsOf } from "../users/users.mapper.js";
+import type { Member } from "./workspace.repository.js";
 import type { TeamMember } from "./workspace.schemas.js";
 
 /** The neutral avatar the frontend shows for pending invites. */
 export const INVITE_GRADIENT = "from-zinc-600 to-zinc-700";
 
-export function memberFromUser(user: User): TeamMember {
+export function memberFromMembership({ user, role }: Member): TeamMember {
   return {
     id: user.id,
     name: user.name,
     email: user.email,
     initials: initialsOf(user.name),
     gradient: user.gradient,
-    role: user.role,
+    role,
     status: "active",
     lastActiveAt: user.lastActiveAt?.toISOString() ?? null,
   };

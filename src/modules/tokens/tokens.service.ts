@@ -31,10 +31,15 @@ export function createTokensService(tokens: TokensRepository) {
     },
 
     /** Returns the secret exactly once; only its hash is stored. */
-    async create(userId: string, input: CreateTokenInput): Promise<{ token: AccessTokenView; secret: string }> {
+    /** The token works only in `workspaceId`, the workspace it was created in. */
+    async create(
+      auth: { userId: string; workspaceId: string },
+      input: CreateTokenInput,
+    ): Promise<{ token: AccessTokenView; secret: string }> {
       const secret = `${TOKEN_PREFIX}${randomToken(30)}`;
       const token = await tokens.create({
-        userId,
+        userId: auth.userId,
+        workspaceId: auth.workspaceId,
         name: input.name,
         tokenHash: sha256(secret),
         lastFour: secret.slice(-4),
@@ -50,18 +55,23 @@ export function createTokensService(tokens: TokensRepository) {
       }
     },
 
-    /** Resolves a bearer secret to its owner; expired or unknown tokens are rejected. */
+    /**
+     * Resolves a bearer secret to its owner in the token's workspace; expired or unknown tokens,
+     * and tokens whose owner has left that workspace, are rejected.
+     */
     async authenticate(secret: string): Promise<AuthContext> {
       const now = new Date();
       const token = secret.startsWith(TOKEN_PREFIX) ? await tokens.findByHash(sha256(secret)) : null;
       if (!token) throw new AppError("UNAUTHENTICATED", "Invalid access token.");
       if (token.expiresAt && token.expiresAt <= now)
         throw new AppError("UNAUTHENTICATED", "This access token has expired.");
+      const membership = await tokens.findOwnerMembership(token.workspaceId, token.userId);
+      if (!membership) throw new AppError("UNAUTHENTICATED", "Invalid access token.");
       await tokens.touchLastUsed(token.id, now);
       return {
         userId: token.userId,
-        workspaceId: token.user.workspaceId,
-        role: token.user.role,
+        workspaceId: token.workspaceId,
+        role: membership.role,
         via: "token",
         tokenId: token.id,
         scopes: toView(token).scopes,

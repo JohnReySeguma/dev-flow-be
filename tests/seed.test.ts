@@ -1,6 +1,6 @@
 import request from "supertest";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { DEMO_MEMBERS, DEMO_PASSWORD, DEMO_WORKSPACE_NAME, seed } from "../prisma/seed.js";
+import { DEMO_MEMBERS, DEMO_PASSWORD, DEMO_WORKSPACE_NAME, DEMO_WORKSPACE_SLUG, seed } from "../prisma/seed.js";
 import { DEMO_ISSUES } from "../src/demo/tracker-data.js";
 import { createLogger } from "../src/lib/logger.js";
 import { createTestApp } from "./helpers/app.js";
@@ -18,8 +18,11 @@ describe("seed", () => {
   it("creates the demo workspace and the frontend's team", async () => {
     expect(await seed(prisma, logger)).toBe(true);
 
-    expect(await prisma.workspace.findMany({ select: { name: true } })).toEqual([{ name: DEMO_WORKSPACE_NAME }]);
-    const users = await prisma.user.findMany({ select: { email: true, role: true }, orderBy: { email: "asc" } });
+    expect(await prisma.workspace.findMany({ select: { name: true, slug: true, isDemo: true } })).toEqual([
+      { name: DEMO_WORKSPACE_NAME, slug: DEMO_WORKSPACE_SLUG, isDemo: true },
+    ]);
+    const members = await prisma.workspaceMember.findMany({ include: { user: true } });
+    const users = members.map((m) => ({ email: m.user.email, role: m.role }));
     expect(users).toHaveLength(DEMO_MEMBERS.length);
     expect(users).toEqual(
       expect.arrayContaining([

@@ -9,6 +9,7 @@ export function createTokensRepository(prisma: PrismaClient) {
   return {
     create: (data: {
       userId: string;
+      workspaceId: string;
       name: string;
       tokenHash: string;
       lastFour: string;
@@ -24,7 +25,11 @@ export function createTokensRepository(prisma: PrismaClient) {
         take: limit + 1,
       }),
 
-    findByHash: (tokenHash: string) => prisma.accessToken.findUnique({ where: { tokenHash }, include: { user: true } }),
+    findByHash: (tokenHash: string) => prisma.accessToken.findUnique({ where: { tokenHash } }),
+
+    /** The owner's role in the token's workspace, or null once they are no longer a member. */
+    findOwnerMembership: (workspaceId: string, userId: string) =>
+      prisma.workspaceMember.findUnique({ where: { workspaceId_userId: { workspaceId, userId } } }),
 
     /** Returns false when no token with that id belongs to the user. */
     deleteForUser: async (userId: string, id: string): Promise<boolean> =>

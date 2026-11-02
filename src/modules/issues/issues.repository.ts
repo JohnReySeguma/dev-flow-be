@@ -199,7 +199,7 @@ function repository(db: Db) {
       db.sprint.findFirst({ where: { projectId, status: "active" } }),
 
     isWorkspaceMember: async (workspaceId: string, userId: string) =>
-      (await db.user.count({ where: { id: userId, workspaceId } })) === 1,
+      (await db.workspaceMember.count({ where: { workspaceId, userId } })) === 1,
   };
 }
 
