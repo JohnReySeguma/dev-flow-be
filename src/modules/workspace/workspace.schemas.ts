@@ -45,6 +45,18 @@ export const changeRoleBody = z
   .object({ role: roleSchema })
   .meta({ id: "ChangeRoleRequest", example: { role: "viewer" } });
 
+export const inviteBody = z
+  .object({
+    email: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .pipe(z.email({ error: "Enter a valid email address." }).max(254)),
+    role: roleSchema,
+  })
+  .meta({ id: "InviteRequest", example: { email: "grace@acme.dev", role: "member" } });
+
 export type WorkspaceView = z.infer<typeof workspaceResponse>;
+export type InviteInput = z.infer<typeof inviteBody>;
 export type ChangeRoleInput = z.infer<typeof changeRoleBody>;
 export type TeamMember = z.infer<typeof teamMember>;

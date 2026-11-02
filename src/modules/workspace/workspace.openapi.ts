@@ -2,7 +2,7 @@ import type { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
 import { paginationQuery } from "../../lib/pagination.js";
 import { problemResponse } from "../../openapi/problem.js";
-import { changeRoleBody, teamMember, teamMemberPage, workspaceResponse } from "./workspace.schemas.js";
+import { changeRoleBody, inviteBody, teamMember, teamMemberPage, workspaceResponse } from "./workspace.schemas.js";
 
 const json = <T>(schema: T) => ({ content: { "application/json": { schema } } });
 const anyCaller = [{ cookieAuth: [] }, { bearerAuth: [] }];
@@ -49,5 +49,30 @@ export function registerWorkspaceDocs(registry: OpenAPIRegistry) {
     security: [{ cookieAuth: [] }],
     request: { params: z.object({ id: z.uuid() }) },
     responses: { 204: { description: "Removed." }, default: problemResponse },
+  });
+  registry.registerPath({
+    method: "post",
+    path: "/workspace/invites",
+    tags: ["Workspace"],
+    summary: "Invite someone by email",
+    description:
+      "Admins only, signed-in session only. Emails a single-use link to {CORS_ORIGIN}/invite?token=… that expires " +
+      "after 7 days. Errors: 409 ALREADY_MEMBER (already a member or already invited), 502 EMAIL_DELIVERY_FAILED " +
+      "(the invite is kept; use resend).",
+    security: [{ cookieAuth: [] }],
+    request: { body: json(inviteBody) },
+    responses: { 201: { description: "The pending invite.", ...json(teamMember) }, default: problemResponse },
+  });
+  registry.registerPath({
+    method: "post",
+    path: "/workspace/invites/{id}/resend",
+    tags: ["Workspace"],
+    summary: "Re-send an invite",
+    description:
+      "Admins only. Sends a new link valid for 7 days; earlier links stop working. 404 NOT_FOUND if the invite " +
+      "was accepted or revoked; 502 EMAIL_DELIVERY_FAILED.",
+    security: [{ cookieAuth: [] }],
+    request: { params: z.object({ id: z.uuid() }) },
+    responses: { 200: { description: "The pending invite.", ...json(teamMember) }, default: problemResponse },
   });
 }

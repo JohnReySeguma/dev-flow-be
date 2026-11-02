@@ -26,6 +26,7 @@ export const ERROR_CATALOGUE = {
   VALIDATION_FAILED: { status: 422, title: "Validation failed" },
   RATE_LIMITED: { status: 429, title: "Too many requests" },
   INTERNAL_ERROR: { status: 500, title: "Internal server error" },
+  EMAIL_DELIVERY_FAILED: { status: 502, title: "The email could not be sent" },
 } as const satisfies Record<string, { status: number; title: string }>;
 
 export type ErrorCode = keyof typeof ERROR_CATALOGUE;

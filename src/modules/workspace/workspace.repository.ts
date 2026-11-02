@@ -46,6 +46,22 @@ function repository(db: Db) {
     /** Deleting the user also ends their sessions and access tokens (cascade). */
     deleteMember: (id: string) => db.user.delete({ where: { id } }),
 
+    findInviteByEmail: (workspaceId: string, email: string): Promise<WorkspaceInvite | null> =>
+      db.workspaceInvite.findUnique({ where: { workspaceId_email: { workspaceId, email } } }),
+
+    createInvite: (data: {
+      workspaceId: string;
+      email: string;
+      role: Role;
+      tokenHash: string;
+      invitedById: string;
+      expiresAt: Date;
+    }): Promise<WorkspaceInvite> => db.workspaceInvite.create({ data }),
+
+    /** A new token and expiry: every earlier link for this invite stops working. */
+    rotateInviteToken: (id: string, tokenHash: string, expiresAt: Date): Promise<WorkspaceInvite> =>
+      db.workspaceInvite.update({ where: { id }, data: { tokenHash, expiresAt } }),
+
     setInviteRole: (id: string, role: Role): Promise<WorkspaceInvite> =>
       db.workspaceInvite.update({ where: { id }, data: { role } }),
     deleteInvite: (id: string) => db.workspaceInvite.delete({ where: { id } }),

@@ -23,6 +23,8 @@ describe("OpenAPI document", () => {
       "/me/tokens",
       "/me/tokens/{id}",
       "/workspace",
+      "/workspace/invites",
+      "/workspace/invites/{id}/resend",
       "/workspace/members",
       "/workspace/members/{id}",
     ]);

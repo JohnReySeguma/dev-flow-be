@@ -28,6 +28,7 @@ import { createTokensRouter } from "./modules/tokens/tokens.routes.js";
 import { createTokensService } from "./modules/tokens/tokens.service.js";
 import { createMeRouter } from "./modules/users/users.routes.js";
 import { createUsersService } from "./modules/users/users.service.js";
+import { createInvitesService } from "./modules/workspace/invites.service.js";
 import { createWorkspaceRepository } from "./modules/workspace/workspace.repository.js";
 import { createWorkspaceRouter } from "./modules/workspace/workspace.routes.js";
 import { createWorkspaceService } from "./modules/workspace/workspace.service.js";
@@ -90,6 +91,7 @@ export function createApp({ env, features, logger, prisma, redis, email, fetch: 
     "/workspace",
     createWorkspaceRouter({
       workspace: createWorkspaceService({ workspaces }),
+      invites: createInvitesService({ workspaces, users, email, logger, frontendUrl: env.CORS_ORIGIN }),
       requireAuth: authenticated,
       requireSession,
     }),

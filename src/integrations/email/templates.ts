@@ -20,3 +20,24 @@ export function passwordResetEmail(input: {
       `<p><a href="${escapeHtml(input.link)}">Choose a new password</a></p><p>${escapeHtml(ignore)}</p>`,
   };
 }
+
+export function inviteEmail(input: {
+  to: string;
+  inviterName: string | null;
+  workspaceName: string;
+  role: string;
+  link: string;
+  expiresInDays: number;
+}): EmailMessage {
+  const who = input.inviterName ?? "Someone";
+  const body = `${who} invited you to join ${input.workspaceName} on DevFlow as ${input.role === "admin" ? "an" : "a"} ${input.role}. The link works once and expires in ${input.expiresInDays} days.`;
+  const ignore = "If you weren't expecting this, you can ignore this email.";
+  return {
+    to: input.to,
+    subject: `Join ${input.workspaceName} on DevFlow`,
+    text: `${body}\n\n${input.link}\n\n${ignore}\n`,
+    html:
+      `<p>${escapeHtml(body)}</p>` +
+      `<p><a href="${escapeHtml(input.link)}">Accept the invitation</a></p><p>${escapeHtml(ignore)}</p>`,
+  };
+}

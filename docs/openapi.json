@@ -85,7 +85,8 @@
               "PAYLOAD_TOO_LARGE",
               "VALIDATION_FAILED",
               "RATE_LIMITED",
-              "INTERNAL_ERROR"
+              "INTERNAL_ERROR",
+              "EMAIL_DELIVERY_FAILED"
             ],
             "description": "Stable machine-readable code; see docs/INTEGRATION.md."
           },
@@ -779,6 +780,30 @@
         ],
         "example": {
           "role": "viewer"
+        }
+      },
+      "InviteRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "member",
+              "viewer"
+            ]
+          }
+        },
+        "required": [
+          "email",
+          "role"
+        ],
+        "example": {
+          "email": "grace@acme.dev",
+          "role": "member"
         }
       }
     },
@@ -1680,6 +1705,98 @@
         "responses": {
           "204": {
             "description": "Removed."
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspace/invites": {
+      "post": {
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "Invite someone by email",
+        "description": "Admins only, signed-in session only. Emails a single-use link to {CORS_ORIGIN}/invite?token=… that expires after 7 days. Errors: 409 ALREADY_MEMBER (already a member or already invited), 502 EMAIL_DELIVERY_FAILED (the invite is kept; use resend).",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The pending invite.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamMember"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspace/invites/{id}/resend": {
+      "post": {
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "Re-send an invite",
+        "description": "Admins only. Sends a new link valid for 7 days; earlier links stop working. 404 NOT_FOUND if the invite was accepted or revoked; 502 EMAIL_DELIVERY_FAILED.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The pending invite.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamMember"
+                }
+              }
+            }
           },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
