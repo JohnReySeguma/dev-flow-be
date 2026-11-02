@@ -40,6 +40,20 @@ export function registerAuthDocs(registry: OpenAPIRegistry) {
   });
   registry.registerPath({
     method: "post",
+    path: "/auth/refresh",
+    tags: ["Auth"],
+    summary: "Rotate the session tokens",
+    description:
+      "Uses the devflow_refresh cookie. Call once after a 401 TOKEN_EXPIRED, then retry the request. " +
+      "Each refresh token works once: reusing one revokes the whole session, so never run two refreshes at the same time. " +
+      "401 UNAUTHENTICATED → signed out (both cookies are cleared).",
+    responses: {
+      204: { description: "New cookies set.", headers: setsSessionCookies },
+      default: problemResponse,
+    },
+  });
+  registry.registerPath({
+    method: "post",
     path: "/auth/logout",
     tags: ["Auth"],
     summary: "Sign out",

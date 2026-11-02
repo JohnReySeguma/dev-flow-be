@@ -20,6 +20,19 @@ export function createAuthRepository(prisma: PrismaClient) {
 
     revokeSession: (id: string, at: Date) =>
       prisma.session.updateMany({ where: { id, revokedAt: null }, data: { revokedAt: at } }),
+
+    findRefreshToken: (tokenHash: string) =>
+      prisma.refreshToken.findUnique({ where: { tokenHash }, include: { session: true } }),
+
+    /**
+     * Marks a refresh token as used. Atomic: of two concurrent claims only one succeeds,
+     * so a token can never be exchanged twice. Returns false if it was already used.
+     */
+    claimRefreshToken: async (id: string, at: Date): Promise<boolean> =>
+      (await prisma.refreshToken.updateMany({ where: { id, usedAt: null }, data: { usedAt: at } })).count === 1,
+
+    addRefreshToken: (sessionId: string, tokenHash: string) =>
+      prisma.refreshToken.create({ data: { sessionId, tokenHash } }),
   };
 }
 

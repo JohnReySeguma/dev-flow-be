@@ -10,6 +10,7 @@ describe("OpenAPI document", () => {
       "/auth/login",
       "/auth/logout",
       "/auth/me",
+      "/auth/refresh",
       "/auth/signup",
       "/config",
       "/health",

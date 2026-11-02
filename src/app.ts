@@ -50,6 +50,7 @@ export function createApp({ env, features, logger, prisma, redis }: AppDeps): Ex
     workspaces: createWorkspaceRepository(prisma),
     sessions: createAuthRepository(prisma),
     accessTokens: createAccessTokens(env.JWT_SECRET),
+    logger,
   });
   const authenticated = requireAuth(auth);
 

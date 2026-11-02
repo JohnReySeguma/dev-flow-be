@@ -142,3 +142,51 @@ describe("POST /api/v1/auth/logout", () => {
     expect(res.status).toBe(204);
   });
 });
+
+describe("POST /api/v1/auth/refresh", () => {
+  const refresh = (cookie?: string) => {
+    const req = request(app).post("/api/v1/auth/refresh").set("Origin", FRONTEND_ORIGIN);
+    return cookie ? req.set("Cookie", cookie) : req;
+  };
+
+  it("rotates both tokens; the new session works and the old refresh token does not", async () => {
+    const original = sessionCookieHeader(await signup());
+
+    const rotated = await refresh(original);
+
+    expect(rotated.status).toBe(204);
+    const next = sessionCookieHeader(rotated);
+    expect(next).not.toBe(original);
+    expect((await me(next)).status).toBe(200);
+  });
+
+  it("revokes the whole session when a used refresh token comes back", async () => {
+    const original = sessionCookieHeader(await signup());
+    const next = sessionCookieHeader(await refresh(original));
+
+    const replay = await refresh(original);
+
+    expect(replay.status).toBe(401);
+    expect(replay.body.code).toBe("UNAUTHENTICATED");
+    expect(setCookies(replay).devflow_refresh?.value).toBe("");
+    // The legitimate holder of the newest tokens is signed out too.
+    expect((await refresh(next)).status).toBe(401);
+    expect((await me(next)).body.code).toBe("UNAUTHENTICATED");
+  });
+
+  it("lets only one of two concurrent refreshes win", async () => {
+    const original = sessionCookieHeader(await signup());
+
+    const results = await Promise.all([refresh(original), refresh(original)]);
+
+    expect(results.map((r) => r.status).sort()).toEqual([204, 401]);
+  });
+
+  it("is 401 without a refresh cookie or after logout", async () => {
+    const cookie = sessionCookieHeader(await signup());
+    await request(app).post("/api/v1/auth/logout").set("Origin", FRONTEND_ORIGIN).set("Cookie", cookie);
+
+    expect((await refresh()).status).toBe(401);
+    expect((await refresh(cookie)).status).toBe(401);
+  });
+});

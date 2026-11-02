@@ -10,6 +10,7 @@ export function createAuthRouter(deps: { auth: AuthService; requireAuth: Request
   const router = Router();
   router.post("/signup", validate({ body: signupBody }), controller.signup);
   router.post("/login", validate({ body: loginBody }), controller.login);
+  router.post("/refresh", controller.refresh);
   router.post("/logout", controller.logout);
   router.get("/me", deps.requireAuth, controller.me);
   return router;

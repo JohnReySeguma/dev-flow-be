@@ -2,6 +2,7 @@ import type { Role, User } from "../../generated/prisma/client.js";
 import { Prisma } from "../../generated/prisma/client.js";
 import { randomToken, sha256 } from "../../lib/crypto.js";
 import { AppError } from "../../lib/errors.js";
+import type { Logger } from "../../lib/logger.js";
 import { hashPassword, verifyPassword } from "../../lib/password.js";
 import { gradientFor, handleBase, toProfile } from "../users/users.mapper.js";
 import type { UsersRepository } from "../users/users.repository.js";
@@ -22,12 +23,13 @@ type Deps = {
   workspaces: WorkspaceRepository;
   sessions: AuthRepository;
   accessTokens: AccessTokens;
+  logger: Logger;
 };
 
 const isUniqueViolation = (error: unknown) =>
   error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 
-export function createAuthService({ users, workspaces, sessions, accessTokens }: Deps) {
+export function createAuthService({ users, workspaces, sessions, accessTokens, logger }: Deps) {
   async function uniqueHandle(email: string): Promise<string> {
     const base = handleBase(email);
     for (let suffix = 1; ; suffix++) {
@@ -98,6 +100,32 @@ export function createAuthService({ users, workspaces, sessions, accessTokens }:
         throw new AppError("INVALID_CREDENTIALS");
       }
       return { session: await issueSession(user, meta), me: await me(user.id) };
+    },
+
+    /**
+     * Exchanges a refresh token for a new access token and a new refresh token. A token that
+     * was already used means it leaked (or two tabs raced): the whole session is revoked.
+     */
+    async refresh(refreshToken: string): Promise<IssuedSession> {
+      const now = new Date();
+      const token = await sessions.findRefreshToken(sha256(refreshToken));
+      if (!token) throw new AppError("UNAUTHENTICATED");
+      if (!(await sessions.claimRefreshToken(token.id, now))) {
+        await sessions.revokeSession(token.sessionId, now);
+        logger.warn({ sessionId: token.sessionId }, "refresh token reused: session revoked");
+        throw new AppError("UNAUTHENTICATED");
+      }
+      const { session } = token;
+      if (session.revokedAt || session.expiresAt <= now) throw new AppError("UNAUTHENTICATED");
+
+      const next = randomToken();
+      await sessions.addRefreshToken(session.id, sha256(next));
+      await users.touchLastActive(session.userId, now);
+      return {
+        accessToken: accessTokens.sign({ userId: session.userId, sessionId: session.id }),
+        refreshToken: next,
+        expiresAt: session.expiresAt,
+      };
     },
 
     /** Revokes the session behind either cookie. Idempotent: signing out twice is fine. */
