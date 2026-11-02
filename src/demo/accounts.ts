@@ -3,6 +3,7 @@ import { randomToken, sha256 } from "../lib/crypto.js";
 
 /** Demo workspace from the frontend (components/settings/settings-view.tsx). */
 export const DEMO_WORKSPACE_NAME = "Acme Inc";
+export const DEMO_WORKSPACE_SLUG = "acme-inc";
 
 /** Shared by every demo account. Seed-only: never set on a database without SEED_DEMO_DATA. */
 export const DEMO_PASSWORD = "devflow-demo";
@@ -111,12 +112,19 @@ export async function seedAccounts(
   now: number,
 ): Promise<{ workspaceId: string; users: Record<MemberRef, string> }> {
   const at = (msAgo: number) => new Date(now - msAgo);
-  const workspace = await tx.workspace.create({ data: { name: DEMO_WORKSPACE_NAME } });
+  const workspace = await tx.workspace.create({
+    data: { name: DEMO_WORKSPACE_NAME, slug: DEMO_WORKSPACE_SLUG, isDemo: true },
+  });
 
   const users = {} as Record<MemberRef, string>;
-  for (const { ref, lastActive, ...member } of DEMO_MEMBERS) {
+  for (const { ref, lastActive, role, ...member } of DEMO_MEMBERS) {
     const user = await tx.user.create({
-      data: { ...member, workspaceId: workspace.id, passwordHash, lastActiveAt: at(lastActive) },
+      data: {
+        ...member,
+        passwordHash,
+        lastActiveAt: at(lastActive),
+        memberships: { create: { workspaceId: workspace.id, role } },
+      },
     });
     users[ref] = user.id;
   }
@@ -125,6 +133,7 @@ export async function seedAccounts(
     await tx.accessToken.create({
       data: {
         userId: users["u-jr"],
+        workspaceId: workspace.id,
         name: token.name,
         tokenHash: sha256(randomToken()),
         lastFour: token.lastFour,

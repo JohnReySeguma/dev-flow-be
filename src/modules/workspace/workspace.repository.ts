@@ -1,10 +1,19 @@
-import type { Prisma, Role, User, Workspace, WorkspaceInvite } from "../../generated/prisma/client.js";
+import { Prisma, type Role, type User, type Workspace, type WorkspaceInvite } from "../../generated/prisma/client.js";
 import { afterCursorAsc, type Cursor } from "../../lib/pagination.js";
 import type { PrismaClient } from "../../lib/prisma.js";
+import { slugBase, slugWithSuffix } from "../../lib/slug.js";
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
-const listArgs = (workspaceId: string, limit: number, cursor?: Cursor) => ({
+/** A membership with its user: one row of the members list. */
+export type Member = { workspaceId: string; userId: string; role: Role; createdAt: Date; user: User };
+
+const SLUG_ATTEMPTS = 5;
+
+const isUniqueViolation = (error: unknown) =>
+  error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+
+const inviteListArgs = (workspaceId: string, limit: number, cursor?: Cursor) => ({
   where: { workspaceId, ...(cursor && afterCursorAsc(cursor)) },
   orderBy: [{ createdAt: "asc" as const }, { id: "asc" as const }],
   take: limit + 1,
@@ -13,38 +22,70 @@ const listArgs = (workspaceId: string, limit: number, cursor?: Cursor) => ({
 function repository(db: Db) {
   return {
     findById: (id: string): Promise<Workspace | null> => db.workspace.findUnique({ where: { id } }),
-    /** The single workspace (multiple workspaces are out of scope). */
+    /** The oldest workspace, which v1 deliveries such as GitHub webhooks apply to. */
     findDefault: (): Promise<Workspace | null> => db.workspace.findFirst({ orderBy: { createdAt: "asc" } }),
-    create: (name: string): Promise<Workspace> => db.workspace.create({ data: { name } }),
 
-    /** Members oldest first; fetches `limit + 1` so the caller can tell whether more exist. */
-    listMembers: (workspaceId: string, limit: number, cursor?: Cursor): Promise<User[]> =>
-      db.user.findMany(listArgs(workspaceId, limit, cursor)),
+    /** Creates a workspace with a slug from its name, suffixed when that slug is taken. */
+    create: async (name: string, options: { isDemo?: boolean } = {}): Promise<Workspace> => {
+      const base = slugBase(name);
+      for (let attempt = 0; ; attempt++) {
+        const slug = attempt === 0 ? base : slugWithSuffix(base);
+        try {
+          return await db.workspace.create({ data: { name, slug, isDemo: options.isDemo ?? false } });
+        } catch (error) {
+          if (!isUniqueViolation(error) || attempt + 1 >= SLUG_ATTEMPTS) throw error;
+        }
+      }
+    },
+
+    /** Members by join date, oldest first; fetches `limit + 1` so the caller can tell whether more exist. */
+    listMembers: (workspaceId: string, limit: number, cursor?: Cursor): Promise<Member[]> =>
+      db.workspaceMember.findMany({
+        where: {
+          workspaceId,
+          ...(cursor && {
+            OR: [{ createdAt: { gt: cursor.createdAt } }, { createdAt: cursor.createdAt, userId: { gt: cursor.id } }],
+          }),
+        },
+        orderBy: [{ createdAt: "asc" }, { userId: "asc" }],
+        take: limit + 1,
+        include: { user: true },
+      }),
 
     listInvites: (workspaceId: string, limit: number, cursor?: Cursor): Promise<WorkspaceInvite[]> =>
-      db.workspaceInvite.findMany(listArgs(workspaceId, limit, cursor)),
+      db.workspaceInvite.findMany(inviteListArgs(workspaceId, limit, cursor)),
 
-    findMember: (workspaceId: string, id: string): Promise<User | null> =>
-      db.user.findFirst({ where: { id, workspaceId } }),
+    findMember: (workspaceId: string, userId: string): Promise<Member | null> =>
+      db.workspaceMember.findUnique({
+        where: { workspaceId_userId: { workspaceId, userId } },
+        include: { user: true },
+      }),
+
+    countMembers: (workspaceId: string) => db.workspaceMember.count({ where: { workspaceId } }),
 
     findInvite: (workspaceId: string, id: string): Promise<WorkspaceInvite | null> =>
       db.workspaceInvite.findFirst({ where: { id, workspaceId } }),
 
     /**
-     * Locks the workspace's admin rows until the transaction ends and returns their ids, so
-     * concurrent demotions or removals cannot leave the workspace without an admin.
+     * Locks the workspace's admin memberships until the transaction ends and returns their user
+     * ids, so concurrent demotions or removals cannot leave the workspace without an admin.
      */
     lockAdminIds: async (workspaceId: string): Promise<string[]> =>
       (
-        await db.$queryRaw<{ id: string }[]>`
-          SELECT "id" FROM "users"
+        await db.$queryRaw<{ user_id: string }[]>`
+          SELECT "user_id" FROM "workspace_members"
           WHERE "workspace_id" = ${workspaceId}::uuid AND "role" = 'admin'
           FOR UPDATE`
-      ).map((row) => row.id),
+      ).map((row) => row.user_id),
 
-    setMemberRole: (id: string, role: Role): Promise<User> => db.user.update({ where: { id }, data: { role } }),
+    setMemberRole: (workspaceId: string, userId: string, role: Role): Promise<Member> =>
+      db.workspaceMember.update({
+        where: { workspaceId_userId: { workspaceId, userId } },
+        data: { role },
+        include: { user: true },
+      }),
     /** Deleting the user also ends their sessions and access tokens (cascade). */
-    deleteMember: (id: string) => db.user.delete({ where: { id } }),
+    deleteMember: (userId: string) => db.user.delete({ where: { id: userId } }),
 
     findInviteByEmail: (workspaceId: string, email: string): Promise<WorkspaceInvite | null> =>
       db.workspaceInvite.findUnique({ where: { workspaceId_email: { workspaceId, email } } }),

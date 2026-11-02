@@ -16,7 +16,7 @@ export function createTokensController(tokens: TokensService) {
     res
       .status(201)
       .set("Cache-Control", "no-store")
-      .json(await tokens.create(authOf(req).userId, req.body as CreateTokenInput));
+      .json(await tokens.create(authOf(req), req.body as CreateTokenInput));
   };
 
   const revoke: RequestHandler = async (req, res) => {

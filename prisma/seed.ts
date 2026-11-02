@@ -4,7 +4,7 @@ import { seedDemo } from "../src/demo/seed.js";
 import { createLogger, type Logger } from "../src/lib/logger.js";
 import { createPrismaClient, type PrismaClient } from "../src/lib/prisma.js";
 
-export { DEMO_MEMBERS, DEMO_PASSWORD, DEMO_WORKSPACE_NAME } from "../src/demo/accounts.js";
+export { DEMO_MEMBERS, DEMO_PASSWORD, DEMO_WORKSPACE_NAME, DEMO_WORKSPACE_SLUG } from "../src/demo/accounts.js";
 
 /** Seeds the demo workspace into an empty database; see src/demo for the data. */
 export const seed = (prisma: PrismaClient, logger: Logger, now?: number, options?: { tracker?: boolean }) =>

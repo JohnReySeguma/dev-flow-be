@@ -3,7 +3,7 @@ import type { Role } from "../../generated/prisma/client.js";
 import { AppError } from "../../lib/errors.js";
 import { byCreatedAsc, decodeCursor, toPage, type Page, type PaginationQuery } from "../../lib/pagination.js";
 import type { AuthContext } from "../auth/auth.types.js";
-import { memberFromInvite, memberFromUser } from "./workspace.mapper.js";
+import { memberFromInvite, memberFromMembership } from "./workspace.mapper.js";
 import type { WorkspaceRepository } from "./workspace.repository.js";
 import type { TeamMember, WorkspaceView } from "./workspace.schemas.js";
 
@@ -31,12 +31,12 @@ export function createWorkspaceService(deps: {
      */
     async listMembers(auth: AuthContext, query: PaginationQuery): Promise<Page<TeamMember>> {
       const cursor = query.cursor === undefined ? undefined : decodeCursor(query.cursor);
-      const [users, invites] = await Promise.all([
+      const [members, invites] = await Promise.all([
         workspaces.listMembers(auth.workspaceId, query.limit, cursor),
         workspaces.listInvites(auth.workspaceId, query.limit, cursor),
       ]);
       const rows = [
-        ...users.map((user) => ({ id: user.id, createdAt: user.createdAt, member: memberFromUser(user) })),
+        ...members.map((m) => ({ id: m.userId, createdAt: m.createdAt, member: memberFromMembership(m) })),
         ...invites.map((invite) => ({ id: invite.id, createdAt: invite.createdAt, member: memberFromInvite(invite) })),
       ].sort(byCreatedAsc);
       return toPage(rows.slice(0, query.limit + 1), query.limit, (row) => row.member);
@@ -53,7 +53,7 @@ export function createWorkspaceService(deps: {
         const member = await tx.findMember(auth.workspaceId, id);
         if (member) {
           if (member.role === "admin" && role !== "admin" && admins.length <= 1) throw lastAdmin();
-          return memberFromUser(await tx.setMemberRole(id, role));
+          return memberFromMembership(await tx.setMemberRole(auth.workspaceId, id, role));
         }
         const invite = await tx.findInvite(auth.workspaceId, id);
         if (!invite) throw notFound();

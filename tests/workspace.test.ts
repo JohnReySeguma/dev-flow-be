@@ -146,11 +146,11 @@ describe("managing members", () => {
   });
 
   it("answers LAST_ADMIN when two admins race to demote each other", async () => {
-    await prisma.user.updateMany({
-      where: { role: "admin", NOT: { email: "demo@devflow.local" } },
+    await prisma.workspaceMember.updateMany({
+      where: { role: "admin", NOT: { user: { email: "demo@devflow.local" } } },
       data: { role: "member" },
     });
-    await prisma.user.update({ where: { email: "aiko@acme.dev" }, data: { role: "admin" } });
+    await prisma.workspaceMember.updateMany({ where: { user: { email: "aiko@acme.dev" } }, data: { role: "admin" } });
     const john = asBrowser(app, await signIn(app, "demo@devflow.local"));
     const aiko = asBrowser(app, await signIn(app, "aiko@acme.dev"));
 
@@ -160,7 +160,7 @@ describe("managing members", () => {
     ]);
 
     expect(results.map((r) => r.status).sort()).toEqual([200, 409]);
-    expect(await prisma.user.count({ where: { role: "admin" } })).toBe(1);
+    expect(await prisma.workspaceMember.count({ where: { role: "admin" } })).toBe(1);
   });
 
   it("removes a member together with their sessions and tokens", async () => {

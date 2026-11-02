@@ -190,7 +190,7 @@ export async function resetDemoTracker(prisma: PrismaClient, workspaceId: string
     async (tx) => {
       await tx.project.deleteMany({ where: { workspaceId } });
       const members = await tx.user.findMany({
-        where: { workspaceId, email: { in: DEMO_MEMBERS.map((m) => m.email) } },
+        where: { email: { in: DEMO_MEMBERS.map((m) => m.email) }, memberships: { some: { workspaceId } } },
         select: { id: true, email: true },
       });
       const users: Partial<Record<MemberRef, string>> = {};

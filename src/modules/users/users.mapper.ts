@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { User } from "../../generated/prisma/client.js";
+import type { Role, User } from "../../generated/prisma/client.js";
 import { AVATAR_GRADIENTS, type UserProfile } from "./users.schemas.js";
 
 /** "John Rey" → "JR", "Aiko" → "A". */
@@ -27,7 +27,8 @@ export function gradientFor(email: string): string {
   return AVATAR_GRADIENTS[index] ?? AVATAR_GRADIENTS[0];
 }
 
-export function toProfile(user: User): UserProfile {
+/** `role` is the caller's role in the workspace the request acts in. */
+export function toProfile(user: User, role: Role): UserProfile {
   return {
     id: user.id,
     name: user.name,
@@ -35,7 +36,7 @@ export function toProfile(user: User): UserProfile {
     initials: initialsOf(user.name),
     gradient: user.gradient,
     email: user.email,
-    role: user.role,
+    role,
     timezone: user.timezone,
     bio: user.bio,
   };

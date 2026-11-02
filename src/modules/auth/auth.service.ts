@@ -49,16 +49,15 @@ export function createAuthService({ users, workspaces, sessions, accessTokens, l
     role?: Role;
   }): Promise<User> {
     const workspace = (await workspaces.findDefault()) ?? (await workspaces.create(DEFAULT_WORKSPACE_NAME));
-    const role: Role = input.role ?? ((await users.countInWorkspace(workspace.id)) === 0 ? "admin" : "member");
+    const role: Role = input.role ?? ((await workspaces.countMembers(workspace.id)) === 0 ? "admin" : "member");
     try {
       return await users.create({
-        workspaceId: workspace.id,
         email: input.email,
         name: input.name,
         handle: await uniqueHandle(input.email),
         gradient: gradientFor(input.email),
-        role,
         passwordHash: input.passwordHash,
+        membership: { workspaceId: workspace.id, role },
       });
     } catch (error) {
       if (isUniqueViolation(error)) throw new AppError("EMAIL_TAKEN", undefined, { cause: error });
@@ -81,10 +80,10 @@ export function createAuthService({ users, workspaces, sessions, accessTokens, l
   }
 
   async function me(userId: string): Promise<AuthMe> {
-    const user = await users.findById(userId);
-    const workspace = user && (await workspaces.findById(user.workspaceId));
-    if (!user || !workspace) throw new AppError("UNAUTHENTICATED");
-    return { user: toProfile(user), workspace: { id: workspace.id, name: workspace.name } };
+    const [user, membership] = await Promise.all([users.findById(userId), users.primaryMembership(userId)]);
+    if (!user || !membership) throw new AppError("UNAUTHENTICATED");
+    const { workspace } = membership;
+    return { user: toProfile(user, membership.role), workspace: { id: workspace.id, name: workspace.name } };
   }
 
   return {
@@ -152,14 +151,16 @@ export function createAuthService({ users, workspaces, sessions, accessTokens, l
     /** Resolves an access token to the caller, rejecting revoked or expired sessions. */
     async authenticate(accessToken: string): Promise<AuthContext> {
       const { userId, sessionId } = accessTokens.verify(accessToken);
-      const session = await sessions.findSessionWithUser(sessionId);
+      const session = await sessions.findSession(sessionId);
       if (session?.userId !== userId || session.revokedAt || session.expiresAt <= new Date()) {
         throw new AppError("UNAUTHENTICATED");
       }
+      const membership = await users.primaryMembership(userId);
+      if (!membership) throw new AppError("UNAUTHENTICATED");
       return {
         userId,
-        workspaceId: session.user.workspaceId,
-        role: session.user.role,
+        workspaceId: membership.workspaceId,
+        role: membership.role,
         via: "session",
         sessionId,
       };
