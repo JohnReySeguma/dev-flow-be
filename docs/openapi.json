@@ -354,7 +354,7 @@
         "example": {
           "name": "Ada Lovelace",
           "email": "ada@acme.dev",
-          "password": "correct horse battery"
+          "password": "YOUR_PASSWORD"
         }
       },
       "LoginRequest": {
@@ -375,7 +375,7 @@
         ],
         "example": {
           "email": "demo@devflow.local",
-          "password": "devflow-demo"
+          "password": "YOUR_PASSWORD"
         }
       },
       "ForgotPasswordRequest": {
@@ -411,8 +411,8 @@
           "password"
         ],
         "example": {
-          "token": "Zq3nXl0w8bJ7r2mYc5dV1aKf9sHt4uPo6eLgQiWjNxE",
-          "password": "a new long password"
+          "token": "RESET_TOKEN_FROM_EMAIL",
+          "password": "YOUR_NEW_PASSWORD"
         }
       },
       "UpdateProfileRequest": {
@@ -581,7 +581,7 @@
             "lastUsedAt": "2026-11-01T08:41:00.000Z",
             "expiresAt": null
           },
-          "secret": "dfp_4tq0fZ8kWm2Lr9XbVn3cHs7YpEo1Ju6Gd5Ka-q7Rk"
+          "secret": "dfp_YOUR_ACCESS_TOKEN"
         }
       },
       "CreateAccessTokenRequest": {

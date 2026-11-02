@@ -17,12 +17,12 @@ export const signupBody = z
   })
   .meta({
     id: "SignupRequest",
-    example: { name: "Ada Lovelace", email: "ada@acme.dev", password: "correct horse battery" },
+    example: { name: "Ada Lovelace", email: "ada@acme.dev", password: "YOUR_PASSWORD" },
   });
 
 export const loginBody = z
   .object({ email, password: z.string().min(1, "Password is required.").max(128) })
-  .meta({ id: "LoginRequest", example: { email: "demo@devflow.local", password: "devflow-demo" } });
+  .meta({ id: "LoginRequest", example: { email: "demo@devflow.local", password: "YOUR_PASSWORD" } });
 
 export const forgotPasswordBody = z
   .object({ email })
@@ -32,7 +32,7 @@ export const resetPasswordBody = z
   .object({ token: z.string().min(1, "The reset token is missing.").max(256), password: newPassword })
   .meta({
     id: "ResetPasswordRequest",
-    example: { token: "Zq3nXl0w8bJ7r2mYc5dV1aKf9sHt4uPo6eLgQiWjNxE", password: "a new long password" },
+    example: { token: "RESET_TOKEN_FROM_EMAIL", password: "YOUR_NEW_PASSWORD" },
   });
 
 export const authMeResponse = z

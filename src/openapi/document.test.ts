@@ -34,6 +34,29 @@ describe("OpenAPI document", () => {
     }
   });
 
+  it("uses obvious placeholders, never realistic values, for credential examples", () => {
+    // Secret scanners (e.g. GitGuardian) flag realistic-looking example secrets in committed files.
+    const credentialKeys = /^(password|secret|token|clientSecret|client_secret|apiKey)$/i;
+    const offending: string[] = [];
+    const visit = (value: unknown, path: string) => {
+      if (Array.isArray(value)) {
+        value.forEach((item, i) => {
+          visit(item, `${path}[${i}]`);
+        });
+      } else if (value && typeof value === "object") {
+        for (const [key, child] of Object.entries(value)) {
+          if (credentialKeys.test(key) && typeof child === "string" && !/^(dfp_)?[A-Z_]+$/.test(child)) {
+            offending.push(`${path}.${key}`);
+          }
+          visit(child, `${path}.${key}`);
+        }
+      }
+    };
+    visit(document, "$");
+
+    expect(offending).toEqual([]);
+  });
+
   it("matches the committed docs/openapi.json", () => {
     const committed = readFileSync(new URL("../../docs/openapi.json", import.meta.url), "utf8");
 
