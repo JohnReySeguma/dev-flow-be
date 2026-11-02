@@ -3,6 +3,7 @@ import pkg from "../../package.json" with { type: "json" };
 import { registerAuthDocs } from "../modules/auth/auth.openapi.js";
 import { registerConfigDocs } from "../modules/config/config.openapi.js";
 import { registerHealthDocs } from "../modules/health/health.openapi.js";
+import { registerIssuesDocs } from "../modules/issues/issues.openapi.js";
 import { registerProjectsDocs } from "../modules/projects/projects.openapi.js";
 import { registerTokensDocs } from "../modules/tokens/tokens.openapi.js";
 import { registerUsersDocs } from "../modules/users/users.openapi.js";
@@ -31,6 +32,7 @@ export function buildOpenApiDocument() {
   registerTokensDocs(registry);
   registerWorkspaceDocs(registry);
   registerProjectsDocs(registry);
+  registerIssuesDocs(registry);
 
   return new OpenApiGeneratorV31(registry.definitions).generateDocument({
     openapi: "3.1.0",

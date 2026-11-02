@@ -1111,6 +1111,382 @@
         "example": {
           "description": "Board, realtime sync and auth."
         }
+      },
+      "IssuePage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Issue"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass as ?cursor= for the next page; null on the last."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "example": {
+          "items": [
+            {
+              "id": "DEV-104",
+              "projectId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e20",
+              "sprintId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e30",
+              "statusId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e22",
+              "type": "bug",
+              "priority": "urgent",
+              "title": "OAuth refresh token rotation fails on concurrent tabs",
+              "description": "Two tabs refreshing at the same time both present the old refresh token.",
+              "assigneeId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
+              "tags": [
+                "auth",
+                "frontend"
+              ],
+              "git": {
+                "kind": "pr",
+                "number": 421,
+                "state": "open"
+              },
+              "estimate": 5,
+              "comments": 12,
+              "createdAt": "2026-10-27T08:00:00.000Z",
+              "updatedAt": "2026-11-01T07:48:00.000Z",
+              "dueAt": "2026-10-31T09:00:00.000Z",
+              "resolvedAt": null
+            }
+          ],
+          "nextCursor": null
+        }
+      },
+      "Issue": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The issue key, e.g. DEV-104."
+          },
+          "projectId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sprintId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Null = in the backlog."
+          },
+          "statusId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "story",
+              "bug",
+              "task"
+            ]
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "urgent",
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "assigneeId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "git": {
+            "$ref": "#/components/schemas/GitLink"
+          },
+          "estimate": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "comments": {
+            "type": "integer",
+            "description": "Number of comments."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "dueAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resolvedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Set while the issue is in a done-category status."
+          }
+        },
+        "required": [
+          "id",
+          "projectId",
+          "sprintId",
+          "statusId",
+          "type",
+          "priority",
+          "title",
+          "description",
+          "assigneeId",
+          "tags",
+          "estimate",
+          "comments",
+          "createdAt",
+          "updatedAt",
+          "resolvedAt"
+        ],
+        "example": {
+          "id": "DEV-104",
+          "projectId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e20",
+          "sprintId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e30",
+          "statusId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e22",
+          "type": "bug",
+          "priority": "urgent",
+          "title": "OAuth refresh token rotation fails on concurrent tabs",
+          "description": "Two tabs refreshing at the same time both present the old refresh token.",
+          "assigneeId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
+          "tags": [
+            "auth",
+            "frontend"
+          ],
+          "git": {
+            "kind": "pr",
+            "number": 421,
+            "state": "open"
+          },
+          "estimate": 5,
+          "comments": 12,
+          "createdAt": "2026-10-27T08:00:00.000Z",
+          "updatedAt": "2026-11-01T07:48:00.000Z",
+          "dueAt": "2026-10-31T09:00:00.000Z",
+          "resolvedAt": null
+        }
+      },
+      "GitLink": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "pr"
+                ]
+              },
+              "number": {
+                "type": "integer"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "open",
+                  "merged",
+                  "draft"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "number",
+              "state"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "commit"
+                ]
+              },
+              "sha": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "sha"
+            ]
+          }
+        ],
+        "example": {
+          "kind": "pr",
+          "number": 421,
+          "state": "open"
+        }
+      },
+      "CreateIssueRequest": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 20000,
+            "default": ""
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "story",
+              "bug",
+              "task"
+            ],
+            "default": "task"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "urgent",
+              "high",
+              "medium",
+              "low"
+            ],
+            "default": "medium"
+          },
+          "assigneeId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "default": null
+          },
+          "estimate": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "default": null
+          },
+          "sprintId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "default": null
+          },
+          "statusId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Defaults to the project's first to-do status."
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "example": {
+          "title": "Export board as CSV",
+          "type": "story",
+          "priority": "low",
+          "assigneeId": null,
+          "estimate": 3,
+          "sprintId": null
+        }
+      },
+      "UpdateIssueRequest": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "story",
+              "bug",
+              "task"
+            ]
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "urgent",
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          "assigneeId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "estimate": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "statusId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sprintId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        },
+        "example": {
+          "priority": "high",
+          "estimate": 8
+        }
       }
     },
     "parameters": {}
@@ -2489,6 +2865,450 @@
             "description": "Project key, any case.",
             "name": "key",
             "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted."
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{key}/issues": {
+      "get": {
+        "tags": [
+          "Issues"
+        ],
+        "summary": "Issues of a project, in rank order",
+        "description": "Any role; tokens need issues:read. Filters combine with AND.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "DEV"
+            },
+            "required": true,
+            "name": "key",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "backlog"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "active"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              ],
+              "description": "A sprint id, `backlog` (no sprint) or `active` (the active sprint)."
+            },
+            "required": false,
+            "description": "A sprint id, `backlog` (no sprint) or `active` (the active sprint).",
+            "name": "sprint",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "none"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              ],
+              "description": "A user id, or `none` for unassigned."
+            },
+            "required": false,
+            "description": "A user id, or `none` for unassigned.",
+            "name": "assignee",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "urgent",
+                "high",
+                "medium",
+                "low"
+              ]
+            },
+            "required": false,
+            "name": "priority",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "story",
+                "bug",
+                "task"
+              ]
+            },
+            "required": false,
+            "name": "type",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "description": "Matches the key, title or description."
+            },
+            "required": false,
+            "description": "Matches the key, title or description.",
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "description": "`true` = assigned to you."
+            },
+            "required": false,
+            "description": "`true` = assigned to you.",
+            "name": "mine",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of issues.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssuePage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Issues"
+        ],
+        "summary": "Create an issue",
+        "description": "Members and admins; tokens need issues:write. Gets the next key (DEV-134) atomically and goes to the top of the ranking. statusId defaults to the first to-do status. sprintId must be a planned or active sprint of the project; assigneeId a workspace member.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "DEV"
+            },
+            "required": true,
+            "name": "key",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateIssueRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The new issue.",
+            "headers": {
+              "ETag": {
+                "description": "Version of the issue; send it back as If-Match.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Issue"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/issues/{issueKey}": {
+      "get": {
+        "tags": [
+          "Issues"
+        ],
+        "summary": "An issue by key",
+        "description": "Any role; tokens need issues:read. A bare number needs ?project=KEY (422 otherwise).",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "DEV-104 (any case), or 104 with ?project=DEV.",
+              "example": "DEV-104"
+            },
+            "required": true,
+            "description": "DEV-104 (any case), or 104 with ?project=DEV.",
+            "name": "issueKey",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Project key; required when :issueKey is a bare number such as 104."
+            },
+            "required": false,
+            "description": "Project key; required when :issueKey is a bare number such as 104.",
+            "name": "project",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The issue.",
+            "headers": {
+              "ETag": {
+                "description": "Version of the issue; send it back as If-Match.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Issue"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Issues"
+        ],
+        "summary": "Update an issue",
+        "description": "Members and admins; tokens need issues:write. Moving into a done-category status sets resolvedAt; moving out clears it. Optional If-Match → 412 CONFLICT_STALE. For board drops and ranking use POST /issues/{issueKey}/move.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "DEV-104 (any case), or 104 with ?project=DEV.",
+              "example": "DEV-104"
+            },
+            "required": true,
+            "description": "DEV-104 (any case), or 104 with ?project=DEV.",
+            "name": "issueKey",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Project key; required when :issueKey is a bare number such as 104."
+            },
+            "required": false,
+            "description": "Project key; required when :issueKey is a bare number such as 104.",
+            "name": "project",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "If-Match",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateIssueRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated issue.",
+            "headers": {
+              "ETag": {
+                "description": "Version of the issue; send it back as If-Match.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Issue"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Issues"
+        ],
+        "summary": "Delete an issue",
+        "description": "Members and admins; tokens need issues:write. Its number is not reused.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "DEV-104 (any case), or 104 with ?project=DEV.",
+              "example": "DEV-104"
+            },
+            "required": true,
+            "description": "DEV-104 (any case), or 104 with ?project=DEV.",
+            "name": "issueKey",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Project key; required when :issueKey is a bare number such as 104."
+            },
+            "required": false,
+            "description": "Project key; required when :issueKey is a bare number such as 104.",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {

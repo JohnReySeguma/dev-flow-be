@@ -23,6 +23,9 @@ import { createPasswordResetService } from "./modules/auth/password-reset.servic
 import { createConfigRouter } from "./modules/config/config.routes.js";
 import { createHealthRouter } from "./modules/health/health.routes.js";
 import { createUsersRepository } from "./modules/users/users.repository.js";
+import { createIssuesRepository } from "./modules/issues/issues.repository.js";
+import { createIssuesRouter, createProjectIssuesRouter } from "./modules/issues/issues.routes.js";
+import { createIssuesService } from "./modules/issues/issues.service.js";
 import { createProjectsRepository } from "./modules/projects/projects.repository.js";
 import { createProjectsRouter } from "./modules/projects/projects.routes.js";
 import { createProjectsService } from "./modules/projects/projects.service.js";
@@ -92,7 +95,10 @@ export function createApp({ env, features, logger, prisma, redis, email, fetch: 
   api.use("/health", createHealthRouter({ prisma, redis }));
   api.use("/config", createConfigRouter({ features }));
   const projects = createProjectsService({ projects: createProjectsRepository(prisma) });
+  const issues = createIssuesService({ issues: createIssuesRepository(prisma), projects });
+  api.use("/projects/:key/issues", createProjectIssuesRouter({ issues, requireAuth: authenticated }));
   api.use("/projects", createProjectsRouter({ projects, requireAuth: authenticated }));
+  api.use("/issues", createIssuesRouter({ issues, requireAuth: authenticated }));
 
   const invites = createInvitesService({ workspaces, auth, users, email, logger, frontendUrl: env.CORS_ORIGIN });
   api.use("/invites", createInviteAcceptRouter({ invites }));
