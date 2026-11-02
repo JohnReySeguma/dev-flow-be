@@ -33,8 +33,6 @@
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^9.1.0",
-    "@octokit/app": "^16.1.4",
-    "@octokit/rest": "^22.0.1",
     "@prisma/adapter-pg": "^7.10.1",
     "@prisma/client": "^7.10.1",
     "@socket.io/redis-adapter": "^8.3.0",
