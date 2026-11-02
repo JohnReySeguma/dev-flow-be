@@ -6,6 +6,51 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-02
+
+Live Sync over Socket.IO and the GitHub integration.
+
+### Frontend impact
+
+- **Can connect now** (details in `docs/INTEGRATION.md` §7): Live Sync.
+  - Connect with `io("<API>/realtime", { path: "/api/v1/socket.io", withCredentials: true })`; on `connect_error`
+    with `err.data.code === "TOKEN_EXPIRED"`, refresh once and reconnect.
+  - `project:join` / `project:leave` with an ack; re-join and re-fetch the snapshot after every reconnect.
+  - Events: `issue.created|updated|moved|deleted`, `sprint.created|updated|started|completed|deleted`,
+    `workflow.updated`, `project.updated|deleted`, `presence.updated`. Every payload has `projectKey` and `actorId`;
+    ignore your own `actorId`. Payloads carry the REST shapes, so the store can apply them directly.
+  - `presence.updated { online: userId[] }` drives online avatars per project.
+- **Behaviour:** `Issue.git` is now set by GitHub (PR or commit badge); a merged PR moves its issue to Done. Such
+  changes arrive with `actorId: null`. Shown only when `GET /config` reports `githubIntegration: true`.
+- **New error code:** `WEBHOOK_SIGNATURE_INVALID` (401), returned only to GitHub.
+- **BREAKING:** none. `UserProfile` gets no `presence` field: online status comes from `presence.updated`.
+
+### Added
+
+- Socket.IO server at `/api/v1/socket.io`, namespace `/realtime`: cookie or access-token handshake with an Origin
+  check, project rooms, presence, and the Redis adapter for multiple API instances (in-memory without Redis).
+- Live Sync events for issues (including comment counts), sprints, workflows and projects, published after each change
+  commits; `issue.moved` says where the issue now ranks (`beforeIssueKey`).
+- `POST /integrations/github/webhook`: verifies `X-Hub-Signature-256` over the raw body, reads issue keys from PR
+  titles, branch names and commit messages, links pull requests and commits to issues, and moves issues to Done when
+  their pull request is merged.
+
+### Changed
+
+- Services are built once in a composition root (`src/services.ts`) shared by the HTTP routes and the realtime server.
+- Shutdown closes the realtime server before the HTTP server.
+
+### Handoff checklist
+
+- [x] `docs/openapi.json` regenerated and valid
+- [x] `docs/INTEGRATION.md` coverage matrix updated: Live Sync, presence and the `Issue.git` badge
+- [x] New error codes added to the catalogue (`WEBHOOK_SIGNATURE_INVALID`)
+- [x] New realtime events documented with examples (§7.3)
+- [x] **Frontend impact** section in `CHANGELOG.md`
+- [x] Seed and demo accounts still work on a fresh database
+- [x] `docker compose up --build` instructions in the README still accurate
+- [x] Known limitations or stubs listed (`docs/INTEGRATION.md` §9)
+
 ## [0.5.0] - 2026-11-02
 
 Sprint lifecycle and reports.
@@ -265,7 +310,8 @@ Foundation: configuration, database, error format, health checks, feature flags,
 - [x] `docker compose up --build` instructions in the README still accurate
 - [x] Known limitations or stubs listed (`docs/INTEGRATION.md` §8)
 
-[Unreleased]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.2.1...v0.3.0
