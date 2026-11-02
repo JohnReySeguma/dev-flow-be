@@ -30,6 +30,7 @@ describe("GET /api/v2/me", () => {
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ name: "Ada Lovelace", handle: "ada", initials: "AL" });
     expect(res.body).not.toHaveProperty("role");
+    expect(res.body.isDemo).toBe(false);
     expect(res.headers.etag).toMatch(/^"[0-9a-f]{20}"$/);
   });
 

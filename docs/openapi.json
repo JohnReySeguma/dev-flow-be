@@ -258,7 +258,8 @@
             "gradient": "from-violet-500 to-indigo-600",
             "email": "demo@devflow.local",
             "timezone": "America/New_York",
-            "bio": "Frontend platform lead. Owns the board, realtime sync and the design system."
+            "bio": "Frontend platform lead. Owns the board, realtime sync and the design system.",
+            "isDemo": true
           },
           "workspaces": [
             {
@@ -299,6 +300,10 @@
           },
           "bio": {
             "type": "string"
+          },
+          "isDemo": {
+            "type": "boolean",
+            "description": "A shared demo account (public password): profile edits, access tokens and creating workspaces are locked."
           }
         },
         "required": [
@@ -309,7 +314,8 @@
           "gradient",
           "email",
           "timezone",
-          "bio"
+          "bio",
+          "isDemo"
         ],
         "example": {
           "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
@@ -319,7 +325,8 @@
           "gradient": "from-violet-500 to-indigo-600",
           "email": "demo@devflow.local",
           "timezone": "America/New_York",
-          "bio": "Frontend platform lead. Owns the board, realtime sync and the design system."
+          "bio": "Frontend platform lead. Owns the board, realtime sync and the design system.",
+          "isDemo": true
         }
       },
       "Workspace": {
@@ -1080,7 +1087,8 @@
             "gradient": "from-violet-500 to-indigo-600",
             "email": "demo@devflow.local",
             "timezone": "America/New_York",
-            "bio": "Frontend platform lead. Owns the board, realtime sync and the design system."
+            "bio": "Frontend platform lead. Owns the board, realtime sync and the design system.",
+            "isDemo": true
           },
           "workspace": {
             "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e00",

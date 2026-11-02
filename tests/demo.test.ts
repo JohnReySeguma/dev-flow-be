@@ -112,8 +112,8 @@ describe("the demo accounts", () => {
     expect(await prisma.accessToken.count()).toBe(2);
   });
 
-  it("can still read their profile and tokens", async () => {
-    expect((await admin.get("/api/v2/me")).status).toBe(200);
+  it("can still read their profile, which says it is a demo account, and their tokens", async () => {
+    expect((await admin.get("/api/v2/me")).body).toMatchObject({ email: "demo@devflow.local", isDemo: true });
     expect((await admin.get("/api/v2/me/tokens")).body.items).toHaveLength(2);
   });
 

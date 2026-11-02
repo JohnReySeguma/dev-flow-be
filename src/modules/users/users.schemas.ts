@@ -23,6 +23,10 @@ export const userProfile = z
     email: z.email(),
     timezone: z.string(),
     bio: z.string(),
+    isDemo: z.boolean().meta({
+      description:
+        "A shared demo account (public password): profile edits, access tokens and creating workspaces are locked.",
+    }),
   })
   .meta({
     id: "UserProfile",
@@ -35,6 +39,7 @@ export const userProfile = z
       email: "demo@devflow.local",
       timezone: "America/New_York",
       bio: "Frontend platform lead. Owns the board, realtime sync and the design system.",
+      isDemo: true,
     },
   });
 

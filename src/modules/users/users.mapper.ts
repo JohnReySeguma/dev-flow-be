@@ -38,5 +38,6 @@ export function toProfile(user: User): UserProfile {
     email: user.email,
     timezone: user.timezone,
     bio: user.bio,
+    isDemo: user.isDemo,
   };
 }
