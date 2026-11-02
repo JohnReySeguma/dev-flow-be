@@ -22,5 +22,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["src", "tests", "prisma", "*.ts"]
+  "include": ["src", "tests", "prisma", "scripts", "*.ts"]
 }

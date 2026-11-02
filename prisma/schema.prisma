@@ -1,0 +1,22 @@
+// Tables and columns are snake_case in Postgres and camelCase in the client,
+// matching the JSON shapes in the frontend's lib/tracker/types.ts.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// The single tenant every user belongs to. Multiple workspaces are out of scope.
+model Workspace {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  name      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("workspaces")
+}
