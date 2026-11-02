@@ -80,6 +80,7 @@
               "SPRINT_ALREADY_ACTIVE",
               "SPRINT_NOT_PLANNED",
               "STATUS_DELETE_BLOCKED",
+              "STATUS_UPDATE_BLOCKED",
               "LAST_ADMIN",
               "ALREADY_MEMBER",
               "CONFLICT_STALE",
@@ -892,6 +893,1326 @@
         "example": {
           "name": "Grace Hopper",
           "password": "YOUR_PASSWORD"
+        }
+      },
+      "ProjectPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectSummary"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass as ?cursor= for the next page; null on the last."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "example": {
+          "items": [
+            {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e20",
+              "key": "DEV",
+              "name": "DevFlow Core",
+              "description": "The web app: board, realtime sync, auth and the public API gateway.",
+              "color": "from-violet-500 to-indigo-600",
+              "leadId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
+              "workflow": [
+                {
+                  "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e21",
+                  "name": "To Do",
+                  "category": "todo"
+                },
+                {
+                  "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e22",
+                  "name": "In Progress",
+                  "category": "in_progress"
+                },
+                {
+                  "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e23",
+                  "name": "In Review",
+                  "category": "in_progress"
+                },
+                {
+                  "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e24",
+                  "name": "Done",
+                  "category": "done"
+                }
+              ],
+              "nextIssueNumber": 134,
+              "createdAt": "2026-05-05T09:00:00.000Z",
+              "activeSprint": {
+                "name": "Sprint 25",
+                "endAt": "2026-11-09T09:00:00.000Z",
+                "donePoints": 9,
+                "totalPoints": 50,
+                "doneIssues": 3,
+                "totalIssues": 11
+              },
+              "backlogCount": 5,
+              "lead": {
+                "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
+                "name": "John Rey",
+                "initials": "JR",
+                "gradient": "from-violet-500 to-indigo-600"
+              }
+            }
+          ],
+          "nextCursor": null
+        }
+      },
+      "ProjectSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          },
+          "leadId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "workflow": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkflowStatus"
+            }
+          },
+          "nextIssueNumber": {
+            "type": "integer"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "activeSprint": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "endAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "donePoints": {
+                "type": "integer"
+              },
+              "totalPoints": {
+                "type": "integer"
+              },
+              "doneIssues": {
+                "type": "integer"
+              },
+              "totalIssues": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "name",
+              "endAt",
+              "donePoints",
+              "totalPoints",
+              "doneIssues",
+              "totalIssues"
+            ]
+          },
+          "backlogCount": {
+            "type": "integer"
+          },
+          "lead": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string"
+              },
+              "initials": {
+                "type": "string"
+              },
+              "gradient": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "initials",
+              "gradient"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "name",
+          "description",
+          "color",
+          "leadId",
+          "workflow",
+          "nextIssueNumber",
+          "createdAt",
+          "activeSprint",
+          "backlogCount",
+          "lead"
+        ],
+        "example": {
+          "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e20",
+          "key": "DEV",
+          "name": "DevFlow Core",
+          "description": "The web app: board, realtime sync, auth and the public API gateway.",
+          "color": "from-violet-500 to-indigo-600",
+          "leadId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
+          "workflow": [
+            {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e21",
+              "name": "To Do",
+              "category": "todo"
+            },
+            {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e22",
+              "name": "In Progress",
+              "category": "in_progress"
+            },
+            {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e23",
+              "name": "In Review",
+              "category": "in_progress"
+            },
+            {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e24",
+              "name": "Done",
+              "category": "done"
+            }
+          ],
+          "nextIssueNumber": 134,
+          "createdAt": "2026-05-05T09:00:00.000Z",
+          "activeSprint": {
+            "name": "Sprint 25",
+            "endAt": "2026-11-09T09:00:00.000Z",
+            "donePoints": 9,
+            "totalPoints": 50,
+            "doneIssues": 3,
+            "totalIssues": 11
+          },
+          "backlogCount": 5,
+          "lead": {
+            "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
+            "name": "John Rey",
+            "initials": "JR",
+            "gradient": "from-violet-500 to-indigo-600"
+          }
+        }
+      },
+      "WorkflowStatus": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "todo",
+              "in_progress",
+              "done"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "category"
+        ],
+        "example": {
+          "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e21",
+          "name": "In Review",
+          "category": "in_progress"
+        }
+      },
+      "Project": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          },
+          "leadId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "workflow": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkflowStatus"
+            }
+          },
+          "nextIssueNumber": {
+            "type": "integer"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "name",
+          "description",
+          "color",
+          "leadId",
+          "workflow",
+          "nextIssueNumber",
+          "createdAt"
+        ],
+        "example": {
+          "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e20",
+          "key": "DEV",
+          "name": "DevFlow Core",
+          "description": "The web app: board, realtime sync, auth and the public API gateway.",
+          "color": "from-violet-500 to-indigo-600",
+          "leadId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
+          "workflow": [
+            {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e21",
+              "name": "To Do",
+              "category": "todo"
+            },
+            {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e22",
+              "name": "In Progress",
+              "category": "in_progress"
+            },
+            {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e23",
+              "name": "In Review",
+              "category": "in_progress"
+            },
+            {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e24",
+              "name": "Done",
+              "category": "done"
+            }
+          ],
+          "nextIssueNumber": 134,
+          "createdAt": "2026-05-05T09:00:00.000Z"
+        }
+      },
+      "CreateProjectRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "key": {
+            "type": "string",
+            "pattern": "^[A-Z]{2,5}$"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500,
+            "default": ""
+          }
+        },
+        "required": [
+          "name",
+          "key"
+        ],
+        "example": {
+          "name": "Mobile App",
+          "key": "MOB",
+          "description": "React Native client for iOS and Android."
+        }
+      },
+      "ProjectSnapshot": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "$ref": "#/components/schemas/Project"
+          },
+          "sprints": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Sprint"
+            }
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Issue"
+            }
+          }
+        },
+        "required": [
+          "project",
+          "sprints",
+          "issues"
+        ],
+        "example": {
+          "project": {
+            "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e20",
+            "key": "DEV",
+            "name": "DevFlow Core",
+            "description": "The web app: board, realtime sync, auth and the public API gateway.",
+            "color": "from-violet-500 to-indigo-600",
+            "leadId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
+            "workflow": [
+              {
+                "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e21",
+                "name": "To Do",
+                "category": "todo"
+              },
+              {
+                "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e22",
+                "name": "In Progress",
+                "category": "in_progress"
+              },
+              {
+                "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e23",
+                "name": "In Review",
+                "category": "in_progress"
+              },
+              {
+                "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e24",
+                "name": "Done",
+                "category": "done"
+              }
+            ],
+            "nextIssueNumber": 134,
+            "createdAt": "2026-05-05T09:00:00.000Z"
+          },
+          "sprints": [
+            {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e30",
+              "projectId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e20",
+              "number": 25,
+              "name": "Sprint 25",
+              "goal": "Ship SSO for enterprise tenants and stabilise token refresh.",
+              "status": "active",
+              "startAt": "2026-10-26T09:00:00.000Z",
+              "endAt": "2026-11-09T09:00:00.000Z",
+              "committedPoints": 50,
+              "completedAt": null,
+              "report": null
+            }
+          ],
+          "issues": [
+            {
+              "id": "DEV-104",
+              "projectId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e20",
+              "sprintId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e30",
+              "statusId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e22",
+              "type": "bug",
+              "priority": "urgent",
+              "title": "OAuth refresh token rotation fails on concurrent tabs",
+              "description": "Two tabs refreshing at the same time both present the old refresh token.",
+              "assigneeId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
+              "tags": [
+                "auth",
+                "frontend"
+              ],
+              "git": {
+                "kind": "pr",
+                "number": 421,
+                "state": "open"
+              },
+              "estimate": 5,
+              "comments": 12,
+              "createdAt": "2026-10-27T08:00:00.000Z",
+              "updatedAt": "2026-11-01T07:48:00.000Z",
+              "dueAt": "2026-10-31T09:00:00.000Z",
+              "resolvedAt": null
+            }
+          ]
+        }
+      },
+      "Sprint": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "projectId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "number": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "goal": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "active",
+              "completed"
+            ]
+          },
+          "startAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "endAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "committedPoints": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Points in the sprint when it started."
+          },
+          "completedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "report": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "committedPoints": {
+                "type": "integer"
+              },
+              "completedPoints": {
+                "type": "integer"
+              },
+              "completedIssues": {
+                "type": "integer"
+              },
+              "carriedOverIssues": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "committedPoints",
+              "completedPoints",
+              "completedIssues",
+              "carriedOverIssues"
+            ],
+            "example": {
+              "committedPoints": 40,
+              "completedPoints": 33,
+              "completedIssues": 12,
+              "carriedOverIssues": 3
+            },
+            "description": "Set when the sprint completes."
+          }
+        },
+        "required": [
+          "id",
+          "projectId",
+          "number",
+          "name",
+          "goal",
+          "status",
+          "startAt",
+          "endAt",
+          "committedPoints",
+          "completedAt",
+          "report"
+        ],
+        "example": {
+          "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e30",
+          "projectId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e20",
+          "number": 25,
+          "name": "Sprint 25",
+          "goal": "Ship SSO for enterprise tenants and stabilise token refresh.",
+          "status": "active",
+          "startAt": "2026-10-26T09:00:00.000Z",
+          "endAt": "2026-11-09T09:00:00.000Z",
+          "committedPoints": 50,
+          "completedAt": null,
+          "report": null
+        }
+      },
+      "Issue": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The issue key, e.g. DEV-104."
+          },
+          "projectId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sprintId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Null = in the backlog."
+          },
+          "statusId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "story",
+              "bug",
+              "task"
+            ]
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "urgent",
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "assigneeId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "git": {
+            "$ref": "#/components/schemas/GitLink"
+          },
+          "estimate": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "comments": {
+            "type": "integer",
+            "description": "Number of comments."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "dueAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resolvedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Set while the issue is in a done-category status."
+          }
+        },
+        "required": [
+          "id",
+          "projectId",
+          "sprintId",
+          "statusId",
+          "type",
+          "priority",
+          "title",
+          "description",
+          "assigneeId",
+          "tags",
+          "estimate",
+          "comments",
+          "createdAt",
+          "updatedAt",
+          "resolvedAt"
+        ],
+        "example": {
+          "id": "DEV-104",
+          "projectId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e20",
+          "sprintId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e30",
+          "statusId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e22",
+          "type": "bug",
+          "priority": "urgent",
+          "title": "OAuth refresh token rotation fails on concurrent tabs",
+          "description": "Two tabs refreshing at the same time both present the old refresh token.",
+          "assigneeId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
+          "tags": [
+            "auth",
+            "frontend"
+          ],
+          "git": {
+            "kind": "pr",
+            "number": 421,
+            "state": "open"
+          },
+          "estimate": 5,
+          "comments": 12,
+          "createdAt": "2026-10-27T08:00:00.000Z",
+          "updatedAt": "2026-11-01T07:48:00.000Z",
+          "dueAt": "2026-10-31T09:00:00.000Z",
+          "resolvedAt": null
+        }
+      },
+      "GitLink": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "pr"
+                ]
+              },
+              "number": {
+                "type": "integer"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "open",
+                  "merged",
+                  "draft"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "number",
+              "state"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "commit"
+                ]
+              },
+              "sha": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "sha"
+            ]
+          }
+        ],
+        "example": {
+          "kind": "pr",
+          "number": 421,
+          "state": "open"
+        }
+      },
+      "UpdateProjectRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "example": {
+          "description": "Board, realtime sync and auth."
+        }
+      },
+      "IssuePage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Issue"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass as ?cursor= for the next page; null on the last."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "example": {
+          "items": [
+            {
+              "id": "DEV-104",
+              "projectId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e20",
+              "sprintId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e30",
+              "statusId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e22",
+              "type": "bug",
+              "priority": "urgent",
+              "title": "OAuth refresh token rotation fails on concurrent tabs",
+              "description": "Two tabs refreshing at the same time both present the old refresh token.",
+              "assigneeId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
+              "tags": [
+                "auth",
+                "frontend"
+              ],
+              "git": {
+                "kind": "pr",
+                "number": 421,
+                "state": "open"
+              },
+              "estimate": 5,
+              "comments": 12,
+              "createdAt": "2026-10-27T08:00:00.000Z",
+              "updatedAt": "2026-11-01T07:48:00.000Z",
+              "dueAt": "2026-10-31T09:00:00.000Z",
+              "resolvedAt": null
+            }
+          ],
+          "nextCursor": null
+        }
+      },
+      "CreateIssueRequest": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 20000,
+            "default": ""
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "story",
+              "bug",
+              "task"
+            ],
+            "default": "task"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "urgent",
+              "high",
+              "medium",
+              "low"
+            ],
+            "default": "medium"
+          },
+          "assigneeId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "default": null
+          },
+          "estimate": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "default": null
+          },
+          "sprintId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "default": null
+          },
+          "statusId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Defaults to the project's first to-do status."
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "example": {
+          "title": "Export board as CSV",
+          "type": "story",
+          "priority": "low",
+          "assigneeId": null,
+          "estimate": 3,
+          "sprintId": null
+        }
+      },
+      "UpdateIssueRequest": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "story",
+              "bug",
+              "task"
+            ]
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "urgent",
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          "assigneeId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "estimate": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "statusId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sprintId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        },
+        "example": {
+          "priority": "high",
+          "estimate": 8
+        }
+      },
+      "MoveIssueRequest": {
+        "type": "object",
+        "properties": {
+          "statusId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "New board column."
+          },
+          "sprintId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "New sprint, or null for the backlog."
+          },
+          "beforeIssueKey": {
+            "type": "string",
+            "description": "Place the issue directly before this one (same project), e.g. DEV-121."
+          }
+        },
+        "description": "Placement: before beforeIssueKey when given; otherwise a status change floats the issue to the top and a sprint change sends it to the end, as the frontend's moveIssueToStatus and moveIssueToSprint do.",
+        "example": {
+          "sprintId": null,
+          "beforeIssueKey": "DEV-121"
+        }
+      },
+      "AddStatusRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "todo",
+              "in_progress",
+              "done"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "category"
+        ],
+        "example": {
+          "name": "QA",
+          "category": "in_progress"
+        }
+      },
+      "UpdateStatusRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "todo",
+              "in_progress",
+              "done"
+            ]
+          }
+        },
+        "example": {
+          "category": "done"
+        }
+      },
+      "ReorderStatusesRequest": {
+        "type": "object",
+        "properties": {
+          "statusIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "statusIds"
+        ],
+        "description": "Every status id of the project, exactly once, in the new left-to-right order.",
+        "example": {
+          "statusIds": [
+            "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e21",
+            "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e23",
+            "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e22",
+            "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e24"
+          ]
+        }
+      },
+      "CommentPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Comment"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass as ?cursor= for the next page; null on the last."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "example": {
+          "items": [
+            {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e40",
+              "issueKey": "DEV-104",
+              "author": {
+                "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e02",
+                "name": "Aiko Mori",
+                "initials": "AM",
+                "gradient": "from-rose-500 to-orange-500"
+              },
+              "body": "Reproduced with two tabs open; the second refresh revokes the session.",
+              "createdAt": "2026-10-31T14:20:00.000Z"
+            }
+          ],
+          "nextCursor": null
+        }
+      },
+      "Comment": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "issueKey": {
+            "type": "string"
+          },
+          "author": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string"
+              },
+              "initials": {
+                "type": "string"
+              },
+              "gradient": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "initials",
+              "gradient"
+            ],
+            "description": "Null when the author has left the workspace."
+          },
+          "body": {
+            "type": "string",
+            "description": "Markdown; sanitise when rendering."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "issueKey",
+          "author",
+          "body",
+          "createdAt"
+        ],
+        "example": {
+          "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e40",
+          "issueKey": "DEV-104",
+          "author": {
+            "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e02",
+            "name": "Aiko Mori",
+            "initials": "AM",
+            "gradient": "from-rose-500 to-orange-500"
+          },
+          "body": "Reproduced with two tabs open; the second refresh revokes the session.",
+          "createdAt": "2026-10-31T14:20:00.000Z"
+        }
+      },
+      "CreateCommentRequest": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 10000
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "example": {
+          "body": "Looks good to me. Merging after CI."
+        }
+      },
+      "Bootstrap": {
+        "type": "object",
+        "properties": {
+          "me": {
+            "$ref": "#/components/schemas/UserProfile"
+          },
+          "workspace": {
+            "$ref": "#/components/schemas/Workspace"
+          },
+          "config": {
+            "$ref": "#/components/schemas/PublicConfig"
+          },
+          "projects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectSummary"
+            }
+          }
+        },
+        "required": [
+          "me",
+          "workspace",
+          "config",
+          "projects"
+        ],
+        "example": {
+          "me": {
+            "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
+            "name": "John Rey",
+            "handle": "jrey",
+            "initials": "JR",
+            "gradient": "from-violet-500 to-indigo-600",
+            "email": "demo@devflow.local",
+            "role": "admin",
+            "timezone": "America/New_York",
+            "bio": "Frontend platform lead. Owns the board, realtime sync and the design system."
+          },
+          "workspace": {
+            "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e00",
+            "name": "Acme Inc",
+            "role": "admin"
+          },
+          "config": {
+            "oauth": {
+              "github": true,
+              "google": false
+            },
+            "githubIntegration": false,
+            "email": false
+          },
+          "projects": [
+            {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e20",
+              "key": "DEV",
+              "name": "DevFlow Core",
+              "description": "The web app: board, realtime sync, auth and the public API gateway.",
+              "color": "from-violet-500 to-indigo-600",
+              "leadId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
+              "workflow": [
+                {
+                  "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e21",
+                  "name": "To Do",
+                  "category": "todo"
+                },
+                {
+                  "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e22",
+                  "name": "In Progress",
+                  "category": "in_progress"
+                },
+                {
+                  "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e23",
+                  "name": "In Review",
+                  "category": "in_progress"
+                },
+                {
+                  "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e24",
+                  "name": "Done",
+                  "category": "done"
+                }
+              ],
+              "nextIssueNumber": 134,
+              "createdAt": "2026-05-05T09:00:00.000Z",
+              "activeSprint": {
+                "name": "Sprint 25",
+                "endAt": "2026-11-09T09:00:00.000Z",
+                "donePoints": 9,
+                "totalPoints": 50,
+                "doneIssues": 3,
+                "totalIssues": 11
+              },
+              "backlogCount": 5,
+              "lead": {
+                "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
+                "name": "John Rey",
+                "initials": "JR",
+                "gradient": "from-violet-500 to-indigo-600"
+              }
+            }
+          ]
         }
       }
     },
@@ -1899,6 +3220,35 @@
         }
       }
     },
+    "/workspace/demo/reset": {
+      "post": {
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "Restore the demo projects",
+        "description": "Admins only, signed-in session only. Replaces every project, sprint and issue with a fresh copy of the demo data (DEV, BIL, MOB), dated relative to now; accounts are untouched. 404 NOT_FOUND unless the server runs with SEED_DEMO_DATA=true. Re-fetch /bootstrap afterwards.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Demo data restored."
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/invites/{token}": {
       "get": {
         "tags": [
@@ -1981,6 +3331,1313 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AuthMe"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects": {
+      "get": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Projects in the workspace, with summaries",
+        "description": "Oldest first, each with active-sprint progress, backlog count and lead (as on the Projects overview). Any role; tokens need issues:read.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of projects.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Create a project",
+        "description": "Members and admins; tokens need projects:admin. The key is upper-cased, must match ^[A-Z]{2,5}$ and cannot change later. Creates the default workflow (To Do, In Progress, In Review, Done); the creator leads the project. Errors: 409 PROJECT_KEY_TAKEN, 422 VALIDATION_FAILED.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProjectRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The new project.",
+            "headers": {
+              "ETag": {
+                "description": "Version of the project; send it back as If-Match.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{key}": {
+      "get": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "A project with its workflow",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Project key, any case.",
+              "example": "DEV"
+            },
+            "required": true,
+            "description": "Project key, any case.",
+            "name": "key",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The project.",
+            "headers": {
+              "ETag": {
+                "description": "Version of the project; send it back as If-Match.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Rename or describe a project",
+        "description": "Members and admins; tokens need projects:admin. The key is immutable. Optional If-Match → 412 CONFLICT_STALE.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Project key, any case.",
+              "example": "DEV"
+            },
+            "required": true,
+            "description": "Project key, any case.",
+            "name": "key",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "If-Match",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProjectRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated project.",
+            "headers": {
+              "ETag": {
+                "description": "Version of the project; send it back as If-Match.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Delete a project",
+        "description": "Admins only; tokens need projects:admin. Deletes its workflow, sprints, issues and comments.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Project key, any case.",
+              "example": "DEV"
+            },
+            "required": true,
+            "description": "Project key, any case.",
+            "name": "key",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted."
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{key}/snapshot": {
+      "get": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Everything to render a project",
+        "description": "The project with its workflow, all its sprints by number (completed ones with their report) and every issue in the backlog or a planned/active sprint, in rank order. Completed sprints' issues are left out. Not paginated. Re-fetch after reconnecting to realtime.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Project key, any case.",
+              "example": "DEV"
+            },
+            "required": true,
+            "description": "Project key, any case.",
+            "name": "key",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The project snapshot.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectSnapshot"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{key}/issues": {
+      "get": {
+        "tags": [
+          "Issues"
+        ],
+        "summary": "Issues of a project, in rank order",
+        "description": "Any role; tokens need issues:read. Filters combine with AND.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "DEV"
+            },
+            "required": true,
+            "name": "key",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "backlog"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "active"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              ],
+              "description": "A sprint id, `backlog` (no sprint) or `active` (the active sprint)."
+            },
+            "required": false,
+            "description": "A sprint id, `backlog` (no sprint) or `active` (the active sprint).",
+            "name": "sprint",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "none"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              ],
+              "description": "A user id, or `none` for unassigned."
+            },
+            "required": false,
+            "description": "A user id, or `none` for unassigned.",
+            "name": "assignee",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "urgent",
+                "high",
+                "medium",
+                "low"
+              ]
+            },
+            "required": false,
+            "name": "priority",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "story",
+                "bug",
+                "task"
+              ]
+            },
+            "required": false,
+            "name": "type",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "description": "Matches the key, title or description."
+            },
+            "required": false,
+            "description": "Matches the key, title or description.",
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "description": "`true` = assigned to you."
+            },
+            "required": false,
+            "description": "`true` = assigned to you.",
+            "name": "mine",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of issues.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssuePage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Issues"
+        ],
+        "summary": "Create an issue",
+        "description": "Members and admins; tokens need issues:write. Gets the next key (DEV-134) atomically and goes to the top of the ranking. statusId defaults to the first to-do status. sprintId must be a planned or active sprint of the project; assigneeId a workspace member.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "DEV"
+            },
+            "required": true,
+            "name": "key",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateIssueRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The new issue.",
+            "headers": {
+              "ETag": {
+                "description": "Version of the issue; send it back as If-Match.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Issue"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/issues/{issueKey}": {
+      "get": {
+        "tags": [
+          "Issues"
+        ],
+        "summary": "An issue by key",
+        "description": "Any role; tokens need issues:read. A bare number needs ?project=KEY (422 otherwise).",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "DEV-104 (any case), or 104 with ?project=DEV.",
+              "example": "DEV-104"
+            },
+            "required": true,
+            "description": "DEV-104 (any case), or 104 with ?project=DEV.",
+            "name": "issueKey",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Project key; required when :issueKey is a bare number such as 104."
+            },
+            "required": false,
+            "description": "Project key; required when :issueKey is a bare number such as 104.",
+            "name": "project",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The issue.",
+            "headers": {
+              "ETag": {
+                "description": "Version of the issue; send it back as If-Match.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Issue"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Issues"
+        ],
+        "summary": "Update an issue",
+        "description": "Members and admins; tokens need issues:write. Moving into a done-category status sets resolvedAt; moving out clears it. Optional If-Match → 412 CONFLICT_STALE. For board drops and ranking use POST /issues/{issueKey}/move.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "DEV-104 (any case), or 104 with ?project=DEV.",
+              "example": "DEV-104"
+            },
+            "required": true,
+            "description": "DEV-104 (any case), or 104 with ?project=DEV.",
+            "name": "issueKey",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Project key; required when :issueKey is a bare number such as 104."
+            },
+            "required": false,
+            "description": "Project key; required when :issueKey is a bare number such as 104.",
+            "name": "project",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "If-Match",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateIssueRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated issue.",
+            "headers": {
+              "ETag": {
+                "description": "Version of the issue; send it back as If-Match.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Issue"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Issues"
+        ],
+        "summary": "Delete an issue",
+        "description": "Members and admins; tokens need issues:write. Its number is not reused.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "DEV-104 (any case), or 104 with ?project=DEV.",
+              "example": "DEV-104"
+            },
+            "required": true,
+            "description": "DEV-104 (any case), or 104 with ?project=DEV.",
+            "name": "issueKey",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Project key; required when :issueKey is a bare number such as 104."
+            },
+            "required": false,
+            "description": "Project key; required when :issueKey is a bare number such as 104.",
+            "name": "project",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted."
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/issues/{issueKey}/move": {
+      "post": {
+        "tags": [
+          "Issues"
+        ],
+        "summary": "Move an issue (board drop, backlog drag, ranking)",
+        "description": "Members and admins; tokens need issues:write. Changes statusId and/or sprintId and re-ranks the issue without renumbering others. Placement rules: see MoveIssueRequest.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "DEV-104 (any case), or 104 with ?project=DEV.",
+              "example": "DEV-104"
+            },
+            "required": true,
+            "description": "DEV-104 (any case), or 104 with ?project=DEV.",
+            "name": "issueKey",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Project key; required when :issueKey is a bare number such as 104."
+            },
+            "required": false,
+            "description": "Project key; required when :issueKey is a bare number such as 104.",
+            "name": "project",
+            "in": "query"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveIssueRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The moved issue.",
+            "headers": {
+              "ETag": {
+                "description": "Version of the issue; send it back as If-Match.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Issue"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{key}/statuses": {
+      "post": {
+        "tags": [
+          "Workflow"
+        ],
+        "summary": "Add a status (board column)",
+        "description": "Admins only; tokens need projects:admin. Inserted before the first done status, unless its category is done (then last).",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "DEV"
+            },
+            "required": true,
+            "name": "key",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The project with its updated workflow.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{key}/statuses/{id}": {
+      "patch": {
+        "tags": [
+          "Workflow"
+        ],
+        "summary": "Rename a status or change its category",
+        "description": "Admins only. Changing into or out of done sets or clears resolvedAt on its issues. 409 STATUS_UPDATE_BLOCKED when it would leave the workflow without a to-do or done status.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "DEV"
+            },
+            "required": true,
+            "name": "key",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The project with its updated workflow.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Workflow"
+        ],
+        "summary": "Delete a status",
+        "description": "Admins only. Moves its issues to ?moveTo= (required when it has issues), then deletes it. 409 STATUS_DELETE_BLOCKED keeps at least two statuses and at least one to-do and one done status.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "DEV"
+            },
+            "required": true,
+            "name": "key",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Status that receives the deleted status's issues. Required when it has issues."
+            },
+            "required": false,
+            "description": "Status that receives the deleted status's issues. Required when it has issues.",
+            "name": "moveTo",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The project with its updated workflow.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{key}/statuses/order": {
+      "put": {
+        "tags": [
+          "Workflow"
+        ],
+        "summary": "Reorder the workflow",
+        "description": "Admins only. 422 unless statusIds lists every status of the project exactly once.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "DEV"
+            },
+            "required": true,
+            "name": "key",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReorderStatusesRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The project with its updated workflow.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/issues/{issueKey}/comments": {
+      "get": {
+        "tags": [
+          "Comments"
+        ],
+        "summary": "An issue's comment thread",
+        "description": "Oldest first. Any role; tokens need issues:read.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "DEV-104"
+            },
+            "required": true,
+            "name": "issueKey",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Project key; required when :issueKey is a bare number such as 104."
+            },
+            "required": false,
+            "description": "Project key; required when :issueKey is a bare number such as 104.",
+            "name": "project",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of comments.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Comments"
+        ],
+        "summary": "Comment on an issue",
+        "description": "Members and admins; tokens need issues:write. The body is Markdown, stored as written; sanitise it when rendering. Increments the issue's comments count.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "DEV-104"
+            },
+            "required": true,
+            "name": "issueKey",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Project key; required when :issueKey is a bare number such as 104."
+            },
+            "required": false,
+            "description": "Project key; required when :issueKey is a bare number such as 104.",
+            "name": "project",
+            "in": "query"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCommentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The new comment.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comment"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bootstrap": {
+      "get": {
+        "tags": [
+          "Bootstrap"
+        ],
+        "summary": "Everything the app shell needs after sign-in",
+        "description": "The signed-in user, the workspace with your role, the feature flags and every project with its summary, in one call. Any role; tokens need issues:read.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The bootstrap payload.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Bootstrap"
                 }
               }
             }

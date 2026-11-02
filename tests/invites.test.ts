@@ -13,7 +13,7 @@ afterAll(close);
 let admin: ReturnType<typeof asBrowser>;
 beforeEach(async () => {
   await truncateAll(prisma);
-  await seed(prisma, createLogger(env));
+  await seed(prisma, createLogger(env), undefined, { tracker: false });
   email.sent.length = 0;
   email.failNext = false;
   admin = asBrowser(app, await signIn(app, "demo@devflow.local"));

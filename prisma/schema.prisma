@@ -20,8 +20,9 @@ model Workspace {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  users   User[]
-  invites WorkspaceInvite[]
+  users    User[]
+  invites  WorkspaceInvite[]
+  projects Project[]
 
   @@map("workspaces")
 }
@@ -57,6 +58,9 @@ model User {
   oauthAccounts       OAuthAccount[]
   accessTokens        AccessToken[]
   invitesSent         WorkspaceInvite[]    @relation("InvitesSent")
+  projectsLed         Project[]            @relation("ProjectLead")
+  assignedIssues      Issue[]              @relation("IssueAssignee")
+  comments            IssueComment[]
 
   @@index([workspaceId])
   @@map("users")
@@ -169,4 +173,183 @@ model WorkspaceInvite {
   @@unique([workspaceId, email])
   @@index([workspaceId, createdAt, id])
   @@map("workspace_invites")
+}
+
+/// Categories give custom statuses shared meaning (e.g. what counts as done).
+enum StatusCategory {
+  todo
+  in_progress
+  done
+}
+
+model Project {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  workspaceId     String   @map("workspace_id") @db.Uuid
+  /// ^[A-Z]{2,5}$, immutable; issues are keyed KEY-n.
+  key             String
+  name            String
+  description     String   @default("")
+  /// Tailwind gradient classes for the project icon.
+  color           String
+  leadId          String?  @map("lead_id") @db.Uuid
+  /// Next issue number; incremented atomically when an issue is created.
+  nextIssueNumber Int      @default(1) @map("next_issue_number")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  workspace Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  lead      User?            @relation("ProjectLead", fields: [leadId], references: [id], onDelete: SetNull)
+  statuses  WorkflowStatus[]
+  sprints   Sprint[]
+  issues    Issue[]
+
+  @@unique([workspaceId, key])
+  @@map("projects")
+}
+
+/// A board column. `position` orders the workflow left to right.
+model WorkflowStatus {
+  id        String         @id @default(uuid(7)) @db.Uuid
+  projectId String         @map("project_id") @db.Uuid
+  name      String
+  category  StatusCategory
+  position  Int
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  issues  Issue[]
+
+  @@index([projectId, position])
+  @@map("workflow_statuses")
+}
+
+enum SprintStatus {
+  planned
+  active
+  completed
+}
+
+/// planned → active (one per project) → completed. Lifecycle endpoints arrive in v0.5.0.
+model Sprint {
+  id                      String       @id @default(uuid(7)) @db.Uuid
+  projectId               String       @map("project_id") @db.Uuid
+  number                  Int
+  name                    String
+  goal                    String       @default("")
+  status                  SprintStatus @default(planned)
+  startAt                 DateTime?    @map("start_at") @db.Timestamptz(3)
+  endAt                   DateTime?    @map("end_at") @db.Timestamptz(3)
+  /// Points in the sprint when it started.
+  committedPoints         Int?         @map("committed_points")
+  completedAt             DateTime?    @map("completed_at") @db.Timestamptz(3)
+  /// The report written when the sprint completes; all four are null until then.
+  reportCommittedPoints   Int?         @map("report_committed_points")
+  reportCompletedPoints   Int?         @map("report_completed_points")
+  reportCompletedIssues   Int?         @map("report_completed_issues")
+  reportCarriedOverIssues Int?         @map("report_carried_over_issues")
+  createdAt               DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt               DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  issues  Issue[]
+
+  @@unique([projectId, number])
+  @@map("sprints")
+}
+
+enum IssueType {
+  story
+  bug
+  task
+}
+
+enum Priority {
+  urgent
+  high
+  medium
+  low
+}
+
+model Issue {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  projectId    String    @map("project_id") @db.Uuid
+  /// The n in KEY-n, unique per project.
+  number       Int
+  /// Null = in the backlog.
+  sprintId     String?   @map("sprint_id") @db.Uuid
+  statusId     String    @map("status_id") @db.Uuid
+  type         IssueType
+  priority     Priority
+  title        String
+  description  String    @default("")
+  assigneeId   String?   @map("assignee_id") @db.Uuid
+  tags         String[]  @default([])
+  /// Linked pull request or commit ({ kind: "pr", number, state } | { kind: "commit", sha }); set by GitHub webhooks.
+  git          Json?
+  /// Story points: 1, 2, 3, 5, 8, 13 or null.
+  estimate     Int?
+  commentCount Int       @default(0) @map("comment_count")
+  /// Fractional index; compared byte-wise (the migration sets COLLATE "C").
+  rank         String
+  dueAt        DateTime? @map("due_at") @db.Timestamptz(3)
+  /// Set when the issue enters a done-category status, cleared when it leaves.
+  resolvedAt   DateTime? @map("resolved_at") @db.Timestamptz(3)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  project  Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sprint   Sprint?        @relation(fields: [sprintId], references: [id], onDelete: SetNull)
+  status   WorkflowStatus @relation(fields: [statusId], references: [id], onDelete: Restrict)
+  assignee User?          @relation("IssueAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  events   IssueEvent[]
+  comments IssueComment[]
+
+  @@unique([projectId, number])
+  @@index([projectId, rank, id])
+  @@index([sprintId])
+  @@map("issues")
+}
+
+enum IssueEventKind {
+  created
+  status
+  sprint
+  estimate
+}
+
+/// History of the changes that matter for burndown, recording the issue's state after each change.
+model IssueEvent {
+  id        String         @id @default(uuid(7)) @db.Uuid
+  issueId   String         @map("issue_id") @db.Uuid
+  projectId String         @map("project_id") @db.Uuid
+  kind      IssueEventKind
+  actorId   String?        @map("actor_id") @db.Uuid
+  sprintId  String?        @map("sprint_id") @db.Uuid
+  statusId  String         @map("status_id") @db.Uuid
+  estimate  Int?
+  done      Boolean
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  issue Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+
+  @@index([issueId, createdAt])
+  @@index([projectId, createdAt])
+  @@map("issue_events")
+}
+
+/// Markdown text; the frontend sanitises it when rendering.
+model IssueComment {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  issueId   String   @map("issue_id") @db.Uuid
+  /// Null once the author has been removed from the workspace.
+  authorId  String?  @map("author_id") @db.Uuid
+  body      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  issue  Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  author User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([issueId, createdAt, id])
+  @@map("issue_comments")
 }

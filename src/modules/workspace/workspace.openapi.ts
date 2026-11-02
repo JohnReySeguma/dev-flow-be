@@ -85,6 +85,18 @@ export function registerWorkspaceDocs(registry: OpenAPIRegistry) {
     responses: { 200: { description: "The pending invite.", ...json(teamMember) }, default: problemResponse },
   });
   registry.registerPath({
+    method: "post",
+    path: "/workspace/demo/reset",
+    tags: ["Workspace"],
+    summary: "Restore the demo projects",
+    description:
+      "Admins only, signed-in session only. Replaces every project, sprint and issue with a fresh copy of the demo " +
+      "data (DEV, BIL, MOB), dated relative to now; accounts are untouched. 404 NOT_FOUND unless the server runs " +
+      "with SEED_DEMO_DATA=true. Re-fetch /bootstrap afterwards.",
+    security: [{ cookieAuth: [] }],
+    responses: { 204: { description: "Demo data restored." }, default: problemResponse },
+  });
+  registry.registerPath({
     method: "get",
     path: "/invites/{token}",
     tags: ["Invites"],

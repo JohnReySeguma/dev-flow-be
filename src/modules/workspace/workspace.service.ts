@@ -11,8 +11,12 @@ const notFound = () => new AppError("NOT_FOUND", "No member or invite with that 
 const lastAdmin = () =>
   new AppError("LAST_ADMIN", "The workspace needs at least one admin. Promote someone else first.");
 
-export function createWorkspaceService(deps: { workspaces: WorkspaceRepository }) {
-  const { workspaces } = deps;
+export function createWorkspaceService(deps: {
+  workspaces: WorkspaceRepository;
+  /** Restores the demo tracker; absent when SEED_DEMO_DATA is false. */
+  resetDemo?: (workspaceId: string) => Promise<void>;
+}) {
+  const { workspaces, resetDemo } = deps;
 
   return {
     async get(auth: AuthContext): Promise<WorkspaceView> {
@@ -55,6 +59,12 @@ export function createWorkspaceService(deps: { workspaces: WorkspaceRepository }
         if (!invite) throw notFound();
         return memberFromInvite(await tx.setInviteRole(id, role));
       });
+    },
+
+    /** Restores the demo projects, sprints and issues. Only on deployments that seed demo data. */
+    async resetDemoData(auth: AuthContext): Promise<void> {
+      if (!resetDemo) throw new AppError("NOT_FOUND", "Demo data is not enabled on this server.");
+      await resetDemo(auth.workspaceId);
     },
 
     /** Removes a member (ending their sessions and tokens) or revokes a pending invite. */

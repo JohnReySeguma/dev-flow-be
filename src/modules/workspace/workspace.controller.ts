@@ -26,5 +26,10 @@ export function createWorkspaceController(workspace: WorkspaceService) {
     res.status(204).end();
   };
 
-  return { get, listMembers, changeRole, remove };
+  const resetDemo: RequestHandler = async (req, res) => {
+    await workspace.resetDemoData(authOf(req));
+    res.status(204).end();
+  };
+
+  return { get, listMembers, changeRole, remove, resetDemo };
 }

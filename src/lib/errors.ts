@@ -20,6 +20,7 @@ export const ERROR_CATALOGUE = {
   SPRINT_ALREADY_ACTIVE: { status: 409, title: "Another sprint is already active" },
   SPRINT_NOT_PLANNED: { status: 409, title: "Sprint is not planned" },
   STATUS_DELETE_BLOCKED: { status: 409, title: "Status cannot be deleted" },
+  STATUS_UPDATE_BLOCKED: { status: 409, title: "Status cannot change category" },
   LAST_ADMIN: { status: 409, title: "The workspace needs at least one admin" },
   ALREADY_MEMBER: { status: 409, title: "Already a workspace member" },
   CONFLICT_STALE: { status: 412, title: "Resource changed since it was read" },

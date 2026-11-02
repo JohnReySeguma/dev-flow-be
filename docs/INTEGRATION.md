@@ -1,7 +1,7 @@
 # DevFlow API — Frontend Integration Guide
 
 > **For:** the frontend ([`dev-flow`](https://github.com/JohnReySeguma/dev-flow)).
-> **Accurate for:** `v0.3.0`. Updated at every release (see [`FRONTEND_HANDOFF.md`](FRONTEND_HANDOFF.md)).
+> **Accurate for:** `v0.4.0`. Updated at every release (see [`FRONTEND_HANDOFF.md`](FRONTEND_HANDOFF.md)).
 > **Machine-readable contract:** [`openapi.json`](openapi.json), also served at `/api/v1/openapi.json`, with
 > Swagger UI at `/api/v1/docs`.
 > **Step-by-step plan for the frontend:** [`FRONTEND_BRIEF.md`](FRONTEND_BRIEF.md).
@@ -23,11 +23,14 @@
 
 ### 1.1 Deliberate differences from the frontend types
 
-| Where                              | Difference                                                                                                |
-| ---------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `UserProfile` (`/auth/me`, `/me`)  | No `presence` yet: it arrives with realtime in `v0.6.0`. Treat the signed-in user as `online` until then. |
-| `UserProfile`, later `TeamMember`  | The avatar field is `gradient`, as in `lib/members.ts`, not the brief's `avatarColor`.                    |
-| `UserProfile.id`, `AccessToken.id` | UUIDs instead of the fixtures' `u-jr` / `pat_01` style ids.                                               |
+| Where                             | Difference                                                                                                                          |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `UserProfile` (`/auth/me`, `/me`) | No `presence` yet: it arrives with realtime in `v0.6.0`. Treat the signed-in user as `online` until then.                           |
+| `UserProfile`, later `TeamMember` | The avatar field is `gradient`, as in `lib/members.ts`, not the brief's `avatarColor`.                                              |
+| Every `id` except issues          | UUIDs instead of the fixtures' `u-jr`, `p-dev`, `dev-todo`, `s-p-dev-25`, `pat_01` style ids.                                       |
+| `Issue.id`                        | The issue key (`DEV-104`), as in `types.ts`. Keys are never zero-padded: the fixtures' `DEV-088` is `DEV-88` (lookups accept both). |
+| `Issue.git`, `Issue.dueAt`        | Omitted when absent, as their `?` in `types.ts` allows; never `null`.                                                               |
+| `ProjectSummary` (`/projects`)    | A `Project` plus `activeSprint`, `backlogCount` and `lead`, for the sidebar and Projects overview.                                  |
 
 ## 2. Endpoint coverage matrix
 
@@ -35,28 +38,30 @@
 
 ### Board, backlog and project data — `lib/tracker/store.ts`
 
-| Frontend function             | UI action                             | Endpoint                                                                                | Since |
-| ----------------------------- | ------------------------------------- | --------------------------------------------------------------------------------------- | ----- |
-| `useTracker()` (initial data) | Load the app / a project              | `GET /bootstrap`, `GET /projects/:key/snapshot`                                         |       |
-| `createIssue`                 | Create Issue dialog, quick add        | `POST /projects/:key/issues`                                                            |       |
-| `updateIssue`                 | Issue sheet field edits               | `PATCH /issues/:issueKey`                                                               |       |
-| `moveIssueToStatus`           | Drag card between board columns       | `POST /issues/:issueKey/move`                                                           |       |
-| `moveIssueToSprint`           | Backlog drag, "Move to" menu, ranking | `POST /issues/:issueKey/move`                                                           |       |
-| `deleteIssue`                 | Issue sheet → Delete                  | `DELETE /issues/:issueKey`                                                              |       |
-| `createSprint`                | Backlog → "+ Sprint"                  | `POST /projects/:key/sprints`                                                           |       |
-| `updateSprint`                | Edit sprint name & goal               | `PATCH /sprints/:id`                                                                    |       |
-| `deleteSprint`                | Delete planned sprint                 | `DELETE /sprints/:id`                                                                   |       |
-| `startSprint`                 | Start sprint dialog                   | `POST /sprints/:id/start`                                                               |       |
-| `completeSprint`              | Complete sprint dialog                | `POST /sprints/:id/complete`                                                            |       |
-| `addStatus`                   | Board "Add column", settings          | `POST /projects/:key/statuses`                                                          |       |
-| `updateStatus`                | Rename column, change category        | `PATCH /projects/:key/statuses/:id`                                                     |       |
-| `moveStatus`                  | Move column left/right                | `PUT /projects/:key/statuses/order`                                                     |       |
-| `deleteStatus`                | Delete column                         | `DELETE /projects/:key/statuses/:id?moveTo=`                                            |       |
-| `createProject`               | New project dialog                    | `POST /projects`                                                                        |       |
-| `updateProject`               | Project settings → General            | `PATCH /projects/:key`                                                                  |       |
-| `deleteProject`               | Project settings → Delete             | `DELETE /projects/:key`                                                                 |       |
-| `resetDemoData`               | Workspace settings → Reset demo data  | `POST /workspace/demo/reset` (planned for `v0.4.0`, with the demo projects it restores) |       |
-| Reports page                  | Burndown, velocity, history           | `GET /sprints/:id/burndown`, `GET /projects/:key/reports/*`                             |       |
+| Frontend function             | UI action                             | Endpoint                                                      | Since |
+| ----------------------------- | ------------------------------------- | ------------------------------------------------------------- | ----- |
+| `useTracker()` (initial data) | Load the app / a project              | `GET /bootstrap`, `GET /projects/:key/snapshot`               | 0.4.0 |
+| `createIssue`                 | Create Issue dialog, quick add        | `POST /projects/:key/issues`                                  | 0.4.0 |
+| `updateIssue`                 | Issue sheet field edits               | `PATCH /issues/:issueKey`                                     | 0.4.0 |
+| `moveIssueToStatus`           | Drag card between board columns       | `POST /issues/:issueKey/move`                                 | 0.4.0 |
+| `moveIssueToSprint`           | Backlog drag, "Move to" menu, ranking | `POST /issues/:issueKey/move`                                 | 0.4.0 |
+| `deleteIssue`                 | Issue sheet → Delete                  | `DELETE /issues/:issueKey`                                    | 0.4.0 |
+| `createSprint`                | Backlog → "+ Sprint"                  | `POST /projects/:key/sprints`                                 |       |
+| `updateSprint`                | Edit sprint name & goal               | `PATCH /sprints/:id`                                          |       |
+| `deleteSprint`                | Delete planned sprint                 | `DELETE /sprints/:id`                                         |       |
+| `startSprint`                 | Start sprint dialog                   | `POST /sprints/:id/start`                                     |       |
+| `completeSprint`              | Complete sprint dialog                | `POST /sprints/:id/complete`                                  |       |
+| `addStatus`                   | Board "Add column", settings          | `POST /projects/:key/statuses`                                | 0.4.0 |
+| `updateStatus`                | Rename column, change category        | `PATCH /projects/:key/statuses/:id`                           | 0.4.0 |
+| `moveStatus`                  | Move column left/right                | `PUT /projects/:key/statuses/order` (send the full new order) | 0.4.0 |
+| `deleteStatus`                | Delete column                         | `DELETE /projects/:key/statuses/:id?moveTo=`                  | 0.4.0 |
+| `createProject`               | New project dialog                    | `POST /projects`                                              | 0.4.0 |
+| `updateProject`               | Project settings → General            | `PATCH /projects/:key`                                        | 0.4.0 |
+| `deleteProject`               | Project settings → Delete             | `DELETE /projects/:key`                                       | 0.4.0 |
+| `resetDemoData`               | Workspace settings → Reset demo data  | `POST /workspace/demo/reset`                                  | 0.4.0 |
+| Reports page                  | Burndown, velocity, history           | `GET /sprints/:id/burndown`, `GET /projects/:key/reports/*`   |       |
+| Issue sheet comments          | Read and add comments                 | `GET`/`POST /issues/:issueKey/comments`                       | 0.4.0 |
+| ⌘K jump                       | Open an issue by key or number        | `GET /issues/:issueKey` (`104` needs `?project=DEV`)          | 0.4.0 |
 
 ### Account and workspace
 
@@ -143,13 +148,14 @@ the contract already but no endpoint returns them yet.
 | `CANNOT_REMOVE_SELF`     | 403  | Admins cannot remove themselves                                                 | `DELETE /workspace/members/:id` (new in `v0.3.0`)                      |
 | `NOT_FOUND`              | 404  | Unknown route or resource                                                       | Any unknown route, `DELETE /me/tokens/:id`, disabled OAuth provider    |
 | `EMAIL_TAKEN`            | 409  | Sign-up with an email that already has an account                               | `POST /auth/signup`                                                    |
-| `PROJECT_KEY_TAKEN`      | 409  | Project key already in use                                                      | Reserved (`v0.4.0`)                                                    |
+| `PROJECT_KEY_TAKEN`      | 409  | Project key already in use                                                      | `POST /projects`                                                       |
 | `SPRINT_ALREADY_ACTIVE`  | 409  | Another sprint is active in the project                                         | Reserved (`v0.5.0`)                                                    |
 | `SPRINT_NOT_PLANNED`     | 409  | Only planned sprints can be started or deleted                                  | Reserved (`v0.5.0`)                                                    |
-| `STATUS_DELETE_BLOCKED`  | 409  | Deleting would break the workflow guards                                        | Reserved (`v0.4.0`)                                                    |
+| `STATUS_DELETE_BLOCKED`  | 409  | Deleting would leave < 2 statuses or no to-do / done status (`detail` says why) | `DELETE /projects/:key/statuses/:id`                                   |
+| `STATUS_UPDATE_BLOCKED`  | 409  | Recategorising would leave no to-do or no done status (`detail` says why)       | `PATCH /projects/:key/statuses/:id` (new in `v0.4.0`)                  |
 | `LAST_ADMIN`             | 409  | The last active admin cannot be demoted or removed                              | `PATCH` / `DELETE /workspace/members/:id`                              |
 | `ALREADY_MEMBER`         | 409  | The email is already a member or already invited                                | `POST /workspace/invites`, `POST /invites/:token/accept`               |
-| `CONFLICT_STALE`         | 412  | `If-Match` no longer matches; re-fetch and retry                                | `PATCH /me`                                                            |
+| `CONFLICT_STALE`         | 412  | `If-Match` no longer matches; re-fetch and retry                                | `PATCH /me`, `PATCH /projects/:key`, `PATCH /issues/:issueKey`         |
 | `PAYLOAD_TOO_LARGE`      | 413  | Body larger than 100 kB                                                         | Any endpoint with a JSON body                                          |
 | `VALIDATION_FAILED`      | 422  | Invalid fields, listed in `errors`                                              | Every endpoint with input                                              |
 | `RATE_LIMITED`           | 429  | Too many requests; retry later                                                  | Reserved (`v1.0.0`)                                                    |
@@ -184,7 +190,7 @@ API. Nothing to store in `localStorage`; just send `credentials: "include"`.
 `Secure` cookies on `http://localhost`; if your browser does not, use one of those for local development.
 
 The access cookie is deliberately scoped to `/api/v1`, so the frontend's own server never receives it. Everything
-that needs the session therefore lives under `/api/v1`, including the realtime endpoint (§6).
+that needs the session therefore lives under `/api/v1`, including the realtime endpoint (§7).
 
 ### 5.3 Expiry and refresh
 
@@ -262,20 +268,29 @@ already a member or already invited answers `409 ALREADY_MEMBER`. If the email c
 
 `POST /me/tokens { name, scopes, expiresInDays }` returns `{ token, secret }`. **The secret is shown once**; afterwards
 only `lastFour` is available. Clients use it as `Authorization: Bearer dfp_…`. A token can read (`GET /auth/me`,
-`GET /me`) but cannot change the profile or manage tokens (`403 FORBIDDEN`). Scopes are stored and returned; they gate
-the issue and project endpoints as those arrive (`v0.4.0`+).
+`GET /me`) but cannot change the profile or manage tokens (`403 FORBIDDEN`). Scopes gate what else a token may do;
+signed-in sessions are not scoped:
+
+| Scope             | Allows                                                                               |
+| ----------------- | ------------------------------------------------------------------------------------ |
+| `issues:read`     | Read projects, issues, comments, snapshots and `/bootstrap`                          |
+| `issues:write`    | Create, update, move and delete issues; comment                                      |
+| `projects:admin`  | Create, update and delete projects; edit workflows (the caller's role still applies) |
+| `webhooks:manage` | Reserved for the GitHub integration (`v0.6.0`)                                       |
 
 ### 5.9 Roles and permissions
 
 `GET /auth/me` and `GET /workspace` return the caller's role. Hide or disable what the role cannot do; the API enforces
 it anyway with `403 FORBIDDEN`.
 
-| Action                                               | viewer | member | admin |
-| ---------------------------------------------------- | ------ | ------ | ----- |
-| Read the workspace, members and invites              | ✓      | ✓      | ✓     |
-| Edit issues and sprints (from `v0.4.0`)              |        | ✓      | ✓     |
-| Invite, change roles, remove members, revoke invites |        |        | ✓     |
-| Workflow, project delete (from `v0.4.0`)             |        |        | ✓     |
+| Action                                                          | viewer | member | admin |
+| --------------------------------------------------------------- | ------ | ------ | ----- |
+| Read the workspace, members and invites                         | ✓      | ✓      | ✓     |
+| Read projects, issues, comments                                 | ✓      | ✓      | ✓     |
+| Create and edit issues and comments; create and rename projects |        | ✓      | ✓     |
+| Edit sprints (from `v0.5.0`)                                    |        | ✓      | ✓     |
+| Invite, change roles, remove members, revoke invites            |        |        | ✓     |
+| Edit the workflow, delete projects, reset demo data             |        |        | ✓     |
 
 - Roles are read from the database on every request: a demotion applies to the member's very next request.
 - Member management also needs a signed-in session: access tokens get `403` even for an admin.
@@ -286,7 +301,54 @@ it anyway with `403 FORBIDDEN`.
   closes. Revoking an invite can be undone by inviting again.
 - Role changes are last-write-wins (no `If-Match` on members).
 
-## 6. Realtime
+## 6. Projects, workflow and issues
+
+### 6.1 Loading
+
+Call `GET /bootstrap` once after sign-in (`{ me, workspace, config, projects }`, with each project's summary), then
+`GET /projects/:key/snapshot` per project: `{ project, sprints, issues }` where `project.workflow` is in board order,
+`sprints` are all sprints by number (completed ones carry `report`), and `issues` are the backlog and planned/active
+sprints in **rank order**, the array order the store already uses. Neither is paginated; `GET /projects/:key/issues`
+offers filtered, paginated access (`sprint=<id>|backlog|active`, `assignee=<id>|none`, `priority`, `type`, `q`,
+`mine=true`).
+
+### 6.2 Issues
+
+- Keys come from a per-project counter (`DEV-134`, never reused). `GET /issues/:issueKey` accepts any case and
+  `DEV-088`-style padding; a bare `104` needs `?project=DEV`. All issue endpoints take the key, never the UUID.
+- `POST /projects/:key/issues` puts the issue at the top of the ranking, like `createIssue`. Omitted fields default to
+  `type: task`, `priority: medium`, no assignee, estimate or sprint, and the first to-do status.
+- `resolvedAt` is managed by the API: set when an issue enters a done-category status, cleared when it leaves. Don't
+  send it. `tags`, `dueAt` and `git` are read-only, as in the store (`git` is set by GitHub in `v0.6.0`).
+- `PATCH /issues/:issueKey` and `PATCH /projects/:key` return an `ETag`; send `If-Match` to get `412` instead of
+  overwriting a teammate's change.
+
+### 6.3 Moving and ranking
+
+`POST /issues/:issueKey/move { statusId?, sprintId?, beforeIssueKey? }` replaces `moveIssueToStatus` and
+`moveIssueToSprint` and returns the moved issue:
+
+| Request                              | Result (as the store does today)         |
+| ------------------------------------ | ---------------------------------------- |
+| `{ statusId }`                       | New column; the issue floats to the top  |
+| `{ sprintId }` (or `null` = backlog) | New container; the issue goes to the end |
+| `{ …, beforeIssueKey: "DEV-121" }`   | Placed directly before DEV-121           |
+
+Only the moved issue changes; other issues keep their positions. Re-fetching the snapshot gives the new order.
+
+### 6.4 Workflow
+
+Admins edit columns with `POST /projects/:key/statuses` (inserted before the first done status, unless it is done),
+`PATCH …/:id`, `PUT …/order { statusIds }` (the store's `moveStatus` swaps neighbours: send the resulting full order)
+and `DELETE …/:id?moveTo=<statusId>` (`moveTo` is required when the column has issues). Each answers with the whole
+`Project`, so replace the cached workflow with `project.workflow`. Guards match `cannotDeleteStatusReason`.
+
+### 6.5 Sprints
+
+Sprints are read-only in this release: they arrive in the snapshot and issues can be moved in and out of planned or
+active sprints, but creating, editing, starting and completing sprints, and the reports, ship in `v0.5.0`.
+
+## 7. Realtime
 
 Ships in `v0.6.0`. No events yet. Decided so far: Socket.IO is mounted at **`/api/v1/socket.io`** (not the default
 `/socket.io`) so the handshake carries the `/api/v1`-scoped session cookie. Connect with:
@@ -295,7 +357,7 @@ Ships in `v0.6.0`. No events yet. Decided so far: Socket.IO is mounted at **`/ap
 io("http://localhost:4000/realtime", { path: "/api/v1/socket.io", withCredentials: true });
 ```
 
-## 7. Demo data and accounts
+## 8. Demo data and accounts
 
 When `SEED_DEMO_DATA=true`, an empty database is seeded with the Acme Inc workspace and the frontend's team
 (`lib/account-data.ts`). Every demo account uses the password **`devflow-demo`**:
@@ -307,15 +369,19 @@ When `SEED_DEMO_DATA=true`, an empty database is seeded with the Acme Inc worksp
 | viewer | `viewer@devflow.local` | Lucas Brandt |
 
 Aiko Mori (`aiko@acme.dev`, admin) and Priya Shah (`priya@acme.dev`, member) exist too. The admin owns the
-frontend's two example access tokens; their secrets were never issued, so they cannot authenticate. The projects
-DEV, BIL and MOB arrive in `v0.4.0`.
+frontend's two example access tokens; their secrets were never issued, so they cannot authenticate.
 
-## 8. Known limitations
+The tracker is the frontend's demo (`lib/tracker/seed.ts`): projects **DEV**, **BIL** and **MOB** with the same
+workflows, sprints, issues and states, dated relative to the moment the database was seeded, and as many short demo
+comments per issue as the frontend shows. `POST /workspace/demo/reset` (admins) restores it at any time without
+touching accounts.
 
-- No project, issue or sprint endpoints yet: keep the in-browser store for data.
-- Roles are enforced on the workspace endpoints; issue, sprint and project permissions arrive with those endpoints.
+## 9. Known limitations
+
+- Sprint lifecycle (create, edit, start, complete) and the reports arrive in `v0.5.0`; until then sprint actions stay
+  local or disabled in API mode.
+- No realtime yet (`v0.6.0`): other people's changes appear after re-fetching the snapshot.
 - No rate limits on sign-in, sign-up, password reset or invites until `v1.0.0`.
 - Signing up directly with an invited email leaves the invite pending (accepting it then answers `ALREADY_MEMBER`);
   revoke it from the members list.
-- `POST /workspace/demo/reset` is not available yet; it arrives in `v0.4.0` with the demo projects it restores.
 - `lastActiveAt` is updated on sign-in and on each refresh (about every 15 minutes of activity), not on every request.
