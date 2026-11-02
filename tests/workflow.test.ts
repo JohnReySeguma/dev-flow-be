@@ -13,8 +13,7 @@ let statuses: Record<"todo" | "progress" | "review" | "done", string>;
 
 beforeEach(async () => {
   await truncateAll(prisma);
-  await seed(prisma, createLogger(env));
-  await prisma.project.deleteMany();
+  await seed(prisma, createLogger(env), undefined, { tracker: false });
   admin = asBrowser(app, await signIn(app, "demo@devflow.local"));
   const project = await admin.post("/api/v1/projects").send({ name: "DevFlow Core", key: "DEV" });
   const [todo, progress, review, done] = project.body.workflow.map((s: { id: string }) => s.id);

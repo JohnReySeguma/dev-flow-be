@@ -11,7 +11,7 @@ afterAll(close);
 
 beforeEach(async () => {
   await truncateAll(prisma);
-  await seed(prisma, createLogger(env));
+  await seed(prisma, createLogger(env), undefined, { tracker: false });
 });
 
 describe("GET /api/v1/workspace", () => {

@@ -16,8 +16,7 @@ let projectId = "";
 
 beforeEach(async () => {
   await truncateAll(prisma);
-  await seed(prisma, createLogger(env));
-  await prisma.project.deleteMany();
+  await seed(prisma, createLogger(env), undefined, { tracker: false });
   member = asBrowser(app, await signIn(app, "member@devflow.local"));
   viewer = asBrowser(app, await signIn(app, "viewer@devflow.local"));
   const project = await member.post("/api/v1/projects").send({ name: "DevFlow Core", key: "DEV" });

@@ -1,10 +1,12 @@
 import request from "supertest";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { DEMO_MEMBERS, DEMO_PASSWORD, DEMO_WORKSPACE_NAME, seed } from "../prisma/seed.js";
+import { DEMO_ISSUES } from "../src/demo/tracker-data.js";
 import { createLogger } from "../src/lib/logger.js";
 import { createTestApp } from "./helpers/app.js";
 import { FRONTEND_ORIGIN } from "./helpers/cookies.js";
-import { truncateAll } from "./helpers/db.js";
+import { nonEmptyTables, truncateAll } from "./helpers/db.js";
+import { signIn } from "./helpers/session.js";
 
 const { app, env, prisma, close } = createTestApp();
 const logger = createLogger(env);
@@ -57,5 +59,88 @@ describe("seed", () => {
 
     expect(await seed(prisma, logger)).toBe(false);
     expect(await prisma.user.count()).toBe(DEMO_MEMBERS.length);
+  });
+});
+
+/** The frontend fixtures pad some numbers (DEV-088); the API renders keys from the number, unpadded. */
+const apiKey = (key: string) => key.replace(/-0+(\d)/, "-$1");
+
+describe("demo tracker", () => {
+  beforeEach(async () => {
+    await seed(prisma, logger);
+  });
+  const snapshot = async (key: string) =>
+    (
+      await request(app)
+        .get(`/api/v1/projects/${key}/snapshot`)
+        .set("Cookie", await signIn(app, "demo@devflow.local"))
+    ).body;
+
+  it("recreates the frontend's projects, keys and rank order", async () => {
+    const dev = await snapshot("DEV");
+
+    expect(dev.project).toMatchObject({ key: "DEV", name: "DevFlow Core", nextIssueNumber: 134 });
+    expect(dev.issues.map((i: { id: string }) => i.id)).toEqual(
+      DEMO_ISSUES.filter((i) => i.key.startsWith("DEV-")).map((i) => apiKey(i.key)),
+    );
+    expect((await snapshot("BIL")).project.workflow.map((s: { name: string }) => s.name)).toEqual([
+      "Triage",
+      "To Do",
+      "In Progress",
+      "Code Review",
+      "QA",
+      "Released",
+    ]);
+    expect((await snapshot("MOB")).issues).toHaveLength(5);
+  });
+
+  it("keeps every issue's fields, including git links and due dates", async () => {
+    const dev104 = (await snapshot("DEV")).issues.find((i: { id: string }) => i.id === "DEV-104");
+
+    expect(dev104).toMatchObject({
+      type: "bug",
+      priority: "urgent",
+      title: "OAuth refresh token rotation fails on concurrent tabs",
+      tags: ["auth", "frontend"],
+      git: { kind: "pr", number: 421, state: "open" },
+      estimate: 5,
+      comments: 12,
+      dueAt: expect.any(String),
+      resolvedAt: null,
+    });
+    expect(await prisma.issueComment.count({ where: { issue: { number: 104 } } })).toBe(12);
+  });
+
+  it("derives sprint state as the frontend does", async () => {
+    const dev = await snapshot("DEV");
+    const sprint25 = dev.sprints.find((s: { number: number }) => s.number === 25);
+    const sprint24 = dev.sprints.find((s: { number: number }) => s.number === 24);
+
+    expect(dev.sprints.map((s: { number: number }) => s.number)).toEqual([21, 22, 23, 24, 25, 26]);
+    expect(sprint25).toMatchObject({ status: "active", committedPoints: 45, report: null });
+    expect(sprint24.report).toEqual({
+      committedPoints: 40,
+      completedPoints: 33,
+      completedIssues: 12,
+      carriedOverIssues: 3,
+    });
+    const done = dev.issues.filter((i: { resolvedAt: string | null }) => i.resolvedAt !== null);
+    expect(done.map((i: { id: string }) => i.id)).toEqual(["DEV-88", "DEV-92", "DEV-94"]);
+  });
+
+  it("records history for burndown", async () => {
+    const resolved = await prisma.issueEvent.count({ where: { done: true } });
+
+    expect(resolved).toBe(DEMO_ISSUES.filter((i) => i.resolved !== undefined).length);
+  });
+});
+
+describe("test isolation", () => {
+  it("clears every table between tests", async () => {
+    await seed(prisma, logger);
+
+    await truncateAll(prisma);
+
+    expect(await nonEmptyTables(prisma)).toEqual([]);
   });
 });

@@ -12,8 +12,7 @@ let member: ReturnType<typeof asBrowser>;
 let viewer: ReturnType<typeof asBrowser>;
 beforeEach(async () => {
   await truncateAll(prisma);
-  await seed(prisma, createLogger(env));
-  await prisma.project.deleteMany();
+  await seed(prisma, createLogger(env), undefined, { tracker: false });
   member = asBrowser(app, await signIn(app, "member@devflow.local"));
   viewer = asBrowser(app, await signIn(app, "viewer@devflow.local"));
   await member.post("/api/v1/projects").send({ name: "DevFlow Core", key: "DEV" });

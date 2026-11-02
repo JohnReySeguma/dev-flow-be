@@ -14,9 +14,7 @@ let member: ReturnType<typeof asBrowser>;
 let viewer: ReturnType<typeof asBrowser>;
 beforeEach(async () => {
   await truncateAll(prisma);
-  await seed(prisma, createLogger(env));
-  // The demo projects arrive with the tracker seed; start these tests from none.
-  await prisma.project.deleteMany();
+  await seed(prisma, createLogger(env), undefined, { tracker: false });
   admin = asBrowser(app, await signIn(app, "demo@devflow.local"));
   member = asBrowser(app, await signIn(app, "member@devflow.local"));
   viewer = asBrowser(app, await signIn(app, "viewer@devflow.local"));

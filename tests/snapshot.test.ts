@@ -14,8 +14,7 @@ let ids: { project: string; done: string; active: string; completed: string };
 
 beforeEach(async () => {
   await truncateAll(prisma);
-  await seed(prisma, createLogger(env));
-  await prisma.project.deleteMany();
+  await seed(prisma, createLogger(env), undefined, { tracker: false });
   member = asBrowser(app, await signIn(app, "member@devflow.local"));
   viewer = asBrowser(app, await signIn(app, "viewer@devflow.local"));
 
