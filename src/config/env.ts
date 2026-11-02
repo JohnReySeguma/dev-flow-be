@@ -11,11 +11,16 @@ export const envSchema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
     PORT: z.coerce.number().int().min(1).max(65_535).default(4000),
+    /** Reduced to an origin: browsers send "https://app.example", never a trailing slash or path. */
     CORS_ORIGIN: z
       .url({ error: "must be the frontend URL, e.g. http://localhost:3000" })
-      .default("http://localhost:3000"),
+      .default("http://localhost:3000")
+      .transform((url) => new URL(url).origin),
     /** Public base URL of this API, used for OAuth callback URLs. */
-    API_URL: z.url({ error: "must be the API base URL, e.g. http://localhost:4000" }).default("http://localhost:4000"),
+    API_URL: z
+      .url({ error: "must be the API base URL, e.g. http://localhost:4000" })
+      .default("http://localhost:4000")
+      .transform((url) => url.replace(/\/+$/, "")),
     /**
      * Reverse proxies in front of the API (0 = none). Set it behind a load balancer or TLS proxy so
      * rate limits and logs see the client's IP from X-Forwarded-For instead of the proxy's.
