@@ -26,6 +26,7 @@
     "postdb:migrate": "prisma generate",
     "db:seed": "prisma db seed",
     "db:reset": "tsx scripts/db-reset.ts",
+    "demo:reset": "tsx src/jobs/demo-reset.ts",
     "test:unit": "vitest run --project unit",
     "test:integration": "vitest run --project integration",
     "openapi:generate": "tsx src/openapi/generate.ts",

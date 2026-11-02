@@ -152,13 +152,15 @@ export function registerWorkspaceDocs(registry: OpenAPIRegistry, workspace: Open
     method: "post",
     path: "/demo/reset",
     tags: ["Workspace"],
-    summary: "Restore the demo projects",
+    summary: "Restore the sample projects",
     description:
-      "Admins only, signed-in session only. Replaces every project, sprint and issue with a fresh copy of the demo " +
-      "data (DEV, BIL, MOB), dated relative to now; accounts are untouched. 404 NOT_FOUND unless the server runs " +
-      "with SEED_DEMO_DATA=true. Re-fetch /bootstrap afterwards.",
+      "Admins only, signed-in session only. Replaces the sample projects (DEV, BIL, MOB, the ones created with the " +
+      "workspace) with fresh copies dated relative to now, assigned as when the workspace was created; projects " +
+      "you created are kept, and a sample whose key one of them uses is skipped. In the demo workspace every " +
+      "project is replaced, with the demo team's assignments and comments. Members are untouched. Re-fetch " +
+      "/bootstrap afterwards.",
     security: [{ cookieAuth: [] }],
-    responses: { 204: { description: "Demo data restored." }, default: problemResponse },
+    responses: { 204: { description: "Sample data restored." }, default: problemResponse },
   });
   registry.registerPath({
     method: "get",

@@ -153,6 +153,41 @@ describe("DELETE /api/v2/workspaces/:ws", () => {
   });
 });
 
+describe("POST /api/v2/workspaces/:ws/demo/reset", () => {
+  it("restores the sample projects and keeps the projects you created", async () => {
+    const base = `/api/v2/workspaces/${ada.slug}`;
+    await ada.browser.delete(`${base}/projects/MOB`);
+    await ada.browser.patch(`${base}/issues/DEV-104`).send({ title: "Edited" });
+    await ada.browser.post(`${base}/projects`).send({ name: "Mine", key: "MINE" });
+
+    const res = await ada.browser.post(`${base}/demo/reset`);
+
+    expect(res.status).toBe(204);
+    const projects = await ada.browser.get(`${base}/projects`);
+    expect(projects.body.items.map((p: { key: string }) => p.key).sort()).toEqual(["BIL", "DEV", "MINE", "MOB"]);
+    expect((await ada.browser.get(`${base}/issues/DEV-104`)).body.title).not.toBe("Edited");
+    expect(await prisma.issue.count({ where: { assigneeId: { not: null, notIn: [ada.id] } } })).toBe(0);
+  });
+
+  it("skips a sample whose key a project of yours now uses", async () => {
+    const base = `/api/v2/workspaces/${ada.slug}`;
+    await ada.browser.delete(`${base}/projects/MOB`);
+    await ada.browser.post(`${base}/projects`).send({ name: "My mobile app", key: "MOB" });
+
+    await ada.browser.post(`${base}/demo/reset`);
+
+    const mob = await ada.browser.get(`${base}/projects/MOB`);
+    expect(mob.body.name).toBe("My mobile app");
+  });
+
+  it("is admin-only", async () => {
+    const grace = await signUp("Grace Hopper", "grace@acme.dev");
+    await addMember(ada.slug, grace.id, "member");
+
+    expect((await grace.browser.post(`/api/v2/workspaces/${ada.slug}/demo/reset`)).status).toBe(403);
+  });
+});
+
 describe("POST /api/v2/workspaces/:ws/leave", () => {
   it("ends the membership, deletes your tokens for it and unassigns your work there", async () => {
     const grace = await signUp("Grace Hopper", "grace@acme.dev");

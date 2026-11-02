@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { Role } from "../../generated/prisma/client.js";
 import { AppError } from "../../lib/errors.js";
 import { byCreatedAsc, decodeCursor, toPage, type Page, type PaginationQuery } from "../../lib/pagination.js";
-import type { AuthContext, Identity } from "../auth/auth.types.js";
+import type { AuthContext, Identity, WorkspaceRef } from "../auth/auth.types.js";
 import { memberFromInvite, memberFromMembership, toWorkspaceView } from "./workspace.mapper.js";
 import type { WorkspaceRepository } from "./workspace.repository.js";
 import type { CreateWorkspaceInput, TeamMember, WorkspaceView } from "./workspace.schemas.js";
@@ -15,10 +15,10 @@ export function createWorkspaceService(deps: {
   workspaces: WorkspaceRepository;
   /** Copies the sample projects into a new workspace for its owner. */
   copySampleData: (workspaceId: string, ownerId: string) => Promise<void>;
-  /** Restores the demo tracker; absent when SEED_DEMO_DATA is false. */
-  resetDemo?: (workspaceId: string) => Promise<void>;
+  /** Restores a workspace's sample projects, for `userId` (or the demo team in the demo workspace). */
+  resetSampleData: (workspace: WorkspaceRef, userId: string) => Promise<void>;
 }) {
-  const { workspaces, copySampleData, resetDemo } = deps;
+  const { workspaces, copySampleData, resetSampleData } = deps;
 
   return {
     /** A new workspace with `userId` as its admin, by default with a copy of the sample projects. */
@@ -132,10 +132,12 @@ export function createWorkspaceService(deps: {
       });
     },
 
-    /** Restores the demo projects, sprints and issues. Only on deployments that seed demo data. */
+    /**
+     * Restores the sample projects (DEV, BIL, MOB) and leaves the projects people created. In the
+     * demo workspace every project is replaced, with the demo team's assignments and comments.
+     */
     async resetDemoData(auth: AuthContext): Promise<void> {
-      if (!resetDemo) throw new AppError("NOT_FOUND", "Demo data is not enabled on this server.");
-      await resetDemo(auth.workspaceId);
+      await resetSampleData(auth.workspace, auth.userId);
     },
 
     /** Removes a member (ending their sessions and tokens) or revokes a pending invite. */

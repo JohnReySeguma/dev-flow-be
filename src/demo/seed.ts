@@ -210,6 +210,54 @@ export async function copySampleTracker(
 }
 
 /**
+ * Replaces a workspace's sample projects with fresh copies for `ownerId`, dated relative to now.
+ * Projects people created stay; a sample whose key one of them now uses is skipped.
+ */
+export async function resetSampleTracker(
+  prisma: PrismaClient,
+  workspaceId: string,
+  ownerId: string,
+  now = Date.now(),
+): Promise<void> {
+  await prisma.$transaction(
+    async (tx) => {
+      await tx.project.deleteMany({ where: { workspaceId, isSample: true } });
+      const taken = await tx.project.findMany({ where: { workspaceId }, select: { key: true } });
+      const keys = new Set(DEMO_PROJECTS.map((p) => p.key).filter((key) => !taken.some((p) => p.key === key)));
+      await seedTracker(tx, { workspaceId, users: { "u-jr": ownerId }, owner: ownerId, now, keys });
+    },
+    { timeout: 60_000 },
+  );
+}
+
+/**
+ * Restores the public demo workspace, for a nightly job: its name, the demo team's memberships and
+ * roles, no pending invites, and a fresh tracker. Other members stay. Returns false when the
+ * database has no demo workspace.
+ */
+export async function restoreDemoWorkspace(prisma: PrismaClient, logger: Logger, now = Date.now()): Promise<boolean> {
+  const workspace = await prisma.workspace.findFirst({ where: { isDemo: true }, orderBy: { createdAt: "asc" } });
+  if (!workspace) return false;
+  await prisma.$transaction(async (tx) => {
+    await tx.workspace.update({ where: { id: workspace.id }, data: { name: DEMO_WORKSPACE_NAME } });
+    await tx.workspaceInvite.deleteMany({ where: { workspaceId: workspace.id } });
+    const accounts = await tx.user.findMany({ where: { isDemo: true }, select: { id: true, email: true } });
+    for (const member of DEMO_MEMBERS) {
+      const user = accounts.find((account) => account.email === member.email);
+      if (!user) continue;
+      await tx.workspaceMember.upsert({
+        where: { workspaceId_userId: { workspaceId: workspace.id, userId: user.id } },
+        create: { workspaceId: workspace.id, userId: user.id, role: member.role },
+        update: { role: member.role },
+      });
+    }
+  });
+  await resetDemoTracker(prisma, workspace.id, now);
+  logger.info({ workspace: workspace.slug }, "demo workspace restored");
+  return true;
+}
+
+/**
  * Replaces a workspace's projects with a fresh copy of the demo tracker, dated relative to now.
  * Accounts are untouched, as with the frontend's "Reset demo data"; demo members who were
  * removed come back as unassigned work.

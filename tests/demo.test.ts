@@ -1,6 +1,7 @@
 import request from "supertest";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { seed } from "../prisma/seed.js";
+import { DEMO_MEMBERS, seed } from "../prisma/seed.js";
+import { restoreDemoWorkspace } from "../src/demo/seed.js";
 import { createLogger } from "../src/lib/logger.js";
 import { createTestApp } from "./helpers/app.js";
 import { FRONTEND_ORIGIN } from "./helpers/cookies.js";
@@ -55,6 +56,39 @@ describe("the demo workspace", () => {
     expect((await member.post(`${ACME}/projects/DEV/issues`).send({ title: "Try it out" })).status).toBe(201);
     expect((await member.post(`${ACME}/projects/DEV/sprints`)).status).toBe(201);
     expect((await admin.post(`${ACME}/demo/reset`)).status).toBe(204);
+  });
+});
+
+describe("restoreDemoWorkspace (npm run demo:reset)", () => {
+  it("restores the name, the team's roles and memberships, and the projects", async () => {
+    const acme = await prisma.workspace.findUniqueOrThrow({ where: { slug: "acme-inc" } });
+    const dmitri = await idOf("member@devflow.local");
+    await prisma.workspace.update({ where: { id: acme.id }, data: { name: "Defaced" } });
+    await prisma.workspaceMember.update({
+      where: { workspaceId_userId: { workspaceId: acme.id, userId: dmitri } },
+      data: { role: "admin" },
+    });
+    await prisma.workspaceMember.delete({
+      where: { workspaceId_userId: { workspaceId: acme.id, userId: await idOf("viewer@devflow.local") } },
+    });
+    await admin.delete(`${ACME}/projects/MOB`);
+    await admin.post(`${ACME}/projects`).send({ name: "Graffiti", key: "LOL" });
+
+    expect(await restoreDemoWorkspace(prisma, createLogger(env))).toBe(true);
+
+    expect((await prisma.workspace.findUniqueOrThrow({ where: { id: acme.id } })).name).toBe("Acme Inc");
+    const members = await prisma.workspaceMember.findMany({ where: { workspaceId: acme.id }, include: { user: true } });
+    expect(members.map((m) => [m.user.email, m.role]).sort()).toEqual(
+      DEMO_MEMBERS.map((m) => [m.email, m.role]).sort(),
+    );
+    const projects = await prisma.project.findMany({ where: { workspaceId: acme.id }, orderBy: { createdAt: "asc" } });
+    expect(projects.map((p) => p.key).sort()).toEqual(["BIL", "DEV", "MOB"]);
+  });
+
+  it("does nothing on a database without a demo workspace", async () => {
+    await truncateAll(prisma);
+
+    expect(await restoreDemoWorkspace(prisma, createLogger(env))).toBe(false);
   });
 });
 

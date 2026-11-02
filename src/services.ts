@@ -1,6 +1,6 @@
 import type { Env } from "./config/env.js";
 import type { Features } from "./config/features.js";
-import { copySampleTracker, resetDemoTracker } from "./demo/seed.js";
+import { copySampleTracker, resetDemoTracker, resetSampleTracker } from "./demo/seed.js";
 import type { EmailProvider } from "./integrations/email/index.js";
 import { createOAuthProviders } from "./integrations/oauth/index.js";
 import type { Logger } from "./lib/logger.js";
@@ -63,7 +63,8 @@ export function createServices(deps: ServiceDeps) {
   const workspace = createWorkspaceService({
     workspaces,
     copySampleData: (workspaceId, ownerId) => copySampleTracker(prisma, workspaceId, ownerId),
-    ...(env.SEED_DEMO_DATA && { resetDemo: (workspaceId: string) => resetDemoTracker(prisma, workspaceId) }),
+    resetSampleData: (target, userId) =>
+      target.isDemo ? resetDemoTracker(prisma, target.id) : resetSampleTracker(prisma, target.id, userId),
   });
   const auth = createAuthService({
     users,

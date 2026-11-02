@@ -156,7 +156,7 @@ describe("POST /api/v2/workspaces/acme-inc/demo/reset", () => {
     await seed(prisma, logger);
   });
 
-  it("restores the demo projects without touching accounts", async () => {
+  it("replaces every project in the demo workspace, without touching accounts", async () => {
     const admin = asBrowser(app, await signIn(app, "demo@devflow.local"));
     await admin.delete("/api/v2/workspaces/acme-inc/projects/MOB");
     await admin.post("/api/v2/workspaces/acme-inc/projects").send({ name: "Scratch", key: "TMP" });
@@ -180,13 +180,13 @@ describe("POST /api/v2/workspaces/acme-inc/demo/reset", () => {
     expect((await member.post("/api/v2/workspaces/acme-inc/demo/reset")).status).toBe(403);
   });
 
-  it("is not available without SEED_DEMO_DATA", async () => {
+  it("works whether or not the server seeds demo data", async () => {
     const production = createTestApp({ env: { SEED_DEMO_DATA: false } });
     const admin = asBrowser(production.app, await signIn(production.app, "demo@devflow.local"));
 
     const res = await admin.post("/api/v2/workspaces/acme-inc/demo/reset");
 
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(204);
     await production.close();
   });
 });
