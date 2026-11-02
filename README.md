@@ -3,9 +3,8 @@
 REST + realtime API for [DevFlow](https://github.com/JohnReySeguma/dev-flow), a sprint-based issue tracker:
 projects with custom workflows, backlogs, sprints, reports, GitHub integration and Live Sync.
 
-> **Status:** `v0.2.0` — foundation plus authentication: sign-up and login with session cookies, refresh-token
-> rotation, GitHub and Google sign-in, password reset by email, profile and personal access tokens. Domain endpoints
-> arrive milestone by milestone ([`docs/BRIEF.md` §7](docs/BRIEF.md)).
+> **Status:** `v0.3.0` — foundation, authentication (sessions, OAuth, password reset, profile, access tokens) and the
+> workspace: members, roles, invites and role-based permissions. Domain endpoints arrive milestone by milestone ([`docs/BRIEF.md` §7](docs/BRIEF.md)).
 > Frontend integration: the contract is [`docs/INTEGRATION.md`](docs/INTEGRATION.md); the step-by-step plan is
 > [`docs/FRONTEND_BRIEF.md`](docs/FRONTEND_BRIEF.md).
 

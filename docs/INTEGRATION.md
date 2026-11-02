@@ -1,7 +1,7 @@
 # DevFlow API — Frontend Integration Guide
 
 > **For:** the frontend ([`dev-flow`](https://github.com/JohnReySeguma/dev-flow)).
-> **Accurate for:** `v0.2.0`. Updated at every release (see [`FRONTEND_HANDOFF.md`](FRONTEND_HANDOFF.md)).
+> **Accurate for:** `v0.3.0`. Updated at every release (see [`FRONTEND_HANDOFF.md`](FRONTEND_HANDOFF.md)).
 > **Machine-readable contract:** [`openapi.json`](openapi.json), also served at `/api/v1/openapi.json`, with
 > Swagger UI at `/api/v1/docs`.
 > **Step-by-step plan for the frontend:** [`FRONTEND_BRIEF.md`](FRONTEND_BRIEF.md).
@@ -35,44 +35,49 @@
 
 ### Board, backlog and project data — `lib/tracker/store.ts`
 
-| Frontend function             | UI action                             | Endpoint                                                    | Since |
-| ----------------------------- | ------------------------------------- | ----------------------------------------------------------- | ----- |
-| `useTracker()` (initial data) | Load the app / a project              | `GET /bootstrap`, `GET /projects/:key/snapshot`             |       |
-| `createIssue`                 | Create Issue dialog, quick add        | `POST /projects/:key/issues`                                |       |
-| `updateIssue`                 | Issue sheet field edits               | `PATCH /issues/:issueKey`                                   |       |
-| `moveIssueToStatus`           | Drag card between board columns       | `POST /issues/:issueKey/move`                               |       |
-| `moveIssueToSprint`           | Backlog drag, "Move to" menu, ranking | `POST /issues/:issueKey/move`                               |       |
-| `deleteIssue`                 | Issue sheet → Delete                  | `DELETE /issues/:issueKey`                                  |       |
-| `createSprint`                | Backlog → "+ Sprint"                  | `POST /projects/:key/sprints`                               |       |
-| `updateSprint`                | Edit sprint name & goal               | `PATCH /sprints/:id`                                        |       |
-| `deleteSprint`                | Delete planned sprint                 | `DELETE /sprints/:id`                                       |       |
-| `startSprint`                 | Start sprint dialog                   | `POST /sprints/:id/start`                                   |       |
-| `completeSprint`              | Complete sprint dialog                | `POST /sprints/:id/complete`                                |       |
-| `addStatus`                   | Board "Add column", settings          | `POST /projects/:key/statuses`                              |       |
-| `updateStatus`                | Rename column, change category        | `PATCH /projects/:key/statuses/:id`                         |       |
-| `moveStatus`                  | Move column left/right                | `PUT /projects/:key/statuses/order`                         |       |
-| `deleteStatus`                | Delete column                         | `DELETE /projects/:key/statuses/:id?moveTo=`                |       |
-| `createProject`               | New project dialog                    | `POST /projects`                                            |       |
-| `updateProject`               | Project settings → General            | `PATCH /projects/:key`                                      |       |
-| `deleteProject`               | Project settings → Delete             | `DELETE /projects/:key`                                     |       |
-| `resetDemoData`               | Workspace settings → Reset demo data  | `POST /workspace/demo/reset`                                |       |
-| Reports page                  | Burndown, velocity, history           | `GET /sprints/:id/burndown`, `GET /projects/:key/reports/*` |       |
+| Frontend function             | UI action                             | Endpoint                                                                                | Since |
+| ----------------------------- | ------------------------------------- | --------------------------------------------------------------------------------------- | ----- |
+| `useTracker()` (initial data) | Load the app / a project              | `GET /bootstrap`, `GET /projects/:key/snapshot`                                         |       |
+| `createIssue`                 | Create Issue dialog, quick add        | `POST /projects/:key/issues`                                                            |       |
+| `updateIssue`                 | Issue sheet field edits               | `PATCH /issues/:issueKey`                                                               |       |
+| `moveIssueToStatus`           | Drag card between board columns       | `POST /issues/:issueKey/move`                                                           |       |
+| `moveIssueToSprint`           | Backlog drag, "Move to" menu, ranking | `POST /issues/:issueKey/move`                                                           |       |
+| `deleteIssue`                 | Issue sheet → Delete                  | `DELETE /issues/:issueKey`                                                              |       |
+| `createSprint`                | Backlog → "+ Sprint"                  | `POST /projects/:key/sprints`                                                           |       |
+| `updateSprint`                | Edit sprint name & goal               | `PATCH /sprints/:id`                                                                    |       |
+| `deleteSprint`                | Delete planned sprint                 | `DELETE /sprints/:id`                                                                   |       |
+| `startSprint`                 | Start sprint dialog                   | `POST /sprints/:id/start`                                                               |       |
+| `completeSprint`              | Complete sprint dialog                | `POST /sprints/:id/complete`                                                            |       |
+| `addStatus`                   | Board "Add column", settings          | `POST /projects/:key/statuses`                                                          |       |
+| `updateStatus`                | Rename column, change category        | `PATCH /projects/:key/statuses/:id`                                                     |       |
+| `moveStatus`                  | Move column left/right                | `PUT /projects/:key/statuses/order`                                                     |       |
+| `deleteStatus`                | Delete column                         | `DELETE /projects/:key/statuses/:id?moveTo=`                                            |       |
+| `createProject`               | New project dialog                    | `POST /projects`                                                                        |       |
+| `updateProject`               | Project settings → General            | `PATCH /projects/:key`                                                                  |       |
+| `deleteProject`               | Project settings → Delete             | `DELETE /projects/:key`                                                                 |       |
+| `resetDemoData`               | Workspace settings → Reset demo data  | `POST /workspace/demo/reset` (planned for `v0.4.0`, with the demo projects it restores) |       |
+| Reports page                  | Burndown, velocity, history           | `GET /sprints/:id/burndown`, `GET /projects/:key/reports/*`                             |       |
 
 ### Account and workspace
 
-| Frontend component                     | UI action                           | Endpoint                                                     | Since |
-| -------------------------------------- | ----------------------------------- | ------------------------------------------------------------ | ----- |
-| App load                               | Session check                       | `GET /auth/me`                                               | 0.2.0 |
-| `components/auth/auth-form.tsx`        | Sign in / sign up                   | `POST /auth/login`, `POST /auth/signup`                      | 0.2.0 |
-| `auth-form.tsx`                        | Forgot password                     | `POST /auth/password/forgot`                                 | 0.2.0 |
-| New `/reset-password` page             | Choose a new password               | `POST /auth/password/reset`                                  | 0.2.0 |
-| `auth-form.tsx` OAuth buttons          | Show / hide providers               | `GET /config`                                                | 0.1.0 |
-| `auth-form.tsx` OAuth buttons          | Continue with GitHub / Google       | `GET /auth/oauth/:provider` (browser navigation)             | 0.2.0 |
-| API client                             | Renew an expired access token       | `POST /auth/refresh`                                         | 0.2.0 |
-| `components/layout/app-sidebar.tsx`    | Log out                             | `POST /auth/logout`                                          | 0.2.0 |
-| `components/profile/profile-view.tsx`  | Load / save personal settings       | `GET /me`, `PATCH /me`                                       | 0.2.0 |
-| `components/profile/access-tokens.tsx` | List / generate / revoke tokens     | `GET /me/tokens`, `POST /me/tokens`, `DELETE /me/tokens/:id` | 0.2.0 |
-| `components/settings/team-members.tsx` | Invite, resend, change role, remove | `/workspace/invites…`, `/workspace/members/:id`              |       |
+| Frontend component                     | UI action                        | Endpoint                                                        | Since |
+| -------------------------------------- | -------------------------------- | --------------------------------------------------------------- | ----- |
+| App load                               | Session check                    | `GET /auth/me`                                                  | 0.2.0 |
+| `components/auth/auth-form.tsx`        | Sign in / sign up                | `POST /auth/login`, `POST /auth/signup`                         | 0.2.0 |
+| `auth-form.tsx`                        | Forgot password                  | `POST /auth/password/forgot`                                    | 0.2.0 |
+| New `/reset-password` page             | Choose a new password            | `POST /auth/password/reset`                                     | 0.2.0 |
+| `auth-form.tsx` OAuth buttons          | Show / hide providers            | `GET /config`                                                   | 0.1.0 |
+| `auth-form.tsx` OAuth buttons          | Continue with GitHub / Google    | `GET /auth/oauth/:provider` (browser navigation)                | 0.2.0 |
+| API client                             | Renew an expired access token    | `POST /auth/refresh`                                            | 0.2.0 |
+| `components/layout/app-sidebar.tsx`    | Log out                          | `POST /auth/logout`                                             | 0.2.0 |
+| `components/profile/profile-view.tsx`  | Load / save personal settings    | `GET /me`, `PATCH /me`                                          | 0.2.0 |
+| `components/profile/access-tokens.tsx` | List / generate / revoke tokens  | `GET /me/tokens`, `POST /me/tokens`, `DELETE /me/tokens/:id`    | 0.2.0 |
+| `components/settings/team-members.tsx` | List members and pending invites | `GET /workspace/members`                                        | 0.3.0 |
+| `team-members.tsx`                     | Invite / resend invite           | `POST /workspace/invites`, `POST /workspace/invites/:id/resend` | 0.3.0 |
+| `team-members.tsx`                     | Change role                      | `PATCH /workspace/members/:id`                                  | 0.3.0 |
+| `team-members.tsx`                     | Remove member / revoke invite    | `DELETE /workspace/members/:id`                                 | 0.3.0 |
+| Settings header, permissions           | Workspace name and your role     | `GET /workspace`                                                | 0.3.0 |
+| New `/invite` page                     | Preview and accept an invite     | `GET /invites/:token`, `POST /invites/:token/accept`            | 0.3.0 |
 
 ### Operational
 
@@ -125,28 +130,31 @@ Every error is `application/problem+json`:
 Codes are stable: new ones may be added, existing ones are never renamed or repurposed. "Reserved" codes are part of
 the contract already but no endpoint returns them yet.
 
-| Code                     | HTTP | Meaning                                                                   | Returned by                                                         |
-| ------------------------ | ---- | ------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| `BAD_REQUEST`            | 400  | The body is not valid JSON                                                | Any endpoint with a JSON body                                       |
-| `RESET_TOKEN_INVALID`    | 400  | The reset link is unknown, already used or expired; request a new one     | `POST /auth/password/reset` (new in `v0.2.0`)                       |
-| `UNAUTHENTICATED`        | 401  | Not signed in (or the session was revoked); redirect to `/login`          | Every authenticated endpoint, `POST /auth/refresh`                  |
-| `TOKEN_EXPIRED`          | 401  | Access token expired; call `POST /auth/refresh` once and retry            | Every cookie-authenticated endpoint                                 |
-| `INVALID_CREDENTIALS`    | 401  | Wrong email or password (same answer for unknown emails)                  | `POST /auth/login`                                                  |
-| `FORBIDDEN`              | 403  | Not allowed: cross-site write, or an access token on a session-only route | Every write (origin check), `PATCH /me`, `/me/tokens`               |
-| `CANNOT_CHANGE_OWN_ROLE` | 403  | Admins cannot change their own role                                       | Reserved (`v0.3.0`)                                                 |
-| `NOT_FOUND`              | 404  | Unknown route or resource                                                 | Any unknown route, `DELETE /me/tokens/:id`, disabled OAuth provider |
-| `EMAIL_TAKEN`            | 409  | Sign-up with an email that already has an account                         | `POST /auth/signup`                                                 |
-| `PROJECT_KEY_TAKEN`      | 409  | Project key already in use                                                | Reserved (`v0.4.0`)                                                 |
-| `SPRINT_ALREADY_ACTIVE`  | 409  | Another sprint is active in the project                                   | Reserved (`v0.5.0`)                                                 |
-| `SPRINT_NOT_PLANNED`     | 409  | Only planned sprints can be started or deleted                            | Reserved (`v0.5.0`)                                                 |
-| `STATUS_DELETE_BLOCKED`  | 409  | Deleting would break the workflow guards                                  | Reserved (`v0.4.0`)                                                 |
-| `LAST_ADMIN`             | 409  | The last active admin cannot be demoted or removed                        | Reserved (`v0.3.0`)                                                 |
-| `ALREADY_MEMBER`         | 409  | The invited email already belongs to a member                             | Reserved (`v0.3.0`)                                                 |
-| `CONFLICT_STALE`         | 412  | `If-Match` no longer matches; re-fetch and retry                          | `PATCH /me`                                                         |
-| `PAYLOAD_TOO_LARGE`      | 413  | Body larger than 100 kB                                                   | Any endpoint with a JSON body                                       |
-| `VALIDATION_FAILED`      | 422  | Invalid fields, listed in `errors`                                        | Every endpoint with input                                           |
-| `RATE_LIMITED`           | 429  | Too many requests; retry later                                            | Reserved (`v1.0.0`)                                                 |
-| `INTERNAL_ERROR`         | 500  | Unexpected failure; quote `requestId` when reporting                      | Any endpoint                                                        |
+| Code                     | HTTP | Meaning                                                                         | Returned by                                                            |
+| ------------------------ | ---- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `BAD_REQUEST`            | 400  | The body is not valid JSON                                                      | Any endpoint with a JSON body                                          |
+| `RESET_TOKEN_INVALID`    | 400  | The reset link is unknown, already used or expired; request a new one           | `POST /auth/password/reset`                                            |
+| `INVITE_INVALID`         | 400  | The invite link is unknown, used, replaced by a resend or expired               | `GET /invites/:token`, `POST /invites/:token/accept` (new in `v0.3.0`) |
+| `UNAUTHENTICATED`        | 401  | Not signed in (or the session was revoked); redirect to `/login`                | Every authenticated endpoint, `POST /auth/refresh`                     |
+| `TOKEN_EXPIRED`          | 401  | Access token expired; call `POST /auth/refresh` once and retry                  | Every cookie-authenticated endpoint                                    |
+| `INVALID_CREDENTIALS`    | 401  | Wrong email or password (same answer for unknown emails)                        | `POST /auth/login`                                                     |
+| `FORBIDDEN`              | 403  | Not allowed: role too low, cross-site write, or a token on a session-only route | Every write (origin check), admin routes, `PATCH /me`, `/me/tokens`    |
+| `CANNOT_CHANGE_OWN_ROLE` | 403  | Admins cannot change their own role                                             | `PATCH /workspace/members/:id`                                         |
+| `CANNOT_REMOVE_SELF`     | 403  | Admins cannot remove themselves                                                 | `DELETE /workspace/members/:id` (new in `v0.3.0`)                      |
+| `NOT_FOUND`              | 404  | Unknown route or resource                                                       | Any unknown route, `DELETE /me/tokens/:id`, disabled OAuth provider    |
+| `EMAIL_TAKEN`            | 409  | Sign-up with an email that already has an account                               | `POST /auth/signup`                                                    |
+| `PROJECT_KEY_TAKEN`      | 409  | Project key already in use                                                      | Reserved (`v0.4.0`)                                                    |
+| `SPRINT_ALREADY_ACTIVE`  | 409  | Another sprint is active in the project                                         | Reserved (`v0.5.0`)                                                    |
+| `SPRINT_NOT_PLANNED`     | 409  | Only planned sprints can be started or deleted                                  | Reserved (`v0.5.0`)                                                    |
+| `STATUS_DELETE_BLOCKED`  | 409  | Deleting would break the workflow guards                                        | Reserved (`v0.4.0`)                                                    |
+| `LAST_ADMIN`             | 409  | The last active admin cannot be demoted or removed                              | `PATCH` / `DELETE /workspace/members/:id`                              |
+| `ALREADY_MEMBER`         | 409  | The email is already a member or already invited                                | `POST /workspace/invites`, `POST /invites/:token/accept`               |
+| `CONFLICT_STALE`         | 412  | `If-Match` no longer matches; re-fetch and retry                                | `PATCH /me`                                                            |
+| `PAYLOAD_TOO_LARGE`      | 413  | Body larger than 100 kB                                                         | Any endpoint with a JSON body                                          |
+| `VALIDATION_FAILED`      | 422  | Invalid fields, listed in `errors`                                              | Every endpoint with input                                              |
+| `RATE_LIMITED`           | 429  | Too many requests; retry later                                                  | Reserved (`v1.0.0`)                                                    |
+| `INTERNAL_ERROR`         | 500  | Unexpected failure; quote `requestId` when reporting                            | Any endpoint                                                           |
+| `EMAIL_DELIVERY_FAILED`  | 502  | The email could not be sent; the invite is saved, offer Resend                  | `POST /workspace/invites`, `.../resend` (new in `v0.3.0`)              |
 
 ## 5. Authentication
 
@@ -234,8 +242,21 @@ expire after 60 minutes, and only the newest one works. Passwords are 8–128 ch
 
 ### 5.7 Invites
 
-Ships in `v0.3.0`. Planned link format: `${CORS_ORIGIN}/invite?token=<token>`, accepted with
-`POST /invites/:token/accept`.
+Admins invite with `POST /workspace/invites { email, role }` (`201` → the pending `TeamMember`). The email links to:
+
+```
+${CORS_ORIGIN}/invite?token=<token>
+```
+
+The new `/invite` page reads `token`, shows `GET /invites/:token` (`{ email, role, workspace: { name }, invitedBy, expiresAt }`)
+and submits `POST /invites/:token/accept { name, password }`: `201` → the account exists with the invited role and is
+signed in (same body and cookies as `/auth/signup`), so continue to `/projects`. Both answer `400 INVITE_INVALID` for a
+link that is unknown, already used, replaced by a resend or older than 7 days, and accept answers
+`409 ALREADY_MEMBER` if the email already has an account (send the user to sign in).
+
+`POST /workspace/invites/:id/resend` emails a fresh link; the previous link stops working. Inviting an email that is
+already a member or already invited answers `409 ALREADY_MEMBER`. If the email cannot be sent, the API answers
+`502 EMAIL_DELIVERY_FAILED` but keeps the invite, so show the error and offer Resend instead of "Invite sent".
 
 ### 5.8 Personal access tokens
 
@@ -243,6 +264,27 @@ Ships in `v0.3.0`. Planned link format: `${CORS_ORIGIN}/invite?token=<token>`, a
 only `lastFour` is available. Clients use it as `Authorization: Bearer dfp_…`. A token can read (`GET /auth/me`,
 `GET /me`) but cannot change the profile or manage tokens (`403 FORBIDDEN`). Scopes are stored and returned; they gate
 the issue and project endpoints as those arrive (`v0.4.0`+).
+
+### 5.9 Roles and permissions
+
+`GET /auth/me` and `GET /workspace` return the caller's role. Hide or disable what the role cannot do; the API enforces
+it anyway with `403 FORBIDDEN`.
+
+| Action                                               | viewer | member | admin |
+| ---------------------------------------------------- | ------ | ------ | ----- |
+| Read the workspace, members and invites              | ✓      | ✓      | ✓     |
+| Edit issues and sprints (from `v0.4.0`)              |        | ✓      | ✓     |
+| Invite, change roles, remove members, revoke invites |        |        | ✓     |
+| Workflow, project delete (from `v0.4.0`)             |        |        | ✓     |
+
+- Roles are read from the database on every request: a demotion applies to the member's very next request.
+- Member management also needs a signed-in session: access tokens get `403` even for an admin.
+- Admins cannot change their own role (`CANNOT_CHANGE_OWN_ROLE`) or remove themselves (`CANNOT_REMOVE_SELF`), and the
+  last active admin cannot be demoted or removed (`LAST_ADMIN`), matching the frontend's existing locks.
+- Removing a member is immediate and deletes the account with its sessions and tokens. The frontend's current
+  "Undo" cannot be honoured server-side: either confirm before removing, or delay the request until the undo window
+  closes. Revoking an invite can be undone by inviting again.
+- Role changes are last-write-wins (no `If-Match` on members).
 
 ## 6. Realtime
 
@@ -271,6 +313,9 @@ DEV, BIL and MOB arrive in `v0.4.0`.
 ## 8. Known limitations
 
 - No project, issue or sprint endpoints yet: keep the in-browser store for data.
-- Roles are returned but not yet enforced on any endpoint (nothing role-sensitive exists until `v0.3.0`).
-- No rate limits on sign-in, sign-up or password reset until `v1.0.0`.
+- Roles are enforced on the workspace endpoints; issue, sprint and project permissions arrive with those endpoints.
+- No rate limits on sign-in, sign-up, password reset or invites until `v1.0.0`.
+- Signing up directly with an invited email leaves the invite pending (accepting it then answers `ALREADY_MEMBER`);
+  revoke it from the members list.
+- `POST /workspace/demo/reset` is not available yet; it arrives in `v0.4.0` with the demo projects it restores.
 - `lastActiveAt` is updated on sign-in and on each refresh (about every 15 minutes of activity), not on every request.
