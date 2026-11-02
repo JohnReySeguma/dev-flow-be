@@ -1,7 +1,7 @@
 # DevFlow API — Frontend Integration Guide
 
 > **For:** the frontend ([`dev-flow`](https://github.com/JohnReySeguma/dev-flow)).
-> **Accurate for:** `v0.6.0`. Updated at every release (see [`FRONTEND_HANDOFF.md`](FRONTEND_HANDOFF.md)).
+> **Accurate for:** `v1.0.0`. Updated at every release (see [`FRONTEND_HANDOFF.md`](FRONTEND_HANDOFF.md)).
 > **Machine-readable contract:** [`openapi.json`](openapi.json), also served at `/api/v1/openapi.json`, with
 > Swagger UI at `/api/v1/docs`.
 > **Step-by-step plan for the frontend:** [`FRONTEND_BRIEF.md`](FRONTEND_BRIEF.md).
@@ -20,6 +20,7 @@
 | Errors      | RFC 9457 `application/problem+json` with a stable `code` (§4)                                                                                              |
 | Lists       | `?limit=50&cursor=…` (limit 1–100, default 50) → `{ items, nextCursor }`; `nextCursor` is `null` on the last page. Cursors are opaque.                     |
 | Concurrency | Resources you can PATCH return an `ETag`. Send it back as `If-Match` to get `412 CONFLICT_STALE` instead of overwriting a newer change. Optional.          |
+| Headers     | Cross-origin JavaScript can read `ETag`, `X-Request-Id`, `Retry-After`, `RateLimit` and `RateLimit-Policy` (`Access-Control-Expose-Headers`).              |
 
 ### 1.1 Deliberate differences from the frontend types
 
@@ -133,6 +134,26 @@ Every error is `application/problem+json`:
   dot-separated path within the body, query or route parameters (e.g. `email`, `scopes.0`); `(root)` means the body
   as a whole (e.g. an empty PATCH). The `message`s are written to be shown next to the field.
 
+### 4.1 Rate limits
+
+Limits are counted per client IP (sign-in failures per IP **and** email). Past a limit the API answers
+`429 RATE_LIMITED` with `Retry-After` (seconds). Every response except `/health` carries a `RateLimit` header with the
+remaining quota.
+
+| Applies to                                                           | Limit             |
+| -------------------------------------------------------------------- | ----------------- |
+| Every request except `/health`                                       | 600 a minute      |
+| Failed `POST /auth/login` for one email                              | 10 per 15 minutes |
+| `POST /auth/login`, `/auth/signup`, `/auth/password/*`, OAuth starts | 50 per 15 minutes |
+| `POST /auth/refresh`                                                 | 60 per 15 minutes |
+| `POST /workspace/invites`, `.../resend`                              | 30 an hour        |
+| `GET /invites/:token`, `POST /invites/:token/accept`                 | 30 per 15 minutes |
+
+On `429`: show "Too many attempts, try again in N minutes" (from `Retry-After`), keep the form's input, and don't
+retry automatically. The refresh flow (§5.3) should treat a `429` from `/auth/refresh` as "try again later", not as
+signed out. A Live Sync reconnect storm is not limited (sockets are not counted), but the snapshot re-fetch after it
+is.
+
 ### Error catalogue
 
 Codes are stable: new ones may be added, existing ones are never renamed or repurposed. "Reserved" codes are part of
@@ -163,7 +184,7 @@ the contract already but no endpoint returns them yet.
 | `CONFLICT_STALE`            | 412  | `If-Match` no longer matches; re-fetch and retry                                | `PATCH /me`, `PATCH /projects/:key`, `PATCH /issues/:issueKey`         |
 | `PAYLOAD_TOO_LARGE`         | 413  | Body larger than 100 kB                                                         | Any endpoint with a JSON body                                          |
 | `VALIDATION_FAILED`         | 422  | Invalid fields, listed in `errors`                                              | Every endpoint with input                                              |
-| `RATE_LIMITED`              | 429  | Too many requests; retry later                                                  | Reserved (`v1.0.0`)                                                    |
+| `RATE_LIMITED`              | 429  | Too many requests; wait `Retry-After` seconds (§4.1)                            | Any endpoint except `/health` (new in `v1.0.0`)                        |
 | `INTERNAL_ERROR`            | 500  | Unexpected failure; quote `requestId` when reporting                            | Any endpoint                                                           |
 | `EMAIL_DELIVERY_FAILED`     | 502  | The email could not be sent; the invite is saved, offer Resend                  | `POST /workspace/invites`, `.../resend` (new in `v0.3.0`)              |
 
@@ -283,7 +304,7 @@ signed-in sessions are not scoped:
 
 | Scope             | Allows                                                                               |
 | ----------------- | ------------------------------------------------------------------------------------ |
-| `issues:read`     | Read projects, issues, comments, snapshots and `/bootstrap`                          |
+| `issues:read`     | Read projects, issues, comments, snapshots, `/bootstrap`, the workspace and members  |
 | `issues:write`    | Create, update, move and delete issues; comment                                      |
 | `projects:admin`  | Create, update and delete projects; edit workflows (the caller's role still applies) |
 | `webhooks:manage` | Reserved; GitHub deliveries authenticate with their signature, not a token           |
@@ -536,7 +557,10 @@ touching accounts.
 - GitHub is one-way: DevFlow receives webhooks but does not call GitHub's API, so pull requests opened before the App
   was installed are not linked until their next event. The App's private key is required to enable the integration
   but is not used yet.
-- No rate limits on sign-in, sign-up, password reset or invites until `v1.0.0`.
+- Rate limits are per client IP: users behind one corporate NAT share them (the overall limit is generous for that).
+- `GET /projects/:key/snapshot` returns every open issue unpaginated, as the store expects. Large projects make it
+  slow; use `GET /projects/:key/issues` for paged access.
+- Sign-up does not verify email addresses; OAuth sign-in reclaims such accounts (§5.5).
 - Signing up directly with an invited email leaves the invite pending (accepting it then answers `ALREADY_MEMBER`);
   revoke it from the members list.
 - `lastActiveAt` is updated on sign-in and on each refresh (about every 15 minutes of activity), not on every request.

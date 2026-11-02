@@ -3,9 +3,9 @@
 REST + realtime API for [DevFlow](https://github.com/JohnReySeguma/dev-flow), a sprint-based issue tracker:
 projects with custom workflows, backlogs, sprints, reports, GitHub integration and Live Sync.
 
-> **Status:** `v0.6.0` — foundation, authentication, the workspace (members, roles, invites), the tracker
-> (projects, workflows, issues with ranking and comments, the sprint lifecycle and reports), Live Sync over
-> Socket.IO and GitHub webhooks. Hardening arrives in `v1.0.0` ([`docs/BRIEF.md` §7](docs/BRIEF.md)).
+> **Status:** `v1.0.0` — authentication, the workspace (members, roles, invites), the tracker (projects, workflows,
+> issues with ranking and comments, the sprint lifecycle and reports), Live Sync over Socket.IO, GitHub webhooks, and
+> hardening (rate limits, a security review). Deploying it: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 > Frontend integration: the contract is [`docs/INTEGRATION.md`](docs/INTEGRATION.md); the step-by-step plan is
 > [`docs/FRONTEND_BRIEF.md`](docs/FRONTEND_BRIEF.md).
 
@@ -99,17 +99,18 @@ with a clear message when one is invalid. Empty values count as unset, which dis
 | `JWT_SECRET`                             | yes         |                         | Signs session tokens; at least 32 characters                                                      |
 | `TEST_DATABASE_URL`                      | for tests   |                         | Database used by `npm test`                                                                       |
 | `NODE_ENV`                               | no          | `development`           | `development` · `test` · `production`                                                             |
+| `TRUST_PROXY`                            | no          | `0`                     | Proxies in front of the API, so rate limits see client IPs ([deployment](docs/DEPLOYMENT.md))     |
 | `PORT`                                   | no          | `4000`                  | HTTP port                                                                                         |
 | `CORS_ORIGIN`                            | no          | `http://localhost:3000` | The frontend origin, allowed with credentials; also the base of emailed links and OAuth redirects |
 | `API_URL`                                | no          | `http://localhost:4000` | Public URL of this API; builds the OAuth callback URLs registered with GitHub and Google          |
-| `SEED_DEMO_DATA`                         | no          | `true`                  | Seed demo data into an empty database                                                             |
-| `REDIS_URL`                              | no          |                         | Set → Redis; empty → in-memory fallback                                                           |
+| `SEED_DEMO_DATA`                         | production  | `true`                  | Seed demo data into an empty database; must be set explicitly when `NODE_ENV=production`          |
+| `REDIS_URL`                              | no          |                         | Set → Redis (Live Sync fan-out, shared rate limits); empty → in-memory fallback                   |
 | `GITHUB_CLIENT_ID` / `_SECRET`           | no          |                         | GitHub sign-in (both required to enable)                                                          |
 | `GOOGLE_CLIENT_ID` / `_SECRET`           | no          |                         | Google sign-in (both required to enable)                                                          |
 | `GITHUB_APP_ID`, `GITHUB_WEBHOOK_SECRET` | no          |                         | GitHub App integration (with the key below; see [GitHub integration](#github-integration))        |
 | `GITHUB_APP_PRIVATE_KEY_PATH`            | no          |                         | Path the API reads the App key from                                                               |
 | `GITHUB_APP_PRIVATE_KEY_FILE`            | Docker only |                         | `./` path of the key Compose mounts                                                               |
-| `EMAIL_PROVIDER`                         | no          | `console`               | `console` logs emails · `smtp` delivers them                                                      |
+| `EMAIL_PROVIDER`                         | production  | `console`               | `console` logs emails · `smtp` delivers them; must be set explicitly in production                |
 | `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`    | when `smtp` |                         | SMTP delivery (e.g. Gmail with an App Password)                                                   |
 | `SMTP_PORT`, `EMAIL_FROM`                | no          | `465`, `DevFlow <…>`    |                                                                                                   |
 
@@ -124,7 +125,7 @@ src/
   config/             env.ts (Zod-validated environment), features.ts (optional integrations)
   modules/<feature>/  routes → controller → service → repository, plus schemas and OpenAPI docs
                       (auth, users, tokens, workspace, projects, workflow, issues, comments, sprints, reports, …)
-  middleware/         request id + logging, validation, auth, origin check, problem+json error handler
+  middleware/         request id + logging, validation, auth, origin check, rate limits, problem+json errors
   realtime/           Socket.IO server (rooms, presence) and the event bus services publish to
   integrations/       email (console, smtp), OAuth providers (GitHub, Google), GitHub webhook signatures
   lib/                errors catalogue, logger, Prisma and Redis clients, hashing, pagination, ETags, shutdown
