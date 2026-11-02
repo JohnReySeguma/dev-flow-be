@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-02
+
+### Frontend impact
+
+- None.
+
+### Removed
+
+- The unused `@octokit/app` and `@octokit/rest` dependencies: webhooks need only an HMAC check, so the image is
+  smaller and carries less third-party code.
+
 ## [1.0.0] - 2026-11-02
 
 Hardening: rate limits, fixes from a security review, deployment notes. The API contract is now stable: breaking
@@ -367,7 +378,8 @@ Foundation: configuration, database, error format, health checks, feature flags,
 - [x] `docker compose up --build` instructions in the README still accurate
 - [x] Known limitations or stubs listed (`docs/INTEGRATION.md` §8)
 
-[Unreleased]: https://github.com/JohnReySeguma/dev-flow-be/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/JohnReySeguma/dev-flow-be/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/JohnReySeguma/dev-flow-be/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.6.0...v1.0.0
 [0.6.0]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/JohnReySeguma/dev-flow-be/compare/v0.4.0...v0.5.0
