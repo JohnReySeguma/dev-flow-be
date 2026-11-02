@@ -116,7 +116,8 @@ export async function seedTracker(
         },
       });
 
-      const joined = sprint?.start && sprint.start > createdAt ? sprint.start : createdAt;
+      // Active sprints commit to what they held at the start, so their issues join then.
+      const joined = sprint?.start ?? createdAt;
       const openStatus = status.category === "done" ? (statuses.get(firstTodo?.ref ?? "")?.id ?? status.id) : status.id;
       const base = {
         issueId: issue.id,

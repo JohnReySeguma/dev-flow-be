@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { AppError } from "../../lib/errors.js";
-import type { Page } from "../../lib/pagination.js";
+import { decodeNumberCursor, encodeNumberCursor, type Page } from "../../lib/pagination.js";
 import type { AuthContext } from "../auth/auth.types.js";
 import type { ProjectsService } from "../projects/projects.service.js";
 import { toSprintView } from "./sprints.mapper.js";
@@ -15,21 +15,6 @@ import type {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const points = (issues: { estimate: number | null }[]) => issues.reduce((sum, i) => sum + (i.estimate ?? 0), 0);
-
-/** Sprints page by number, so the cursor is the last number seen (opaque to clients). */
-const encodeCursor = (number: number) => Buffer.from(JSON.stringify({ n: number })).toString("base64url");
-const cursorShape = z.object({ n: z.number().int().min(0) });
-
-function decodeCursor(cursor: string): number {
-  try {
-    return cursorShape.parse(JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"))).n;
-  } catch (error) {
-    throw new AppError("VALIDATION_FAILED", "The request contains invalid fields.", {
-      errors: [{ field: "cursor", message: "Invalid cursor; use the nextCursor from the previous page." }],
-      cause: error,
-    });
-  }
-}
 
 export function createSprintsService(deps: { sprints: SprintsRepository; projects: ProjectsService }) {
   const { sprints, projects } = deps;
@@ -46,13 +31,13 @@ export function createSprintsService(deps: { sprints: SprintsRepository; project
 
     async list(auth: AuthContext, key: string, query: ListSprintsQuery): Promise<Page<SprintView>> {
       const project = await projects.find(auth, key);
-      const after = query.cursor === undefined ? undefined : decodeCursor(query.cursor);
+      const after = query.cursor === undefined ? undefined : decodeNumberCursor(query.cursor);
       const rows = await sprints.list(project.id, query.status, query.limit, after);
       const page = rows.slice(0, query.limit);
       const last = page.at(-1);
       return {
         items: page.map(toSprintView),
-        nextCursor: rows.length > query.limit && last ? encodeCursor(last.number) : null,
+        nextCursor: rows.length > query.limit && last ? encodeNumberCursor(last.number) : null,
       };
     },
 

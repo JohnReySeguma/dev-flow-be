@@ -69,3 +69,19 @@ export const pageOf = <T extends z.ZodType>(item: T) =>
     items: z.array(item),
     nextCursor: z.string().nullable().meta({ description: "Pass as ?cursor= for the next page; null on the last." }),
   });
+
+/** Cursor for lists ordered by a per-project number (sprints): the last number seen, opaque to clients. */
+export const encodeNumberCursor = (number: number) => Buffer.from(JSON.stringify({ n: number })).toString("base64url");
+
+const numberCursorShape = z.object({ n: z.number().int().min(0) });
+
+export function decodeNumberCursor(cursor: string): number {
+  try {
+    return numberCursorShape.parse(JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"))).n;
+  } catch (error) {
+    throw new AppError("VALIDATION_FAILED", "The request contains invalid fields.", {
+      errors: [{ field: "cursor", message: "Invalid cursor; use the nextCursor from the previous page." }],
+      cause: error,
+    });
+  }
+}
