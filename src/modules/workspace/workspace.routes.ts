@@ -1,6 +1,6 @@
 import { Router, type RequestHandler } from "express";
 import { paginationQuery } from "../../lib/pagination.js";
-import { requireRole } from "../../middleware/permissions.js";
+import { requireRole, requireScope } from "../../middleware/permissions.js";
 import { validate } from "../../middleware/validate.js";
 import { createInvitesController } from "./invites.controller.js";
 import type { InvitesService } from "./invites.service.js";
@@ -21,8 +21,10 @@ export function createWorkspaceRouter(deps: {
 
   const router = Router();
   router.use(deps.requireAuth);
-  router.get("/", controller.get);
-  router.get("/members", validate({ query: paginationQuery }), controller.listMembers);
+  // Tokens need issues:read, like every other read: members and invites include email addresses.
+  const read = requireScope("issues:read");
+  router.get("/", read, controller.get);
+  router.get("/members", read, validate({ query: paginationQuery }), controller.listMembers);
   router.patch("/members/:id", ...admin, validate({ body: changeRoleBody }), controller.changeRole);
   router.delete("/members/:id", ...admin, controller.remove);
   router.post("/invites", ...admin, validate({ body: inviteBody }), invites.create);
