@@ -33,10 +33,14 @@ export function createProjectsController(projects: ProjectsService) {
     res.set("ETag", etag).json(project);
   };
 
+  const snapshot: RequestHandler = async (req, res) => {
+    res.set("Cache-Control", "no-store").json(await projects.snapshot(authOf(req), keyOf(req)));
+  };
+
   const remove: RequestHandler = async (req, res) => {
     await projects.remove(authOf(req), keyOf(req));
     res.status(204).end();
   };
 
-  return { list, create, get, update, remove };
+  return { list, create, get, snapshot, update, remove };
 }

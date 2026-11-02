@@ -65,6 +65,49 @@ function repository(db: Db) {
 
     /** Cascades to the workflow, sprints, issues and comments. */
     delete: (id: string) => db.project.delete({ where: { id } }),
+
+    /** Every project of the workspace, oldest first (for /bootstrap). */
+    listAll: (workspaceId: string): Promise<ProjectWithWorkflow[]> =>
+      db.project.findMany({
+        where: { workspaceId },
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        include: withWorkflow,
+      }),
+
+    activeSprints: (projectIds: string[]) =>
+      db.sprint.findMany({ where: { projectId: { in: projectIds }, status: "active" } }),
+
+    /** Just what sprint progress needs: points and done-ness per issue. */
+    issuesInSprints: (sprintIds: string[]) =>
+      db.issue.findMany({
+        where: { sprintId: { in: sprintIds } },
+        select: { sprintId: true, estimate: true, status: { select: { category: true } } },
+      }),
+
+    backlogCounts: async (projectIds: string[]): Promise<Map<string, number>> =>
+      new Map(
+        (
+          await db.issue.groupBy({
+            by: ["projectId"],
+            where: { projectId: { in: projectIds }, sprintId: null },
+            _count: { _all: true },
+          })
+        ).map((row) => [row.projectId, row._count._all]),
+      ),
+
+    leads: (userIds: string[]) =>
+      db.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true, gradient: true } }),
+
+    /** Every sprint of the project, by number. */
+    sprints: (projectId: string) => db.sprint.findMany({ where: { projectId }, orderBy: { number: "asc" } }),
+
+    /** Issues in the backlog or in planned/active sprints, in rank order; completed sprints' issues are left out. */
+    openIssues: (projectId: string) =>
+      db.issue.findMany({
+        where: { projectId, OR: [{ sprintId: null }, { sprint: { status: { not: "completed" } } }] },
+        orderBy: [{ rank: "asc" }, { id: "asc" }],
+        include: { project: { select: { key: true } }, status: { select: { category: true } } },
+      }),
   };
 }
 

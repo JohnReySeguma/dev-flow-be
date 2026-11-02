@@ -61,9 +61,47 @@ export const project = z
     },
   });
 
-export const projectPage = pageOf(project).meta({
+/** A project with what the sidebar and the Projects overview show about it. */
+export const projectSummary = project
+  .extend({
+    activeSprint: z
+      .object({
+        name: z.string(),
+        endAt: z.iso.datetime().nullable(),
+        donePoints: z.number().int(),
+        totalPoints: z.number().int(),
+        doneIssues: z.number().int(),
+        totalIssues: z.number().int(),
+      })
+      .nullable(),
+    backlogCount: z.number().int(),
+    lead: z.object({ id: z.uuid(), name: z.string(), initials: z.string(), gradient: z.string() }).nullable(),
+  })
+  .meta({
+    id: "ProjectSummary",
+    example: {
+      ...(project.meta()?.example as object),
+      activeSprint: {
+        name: "Sprint 25",
+        endAt: "2026-11-09T09:00:00.000Z",
+        donePoints: 9,
+        totalPoints: 50,
+        doneIssues: 3,
+        totalIssues: 11,
+      },
+      backlogCount: 5,
+      lead: {
+        id: "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
+        name: "John Rey",
+        initials: "JR",
+        gradient: "from-violet-500 to-indigo-600",
+      },
+    },
+  });
+
+export const projectPage = pageOf(projectSummary).meta({
   id: "ProjectPage",
-  example: { items: [project.meta()?.example], nextCursor: null },
+  example: { items: [projectSummary.meta()?.example], nextCursor: null },
 });
 
 const name = z.string().trim().min(1, "Name the project.").max(64, "Use at most 64 characters.");
@@ -87,5 +125,6 @@ export const updateProjectBody = z
   .meta({ id: "UpdateProjectRequest", example: { description: "Board, realtime sync and auth." } });
 
 export type ProjectView = z.infer<typeof project>;
+export type ProjectSummary = z.infer<typeof projectSummary>;
 export type CreateProjectInput = z.infer<typeof createProjectBody>;
 export type UpdateProjectInput = z.infer<typeof updateProjectBody>;

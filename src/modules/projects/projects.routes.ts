@@ -20,6 +20,7 @@ export function createProjectsRouter(deps: { projects: ProjectsService; requireA
   router.get("/", read, validate({ query: paginationQuery }), controller.list);
   router.post("/", manage, requireRole("member"), validate({ body: createProjectBody }), controller.create);
   router.get("/:key", read, controller.get);
+  router.get("/:key/snapshot", read, controller.snapshot);
   router.patch("/:key", manage, requireRole("member"), validate({ body: updateProjectBody }), controller.update);
   router.delete("/:key", manage, requireRole("admin"), controller.remove);
   return router;

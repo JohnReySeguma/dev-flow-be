@@ -2,7 +2,18 @@ import type { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
 import { paginationQuery } from "../../lib/pagination.js";
 import { problemResponse } from "../../openapi/problem.js";
+import { issue } from "../issues/issues.schemas.js";
+import { sprint } from "../sprints/sprints.schemas.js";
 import { createProjectBody, project, projectPage, updateProjectBody } from "./projects.schemas.js";
+
+export const projectSnapshot = z.object({ project, sprints: z.array(sprint), issues: z.array(issue) }).meta({
+  id: "ProjectSnapshot",
+  example: {
+    project: project.meta()?.example,
+    sprints: [sprint.meta()?.example],
+    issues: [issue.meta()?.example],
+  },
+});
 
 const json = <T>(schema: T) => ({ content: { "application/json": { schema } } });
 const anyCaller = [{ cookieAuth: [] }, { bearerAuth: [] }];
@@ -16,8 +27,10 @@ export function registerProjectsDocs(registry: OpenAPIRegistry) {
     method: "get",
     path: "/projects",
     tags: ["Projects"],
-    summary: "Projects in the workspace",
-    description: "Oldest first. Any role; tokens need issues:read.",
+    summary: "Projects in the workspace, with summaries",
+    description:
+      "Oldest first, each with active-sprint progress, backlog count and lead (as on the Projects overview). Any " +
+      "role; tokens need issues:read.",
     security: anyCaller,
     request: { query: paginationQuery },
     responses: { 200: { description: "A page of projects.", ...json(projectPage) }, default: problemResponse },
@@ -49,6 +62,19 @@ export function registerProjectsDocs(registry: OpenAPIRegistry) {
       200: { description: "The project.", headers: etagHeader, ...json(project) },
       default: problemResponse,
     },
+  });
+  registry.registerPath({
+    method: "get",
+    path: "/projects/{key}/snapshot",
+    tags: ["Projects"],
+    summary: "Everything to render a project",
+    description:
+      "The project with its workflow, all its sprints by number (completed ones with their report) and every issue " +
+      "in the backlog or a planned/active sprint, in rank order. Completed sprints' issues are left out. Not " +
+      "paginated. Re-fetch after reconnecting to realtime.",
+    security: anyCaller,
+    request: { params: keyParam },
+    responses: { 200: { description: "The project snapshot.", ...json(projectSnapshot) }, default: problemResponse },
   });
   registry.registerPath({
     method: "patch",

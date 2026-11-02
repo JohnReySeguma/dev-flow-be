@@ -1,6 +1,7 @@
 import { OpenAPIRegistry, OpenApiGeneratorV31 } from "@asteasolutions/zod-to-openapi";
 import pkg from "../../package.json" with { type: "json" };
 import { registerAuthDocs } from "../modules/auth/auth.openapi.js";
+import { registerBootstrapDocs } from "../modules/bootstrap/bootstrap.openapi.js";
 import { registerCommentsDocs } from "../modules/comments/comments.openapi.js";
 import { registerConfigDocs } from "../modules/config/config.openapi.js";
 import { registerHealthDocs } from "../modules/health/health.openapi.js";
@@ -37,6 +38,7 @@ export function buildOpenApiDocument() {
   registerIssuesDocs(registry);
   registerWorkflowDocs(registry);
   registerCommentsDocs(registry);
+  registerBootstrapDocs(registry);
 
   return new OpenApiGeneratorV31(registry.definitions).generateDocument({
     openapi: "3.1.0",

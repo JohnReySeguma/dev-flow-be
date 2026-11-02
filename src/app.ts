@@ -20,10 +20,13 @@ import { createAuthRouter } from "./modules/auth/auth.routes.js";
 import { createAuthService } from "./modules/auth/auth.service.js";
 import { createOAuthService } from "./modules/auth/oauth.service.js";
 import { createPasswordResetService } from "./modules/auth/password-reset.service.js";
+import { createBootstrapRouter } from "./modules/bootstrap/bootstrap.routes.js";
+import { createBootstrapService } from "./modules/bootstrap/bootstrap.service.js";
 import { createCommentsRepository } from "./modules/comments/comments.repository.js";
 import { createCommentsRouter } from "./modules/comments/comments.routes.js";
 import { createCommentsService } from "./modules/comments/comments.service.js";
 import { createConfigRouter } from "./modules/config/config.routes.js";
+import { createConfigService } from "./modules/config/config.service.js";
 import { createHealthRouter } from "./modules/health/health.routes.js";
 import { createUsersRepository } from "./modules/users/users.repository.js";
 import { createIssuesRepository } from "./modules/issues/issues.repository.js";
@@ -96,12 +99,24 @@ export function createApp({ env, features, logger, prisma, redis, email, fetch: 
   const tokens = createTokensService(createTokensRepository(prisma));
   const authenticated = requireAuth({ auth, tokens });
 
+  const config = createConfigService(features);
+  const usersService = createUsersService(users);
+  const workspace = createWorkspaceService({ workspaces });
+  const projects = createProjectsService({ projects: createProjectsRepository(prisma) });
+  const issues = createIssuesService({ issues: createIssuesRepository(prisma), projects });
+  const invites = createInvitesService({ workspaces, auth, users, email, logger, frontendUrl: env.CORS_ORIGIN });
+
   const api = express.Router();
   api.use(originCheck(env.CORS_ORIGIN));
   api.use("/health", createHealthRouter({ prisma, redis }));
-  api.use("/config", createConfigRouter({ features }));
-  const projects = createProjectsService({ projects: createProjectsRepository(prisma) });
-  const issues = createIssuesService({ issues: createIssuesRepository(prisma), projects });
+  api.use("/config", createConfigRouter({ config }));
+  api.use(
+    "/bootstrap",
+    createBootstrapRouter({
+      bootstrap: createBootstrapService({ users: usersService, workspace, config, projects }),
+      requireAuth: authenticated,
+    }),
+  );
   api.use("/projects/:key/issues", createProjectIssuesRouter({ issues, requireAuth: authenticated }));
   api.use(
     "/projects/:key/statuses",
@@ -120,19 +135,10 @@ export function createApp({ env, features, logger, prisma, redis, email, fetch: 
   );
   api.use("/issues", createIssuesRouter({ issues, requireAuth: authenticated }));
 
-  const invites = createInvitesService({ workspaces, auth, users, email, logger, frontendUrl: env.CORS_ORIGIN });
   api.use("/invites", createInviteAcceptRouter({ invites }));
-  api.use(
-    "/workspace",
-    createWorkspaceRouter({
-      workspace: createWorkspaceService({ workspaces }),
-      invites,
-      requireAuth: authenticated,
-      requireSession,
-    }),
-  );
+  api.use("/workspace", createWorkspaceRouter({ workspace, invites, requireAuth: authenticated, requireSession }));
   api.use("/me/tokens", createTokensRouter({ tokens, requireAuth: authenticated, requireSession }));
-  api.use("/me", createMeRouter({ users: createUsersService(users), requireAuth: authenticated, requireSession }));
+  api.use("/me", createMeRouter({ users: usersService, requireAuth: authenticated, requireSession }));
   api.use(
     "/auth",
     createAuthRouter({ auth, passwords, oauth, frontendUrl: env.CORS_ORIGIN, requireAuth: authenticated }),

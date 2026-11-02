@@ -901,7 +901,7 @@
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Project"
+              "$ref": "#/components/schemas/ProjectSummary"
             }
           },
           "nextCursor": {
@@ -948,10 +948,225 @@
                 }
               ],
               "nextIssueNumber": 134,
-              "createdAt": "2026-05-05T09:00:00.000Z"
+              "createdAt": "2026-05-05T09:00:00.000Z",
+              "activeSprint": {
+                "name": "Sprint 25",
+                "endAt": "2026-11-09T09:00:00.000Z",
+                "donePoints": 9,
+                "totalPoints": 50,
+                "doneIssues": 3,
+                "totalIssues": 11
+              },
+              "backlogCount": 5,
+              "lead": {
+                "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
+                "name": "John Rey",
+                "initials": "JR",
+                "gradient": "from-violet-500 to-indigo-600"
+              }
             }
           ],
           "nextCursor": null
+        }
+      },
+      "ProjectSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          },
+          "leadId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "workflow": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkflowStatus"
+            }
+          },
+          "nextIssueNumber": {
+            "type": "integer"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "activeSprint": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "endAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "donePoints": {
+                "type": "integer"
+              },
+              "totalPoints": {
+                "type": "integer"
+              },
+              "doneIssues": {
+                "type": "integer"
+              },
+              "totalIssues": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "name",
+              "endAt",
+              "donePoints",
+              "totalPoints",
+              "doneIssues",
+              "totalIssues"
+            ]
+          },
+          "backlogCount": {
+            "type": "integer"
+          },
+          "lead": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string"
+              },
+              "initials": {
+                "type": "string"
+              },
+              "gradient": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "initials",
+              "gradient"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "name",
+          "description",
+          "color",
+          "leadId",
+          "workflow",
+          "nextIssueNumber",
+          "createdAt",
+          "activeSprint",
+          "backlogCount",
+          "lead"
+        ],
+        "example": {
+          "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e20",
+          "key": "DEV",
+          "name": "DevFlow Core",
+          "description": "The web app: board, realtime sync, auth and the public API gateway.",
+          "color": "from-violet-500 to-indigo-600",
+          "leadId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
+          "workflow": [
+            {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e21",
+              "name": "To Do",
+              "category": "todo"
+            },
+            {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e22",
+              "name": "In Progress",
+              "category": "in_progress"
+            },
+            {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e23",
+              "name": "In Review",
+              "category": "in_progress"
+            },
+            {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e24",
+              "name": "Done",
+              "category": "done"
+            }
+          ],
+          "nextIssueNumber": 134,
+          "createdAt": "2026-05-05T09:00:00.000Z",
+          "activeSprint": {
+            "name": "Sprint 25",
+            "endAt": "2026-11-09T09:00:00.000Z",
+            "donePoints": 9,
+            "totalPoints": 50,
+            "doneIssues": 3,
+            "totalIssues": 11
+          },
+          "backlogCount": 5,
+          "lead": {
+            "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
+            "name": "John Rey",
+            "initials": "JR",
+            "gradient": "from-violet-500 to-indigo-600"
+          }
+        }
+      },
+      "WorkflowStatus": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "todo",
+              "in_progress",
+              "done"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "category"
+        ],
+        "example": {
+          "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e21",
+          "name": "In Review",
+          "category": "in_progress"
         }
       },
       "Project": {
@@ -1038,36 +1253,6 @@
           "createdAt": "2026-05-05T09:00:00.000Z"
         }
       },
-      "WorkflowStatus": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "name": {
-            "type": "string"
-          },
-          "category": {
-            "type": "string",
-            "enum": [
-              "todo",
-              "in_progress",
-              "done"
-            ]
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "category"
-        ],
-        "example": {
-          "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e21",
-          "name": "In Review",
-          "category": "in_progress"
-        }
-      },
       "CreateProjectRequest": {
         "type": "object",
         "properties": {
@@ -1096,46 +1281,79 @@
           "description": "React Native client for iOS and Android."
         }
       },
-      "UpdateProjectRequest": {
+      "ProjectSnapshot": {
         "type": "object",
         "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 64
+          "project": {
+            "$ref": "#/components/schemas/Project"
           },
-          "description": {
-            "type": "string",
-            "maxLength": 500
-          }
-        },
-        "example": {
-          "description": "Board, realtime sync and auth."
-        }
-      },
-      "IssuePage": {
-        "type": "object",
-        "properties": {
-          "items": {
+          "sprints": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Sprint"
+            }
+          },
+          "issues": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Issue"
             }
-          },
-          "nextCursor": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Pass as ?cursor= for the next page; null on the last."
           }
         },
         "required": [
-          "items",
-          "nextCursor"
+          "project",
+          "sprints",
+          "issues"
         ],
         "example": {
-          "items": [
+          "project": {
+            "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e20",
+            "key": "DEV",
+            "name": "DevFlow Core",
+            "description": "The web app: board, realtime sync, auth and the public API gateway.",
+            "color": "from-violet-500 to-indigo-600",
+            "leadId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
+            "workflow": [
+              {
+                "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e21",
+                "name": "To Do",
+                "category": "todo"
+              },
+              {
+                "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e22",
+                "name": "In Progress",
+                "category": "in_progress"
+              },
+              {
+                "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e23",
+                "name": "In Review",
+                "category": "in_progress"
+              },
+              {
+                "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e24",
+                "name": "Done",
+                "category": "done"
+              }
+            ],
+            "nextIssueNumber": 134,
+            "createdAt": "2026-05-05T09:00:00.000Z"
+          },
+          "sprints": [
+            {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e30",
+              "projectId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e20",
+              "number": 25,
+              "name": "Sprint 25",
+              "goal": "Ship SSO for enterprise tenants and stabilise token refresh.",
+              "status": "active",
+              "startAt": "2026-10-26T09:00:00.000Z",
+              "endAt": "2026-11-09T09:00:00.000Z",
+              "committedPoints": 50,
+              "completedAt": null,
+              "report": null
+            }
+          ],
+          "issues": [
             {
               "id": "DEV-104",
               "projectId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e20",
@@ -1162,8 +1380,124 @@
               "dueAt": "2026-10-31T09:00:00.000Z",
               "resolvedAt": null
             }
-          ],
-          "nextCursor": null
+          ]
+        }
+      },
+      "Sprint": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "projectId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "number": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "goal": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "active",
+              "completed"
+            ]
+          },
+          "startAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "endAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "committedPoints": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Points in the sprint when it started."
+          },
+          "completedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "report": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "committedPoints": {
+                "type": "integer"
+              },
+              "completedPoints": {
+                "type": "integer"
+              },
+              "completedIssues": {
+                "type": "integer"
+              },
+              "carriedOverIssues": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "committedPoints",
+              "completedPoints",
+              "completedIssues",
+              "carriedOverIssues"
+            ],
+            "example": {
+              "committedPoints": 40,
+              "completedPoints": 33,
+              "completedIssues": 12,
+              "carriedOverIssues": 3
+            },
+            "description": "Set when the sprint completes."
+          }
+        },
+        "required": [
+          "id",
+          "projectId",
+          "number",
+          "name",
+          "goal",
+          "status",
+          "startAt",
+          "endAt",
+          "committedPoints",
+          "completedAt",
+          "report"
+        ],
+        "example": {
+          "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e30",
+          "projectId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e20",
+          "number": 25,
+          "name": "Sprint 25",
+          "goal": "Ship SSO for enterprise tenants and stabilise token refresh.",
+          "status": "active",
+          "startAt": "2026-10-26T09:00:00.000Z",
+          "endAt": "2026-11-09T09:00:00.000Z",
+          "committedPoints": 50,
+          "completedAt": null,
+          "report": null
         }
       },
       "Issue": {
@@ -1355,6 +1689,76 @@
           "kind": "pr",
           "number": 421,
           "state": "open"
+        }
+      },
+      "UpdateProjectRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "example": {
+          "description": "Board, realtime sync and auth."
+        }
+      },
+      "IssuePage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Issue"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass as ?cursor= for the next page; null on the last."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "example": {
+          "items": [
+            {
+              "id": "DEV-104",
+              "projectId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e20",
+              "sprintId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e30",
+              "statusId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e22",
+              "type": "bug",
+              "priority": "urgent",
+              "title": "OAuth refresh token rotation fails on concurrent tabs",
+              "description": "Two tabs refreshing at the same time both present the old refresh token.",
+              "assigneeId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
+              "tags": [
+                "auth",
+                "frontend"
+              ],
+              "git": {
+                "kind": "pr",
+                "number": 421,
+                "state": "open"
+              },
+              "estimate": 5,
+              "comments": 12,
+              "createdAt": "2026-10-27T08:00:00.000Z",
+              "updatedAt": "2026-11-01T07:48:00.000Z",
+              "dueAt": "2026-10-31T09:00:00.000Z",
+              "resolvedAt": null
+            }
+          ],
+          "nextCursor": null
         }
       },
       "CreateIssueRequest": {
@@ -1708,6 +2112,107 @@
         ],
         "example": {
           "body": "Looks good to me. Merging after CI."
+        }
+      },
+      "Bootstrap": {
+        "type": "object",
+        "properties": {
+          "me": {
+            "$ref": "#/components/schemas/UserProfile"
+          },
+          "workspace": {
+            "$ref": "#/components/schemas/Workspace"
+          },
+          "config": {
+            "$ref": "#/components/schemas/PublicConfig"
+          },
+          "projects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectSummary"
+            }
+          }
+        },
+        "required": [
+          "me",
+          "workspace",
+          "config",
+          "projects"
+        ],
+        "example": {
+          "me": {
+            "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
+            "name": "John Rey",
+            "handle": "jrey",
+            "initials": "JR",
+            "gradient": "from-violet-500 to-indigo-600",
+            "email": "demo@devflow.local",
+            "role": "admin",
+            "timezone": "America/New_York",
+            "bio": "Frontend platform lead. Owns the board, realtime sync and the design system."
+          },
+          "workspace": {
+            "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e00",
+            "name": "Acme Inc",
+            "role": "admin"
+          },
+          "config": {
+            "oauth": {
+              "github": true,
+              "google": false
+            },
+            "githubIntegration": false,
+            "email": false
+          },
+          "projects": [
+            {
+              "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e20",
+              "key": "DEV",
+              "name": "DevFlow Core",
+              "description": "The web app: board, realtime sync, auth and the public API gateway.",
+              "color": "from-violet-500 to-indigo-600",
+              "leadId": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
+              "workflow": [
+                {
+                  "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e21",
+                  "name": "To Do",
+                  "category": "todo"
+                },
+                {
+                  "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e22",
+                  "name": "In Progress",
+                  "category": "in_progress"
+                },
+                {
+                  "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e23",
+                  "name": "In Review",
+                  "category": "in_progress"
+                },
+                {
+                  "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e24",
+                  "name": "Done",
+                  "category": "done"
+                }
+              ],
+              "nextIssueNumber": 134,
+              "createdAt": "2026-05-05T09:00:00.000Z",
+              "activeSprint": {
+                "name": "Sprint 25",
+                "endAt": "2026-11-09T09:00:00.000Z",
+                "donePoints": 9,
+                "totalPoints": 50,
+                "doneIssues": 3,
+                "totalIssues": 11
+              },
+              "backlogCount": 5,
+              "lead": {
+                "id": "0193f1c2-8a4b-7c3d-9e5f-1a2b3c4d5e01",
+                "name": "John Rey",
+                "initials": "JR",
+                "gradient": "from-violet-500 to-indigo-600"
+              }
+            }
+          ]
         }
       }
     },
@@ -2819,8 +3324,8 @@
         "tags": [
           "Projects"
         ],
-        "summary": "Projects in the workspace",
-        "description": "Oldest first. Any role; tokens need issues:read.",
+        "summary": "Projects in the workspace, with summaries",
+        "description": "Oldest first, each with active-sprint progress, backlog count and lead (as on the Projects overview). Any role; tokens need issues:read.",
         "security": [
           {
             "cookieAuth": []
@@ -3092,6 +3597,58 @@
         "responses": {
           "204": {
             "description": "Deleted."
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{key}/snapshot": {
+      "get": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Everything to render a project",
+        "description": "The project with its workflow, all its sprints by number (completed ones with their report) and every issue in the backlog or a planned/active sprint, in rank order. Completed sprints' issues are left out. Not paginated. Re-fetch after reconnecting to realtime.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Project key, any case.",
+              "example": "DEV"
+            },
+            "required": true,
+            "description": "Project key, any case.",
+            "name": "key",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The project snapshot.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectSnapshot"
+                }
+              }
+            }
           },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
@@ -4013,6 +4570,45 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Comment"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bootstrap": {
+      "get": {
+        "tags": [
+          "Bootstrap"
+        ],
+        "summary": "Everything the app shell needs after sign-in",
+        "description": "The signed-in user, the workspace with your role, the feature flags and every project with its summary, in one call. Any role; tokens need issues:read.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The bootstrap payload.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Bootstrap"
                 }
               }
             }
