@@ -71,6 +71,12 @@ function repository(db: Db) {
 
     countMembers: (workspaceId: string) => db.workspaceMember.count({ where: { workspaceId } }),
 
+    memberIds: async (workspaceId: string): Promise<string[]> =>
+      (await db.workspaceMember.findMany({ where: { workspaceId }, select: { userId: true } })).map((m) => m.userId),
+
+    projectRefs: (workspaceId: string): Promise<{ id: string; key: string }[]> =>
+      db.project.findMany({ where: { workspaceId }, select: { id: true, key: true } }),
+
     isMemberByEmail: async (workspaceId: string, email: string) =>
       (await db.workspaceMember.count({ where: { workspaceId, user: { email } } })) > 0,
 

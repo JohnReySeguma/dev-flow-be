@@ -65,6 +65,7 @@ export function createServices(deps: ServiceDeps) {
   const sessions = createAuthRepository(prisma);
   const workspace = createWorkspaceService({
     workspaces,
+    events,
     copySampleData: (workspaceId, ownerId) => copySampleTracker(prisma, workspaceId, ownerId),
     resetSampleData: (target, userId) =>
       target.isDemo ? resetDemoTracker(prisma, target.id) : resetSampleTracker(prisma, target.id, userId),
