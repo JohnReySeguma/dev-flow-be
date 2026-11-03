@@ -6,6 +6,55 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.0.0-beta.4] - 2026-11-03
+
+Safety for a public site: email verification, limits on sign-ups, new workspaces and invites, and an optional
+cleanup of abandoned sample workspaces.
+
+### Frontend impact
+
+- **Can connect now:** email verification (`docs/INTEGRATION.md` §5.11). A password sign-up emails a link to
+  `${CORS_ORIGIN}/verify-email?token=…`; the new `/verify-email` page calls `POST /auth/email/verify { token }`
+  (`204`, or `400 VERIFY_TOKEN_INVALID`). `POST /auth/email/resend` (signed in) sends a new link. This is
+  `docs/FRONTEND_BRIEF.md` Step 8.
+- **Changed:** `UserProfile` gains `emailVerified`. Show a "Verify your email" banner when it is `false` and
+  `GET /config` reports `email: true`.
+- **Behaviour:** while email is delivered, unverified accounts get `403 EMAIL_UNVERIFIED` when inviting. OAuth
+  accounts, invite acceptances and joins, and password resets count as verified.
+- **New limits** (`429 RATE_LIMITED`, §4.1): 10 sign-ups an hour per client, 10 new workspaces a day per user, 50
+  invite emails a day per workspace.
+- **New error codes:** `EMAIL_UNVERIFIED` (403), `VERIFY_TOKEN_INVALID` (400).
+- **BREAKING:** none.
+
+### Added
+
+- `POST /auth/email/verify` and `POST /auth/email/resend`; verification emails after password sign-ups.
+- Rate limits `signups`, `workspaces` (per user) and `workspaceInvites` (per workspace).
+- `npm run cleanup:workspaces` (`node dist/src/jobs/cleanup-workspaces.js` in the image) deletes sample workspaces
+  unused for `SAMPLE_WORKSPACE_TTL_DAYS` days (new, optional, unset = never; `docs/DEPLOYMENT.md` §5.1).
+- Workspaces record when a member last opened them (at most hourly).
+
+### Changed
+
+- Tests pin `EMAIL_PROVIDER=console`, so they no longer depend on the developer's `.env`.
+
+### Migration
+
+- `20261103040000_email_verification` adds `email_verification_tokens`.
+- `20261103050000_workspace_activity` adds `workspaces.last_activity_at`, set to the upgrade time for existing
+  workspaces so the cleanup deletes nothing straight away.
+
+### Handoff checklist
+
+- [x] `docs/openapi.json` regenerated and valid
+- [x] `docs/INTEGRATION.md` coverage matrix updated (verify and resend)
+- [x] New error codes added to the catalogue (`EMAIL_UNVERIFIED`, `VERIFY_TOKEN_INVALID`)
+- [x] New realtime events documented with examples (none in this release)
+- [x] **Frontend impact** section in `CHANGELOG.md`
+- [x] Seed and demo accounts still work on a fresh database, and on one migrated from `beta.3`
+- [x] `docker compose up --build` instructions in the README still accurate
+- [x] Known limitations or stubs listed (`docs/INTEGRATION.md` §9)
+
 ## [2.0.0-beta.3] - 2026-11-03
 
 Invites for people who already use DevFlow, and roles per workspace end to end.
@@ -545,7 +594,8 @@ Foundation: configuration, database, error format, health checks, feature flags,
 - [x] `docker compose up --build` instructions in the README still accurate
 - [x] Known limitations or stubs listed (`docs/INTEGRATION.md` §8)
 
-[Unreleased]: https://github.com/JohnReySeguma/dev-flow-be/compare/v2.0.0-beta.3...HEAD
+[Unreleased]: https://github.com/JohnReySeguma/dev-flow-be/compare/v2.0.0-beta.4...HEAD
+[2.0.0-beta.4]: https://github.com/JohnReySeguma/dev-flow-be/compare/v2.0.0-beta.3...v2.0.0-beta.4
 [2.0.0-beta.3]: https://github.com/JohnReySeguma/dev-flow-be/compare/v2.0.0-beta.2...v2.0.0-beta.3
 [2.0.0-beta.2]: https://github.com/JohnReySeguma/dev-flow-be/compare/v2.0.0-beta.1...v2.0.0-beta.2
 [2.0.0-beta.1]: https://github.com/JohnReySeguma/dev-flow-be/compare/v1.0.1...v2.0.0-beta.1
