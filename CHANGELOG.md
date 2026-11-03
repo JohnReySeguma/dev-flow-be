@@ -6,6 +6,56 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.0.0-beta.5] - 2026-11-03
+
+GitHub per workspace, and Live Sync that ends as soon as someone loses access to a workspace.
+
+### Frontend impact
+
+- **Can connect now:** a GitHub section in workspace settings (`docs/INTEGRATION.md` §7.5, `docs/FRONTEND_BRIEF.md`
+  Step 9). It has three parts:
+  - **Status:** `GET /workspaces/:ws/integrations/github` returns `{ enabled, installations }`.
+  - **Connect:** navigate the browser to `.../integrations/github/install?redirect=<path>`. The user returns to
+    `<path>?github=linked` or `?github_error=<code>`.
+  - **Disconnect:** `DELETE .../integrations/github/installations/:id`.
+- **New realtime event:** `membership.ended { workspaceId }`. You lost access to that workspace, so drop its data
+  and leave its pages. Its rooms are left for you.
+- **Behaviour:** GitHub links (`Issue.git`) now change only in the workspace whose installation sent them. Until an
+  admin connects an installation, no workspace gets them, the demo workspace included.
+- **New error codes:** none on the REST API. The setup redirect carries `github_denied`, `github_state_mismatch`,
+  `github_not_your_installation`, `github_installation_taken`, `github_forbidden` and `github_failed`.
+- **BREAKING:** none for the frontend. For operators: `githubIntegration` now also needs `GITHUB_APP_SLUG`,
+  `GITHUB_APP_CLIENT_ID` and `GITHUB_APP_CLIENT_SECRET`, and the GitHub App needs a callback URL (README, GitHub
+  integration).
+
+### Added
+
+- GitHub App installations linked to workspaces. The installing user's GitHub authorization proves they can access
+  the installation. An installation belongs to one workspace; uninstalling the App on GitHub disconnects it.
+- `GET /api/integrations/github/setup`, version-free like the webhook, registered as the App's callback URL.
+- Live Sync ends for people who are removed, leave or lose a deleted workspace: `membership.ended`, rooms left on
+  every instance, presence updated.
+
+### Changed
+
+- Webhooks match issue keys only in the workspace their installation is linked to. They no longer apply to the
+  demo workspace.
+
+### Migration
+
+- `20261103060000_github_installations` adds `github_installations`.
+
+### Handoff checklist
+
+- [x] `docs/openapi.json` regenerated and valid
+- [x] `docs/INTEGRATION.md` coverage matrix updated (GitHub settings)
+- [x] New error codes added to the catalogue (none; the setup redirect codes are listed in §7.5)
+- [x] New realtime events documented with examples (`membership.ended`)
+- [x] **Frontend impact** section in `CHANGELOG.md`
+- [x] Seed and demo accounts still work on a fresh database, and on one migrated from `beta.4`
+- [x] `docker compose up --build` instructions in the README still accurate
+- [x] Known limitations or stubs listed (`docs/INTEGRATION.md` §9)
+
 ## [2.0.0-beta.4] - 2026-11-03
 
 Safety for a public site: email verification, limits on sign-ups, new workspaces and invites, and an optional
@@ -594,7 +644,8 @@ Foundation: configuration, database, error format, health checks, feature flags,
 - [x] `docker compose up --build` instructions in the README still accurate
 - [x] Known limitations or stubs listed (`docs/INTEGRATION.md` §8)
 
-[Unreleased]: https://github.com/JohnReySeguma/dev-flow-be/compare/v2.0.0-beta.4...HEAD
+[Unreleased]: https://github.com/JohnReySeguma/dev-flow-be/compare/v2.0.0-beta.5...HEAD
+[2.0.0-beta.5]: https://github.com/JohnReySeguma/dev-flow-be/compare/v2.0.0-beta.4...v2.0.0-beta.5
 [2.0.0-beta.4]: https://github.com/JohnReySeguma/dev-flow-be/compare/v2.0.0-beta.3...v2.0.0-beta.4
 [2.0.0-beta.3]: https://github.com/JohnReySeguma/dev-flow-be/compare/v2.0.0-beta.2...v2.0.0-beta.3
 [2.0.0-beta.2]: https://github.com/JohnReySeguma/dev-flow-be/compare/v2.0.0-beta.1...v2.0.0-beta.2
