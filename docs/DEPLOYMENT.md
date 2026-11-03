@@ -91,11 +91,26 @@ It restores the workspace name, the demo team's memberships and roles, removes p
 project with a fresh copy of the demo data. It logs `demo workspace restored`, and does nothing on a database without
 a demo workspace. Visitors who sign up get their own workspaces, which the job never touches.
 
+Every sign-up also creates a workspace with a copy of the sample data, so a public site collects abandoned ones. To
+delete them, set `SAMPLE_WORKSPACE_TTL_DAYS` (e.g. `30`) and run the cleanup daily:
+
+```bash
+# development:      npm run cleanup:workspaces
+# the image:        node dist/src/jobs/cleanup-workspaces.js
+# e.g. cron, 03:30: 30 3 * * * docker compose -f /srv/devflow/docker-compose.yml exec -T api node dist/src/jobs/cleanup-workspaces.js
+```
+
+It deletes workspaces nobody has opened for that many days that have one member, no pending invites and nothing but
+sample projects; never the demo workspace, and never accounts. It does nothing while the variable is unset.
+
 ## 6. Built-in protections
 
 - **Rate limits** per client IP: 600 requests a minute overall, plus tighter limits on sign-in (10 failures per
-  account and IP every 15 minutes), sign-up, password reset, OAuth, refresh, invites and invite links, and GitHub
-  deliveries. Counted in Redis when configured, otherwise per instance; if Redis fails, requests pass.
+  account and IP every 15 minutes), sign-up (10 an hour), password reset, email verification, OAuth, refresh,
+  invites and invite links, and GitHub deliveries; per user, 10 new workspaces a day; per workspace, 50 invite emails
+  a day. Counted in Redis when configured, otherwise per instance; if Redis fails, requests pass.
+- **Email:** while email is delivered, accounts must verify their address before they can send invites, so nobody
+  can use DevFlow to email strangers from an address they do not own.
 - **Sessions:** short-lived access tokens, rotating refresh tokens with reuse detection, server-side revocation. A
   password reset, or OAuth claiming an account first registered with a password, revokes every session and access
   token.
