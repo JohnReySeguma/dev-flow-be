@@ -4,11 +4,11 @@ import { tmpdir } from "node:os";
 import { join as joinPath } from "node:path";
 import request from "supertest";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { seed } from "../prisma/seed.js";
 import { createLogger } from "../src/lib/logger.js";
-import { FRONTEND_ORIGIN } from "./helpers/cookies.js";
+import { FRONTEND_ORIGIN, setCookies } from "./helpers/cookies.js";
 import { createTestApp } from "./helpers/app.js";
 import { truncateAll } from "./helpers/db.js";
+import { seedTeam } from "./helpers/team.js";
 import { connected, join, nextEvent, startRealtimeTestServer } from "./helpers/realtime.js";
 import { asBrowser, signIn } from "./helpers/session.js";
 
@@ -16,13 +16,38 @@ import { asBrowser, signIn } from "./helpers/session.js";
 type Payload = Record<string, any>;
 
 const SECRET = "whsec_test_placeholder";
-// The integration is enabled by an App id, a webhook secret and a non-empty key file; the key is never read.
+// The integration is enabled by an App id, slug and client credentials, a webhook secret and a
+// non-empty key file; the key is never read.
 const keyDir = mkdtempSync(joinPath(tmpdir(), "devflow-github-"));
 const keyPath = joinPath(keyDir, "app.pem");
 writeFileSync(keyPath, "placeholder");
 
+/** The linked installation every delivery comes from unless a test says otherwise. */
+const INSTALLATION = 51234567;
+/** What the fake GitHub says the installing user can access; tests adjust it. */
+let accessible = [{ id: INSTALLATION, account: { login: "acme", type: "Organization" } }];
+
+const fakeFetch = ((input: string | URL | Request) => {
+  const url = input instanceof Request ? input.url : String(input);
+  if (url.startsWith("https://github.com/login/oauth/access_token")) {
+    return Promise.resolve(Response.json({ access_token: "ghu_test" }));
+  }
+  if (url.startsWith("https://api.github.com/user/installations")) {
+    return Promise.resolve(Response.json({ total_count: accessible.length, installations: accessible }));
+  }
+  return Promise.resolve(new Response("unexpected", { status: 500 }));
+}) as typeof fetch;
+
 const server = await startRealtimeTestServer({
-  env: { GITHUB_APP_ID: "1", GITHUB_WEBHOOK_SECRET: SECRET, GITHUB_APP_PRIVATE_KEY_PATH: keyPath },
+  env: {
+    GITHUB_APP_ID: "1",
+    GITHUB_WEBHOOK_SECRET: SECRET,
+    GITHUB_APP_PRIVATE_KEY_PATH: keyPath,
+    GITHUB_APP_SLUG: "devflow-test",
+    GITHUB_APP_CLIENT_ID: "Iv1.test",
+    GITHUB_APP_CLIENT_SECRET: "test-secret",
+  },
+  fetch: fakeFetch,
 });
 const { app, env, prisma, client } = server;
 afterAll(async () => {
@@ -33,8 +58,9 @@ afterAll(async () => {
 const WEBHOOK = "/api/integrations/github/webhook";
 const sign = (body: string, secret = SECRET) => `sha256=${createHmac("sha256", secret).update(body).digest("hex")}`;
 
-function deliver(event: string, payload: unknown, signature?: string) {
-  const body = JSON.stringify(payload);
+/** Signs and posts a delivery; it comes from the linked installation unless the payload names one. */
+function deliver(event: string, payload: object, signature?: string) {
+  const body = JSON.stringify("installation" in payload ? payload : { ...payload, installation: { id: INSTALLATION } });
   return request(app)
     .post(WEBHOOK)
     .set("content-type", "application/json")
@@ -62,7 +88,12 @@ const issue = async (key: string) => (await member.get(`/api/v2/workspaces/acme-
 
 beforeEach(async () => {
   await truncateAll(prisma);
-  await seed(prisma, createLogger(env), undefined, { tracker: false });
+  await seedTeam(prisma, createLogger(env), undefined, { tracker: false });
+  accessible = [{ id: INSTALLATION, account: { login: "acme", type: "Organization" } }];
+  const acme = await prisma.workspace.findUniqueOrThrow({ where: { slug: "acme-inc" } });
+  await prisma.gitHubInstallation.create({
+    data: { installationId: BigInt(INSTALLATION), workspaceId: acme.id, accountLogin: "acme" },
+  });
   member = asBrowser(app, await signIn(app, "member@devflow.local"));
   await member.post("/api/v2/workspaces/acme-inc/projects").send({ name: "DevFlow Core", key: "DEV" });
   for (const title of ["Token refresh", "Idempotency keys", "Docs"]) {
@@ -228,5 +259,166 @@ describe("Live Sync", () => {
       // Merging changes the status, not the ranking: new issues go on top, so DEV-1 stays last.
       beforeIssueKey: null,
     });
+  });
+});
+
+describe("installations per workspace", () => {
+  it("ignores deliveries from an installation that is not linked to any workspace", async () => {
+    const res = await deliver("pull_request", {
+      ...pr("opened", { number: 9, title: "DEV-1 elsewhere", ref: "main" }),
+      installation: { id: 999 },
+    });
+
+    expect(res.status).toBe(202);
+    expect(res.body.handled).toBe(false);
+    expect((await issue("DEV-1")).git).toBeUndefined();
+  });
+
+  it("changes issues only in the workspace the installation is linked to", async () => {
+    const globex = await prisma.workspace.create({ data: { name: "Globex", slug: "globex" } });
+    const project = await prisma.project.create({
+      data: {
+        workspaceId: globex.id,
+        key: "DEV",
+        name: "Globex Core",
+        color: "from-sky-500 to-cyan-500",
+        nextIssueNumber: 2,
+      },
+    });
+    const status = await prisma.workflowStatus.create({
+      data: { projectId: project.id, name: "To Do", category: "todo", position: 0 },
+    });
+    await prisma.issue.create({
+      data: {
+        projectId: project.id,
+        number: 1,
+        statusId: status.id,
+        type: "task",
+        priority: "low",
+        title: "Globex",
+        rank: "a0",
+      },
+    });
+
+    await deliver("pull_request", pr("opened", { number: 12, title: "DEV-1 fix", ref: "main" }));
+
+    expect((await issue("DEV-1")).git).toEqual({ kind: "pr", number: 12, state: "open" });
+    expect((await prisma.issue.findFirstOrThrow({ where: { projectId: project.id } })).git).toBeNull();
+  });
+
+  it("unlinks the installation when the App is uninstalled on GitHub", async () => {
+    const res = await deliver("installation", { action: "deleted", installation: { id: INSTALLATION } });
+
+    expect(res.status).toBe(200);
+    expect(await prisma.gitHubInstallation.count()).toBe(0);
+  });
+});
+
+describe("linking an installation", () => {
+  const SETTINGS = "/api/v2/workspaces/acme-inc/integrations/github";
+  let admin: ReturnType<typeof asBrowser>;
+  beforeEach(async () => {
+    await prisma.gitHubInstallation.deleteMany();
+    admin = asBrowser(app, await signIn(app, "demo@devflow.local"));
+  });
+
+  /** Starts the install as an admin and returns GitHub's redirect URL and the state cookie. */
+  async function startInstall(as = admin) {
+    const start = await as.get(`${SETTINGS}/install?redirect=/settings/integrations`);
+    const cookie = setCookies(start).devflow_github;
+    return {
+      start,
+      location: new URL(String(start.headers.location)),
+      cookie: `devflow_github=${cookie?.value ?? ""}`,
+    };
+  }
+  const finish = (query: Record<string, string>, cookie?: string) => {
+    const req = request(app).get(`/api/integrations/github/setup?${new URLSearchParams(query).toString()}`);
+    return cookie ? req.set("Cookie", cookie) : req;
+  };
+
+  it("sends the admin to GitHub's install page with a signed state in a cookie", async () => {
+    const { start, location } = await startInstall();
+
+    expect(start.status).toBe(302);
+    expect(location.origin + location.pathname).toBe("https://github.com/apps/devflow-test/installations/new");
+    expect(location.searchParams.get("state")).toMatch(/^[\w-]+\.[\w-]+\.[\w-]+$/);
+    expect(setCookies(start).devflow_github?.attributes).toMatch(
+      /Path=\/api\/integrations\/github;.*HttpOnly;.*Secure/,
+    );
+  });
+
+  it("links the installation when GitHub confirms the user can access it", async () => {
+    const { location, cookie } = await startInstall();
+    const state = location.searchParams.get("state") ?? "";
+
+    const res = await finish(
+      { code: "gh-code", installation_id: String(INSTALLATION), setup_action: "install", state },
+      cookie,
+    );
+
+    expect(res.headers.location).toBe(`${FRONTEND_ORIGIN}/settings/integrations?github=linked`);
+    const status = await admin.get(SETTINGS);
+    expect(status.body).toEqual({
+      enabled: true,
+      installations: [{ installationId: INSTALLATION, account: "acme", linkedAt: expect.any(String) }],
+    });
+  });
+
+  it.each([
+    ["without the state cookie", { cookie: false }, "github_state_mismatch"],
+    ["for an installation the user cannot access", { id: "424242" }, "github_not_your_installation"],
+    ["when the user cancelled on GitHub", { code: "" }, "github_denied"],
+  ])("refuses %s", async (_label, change: { cookie?: boolean; id?: string; code?: string }, code) => {
+    const { location, cookie } = await startInstall();
+    const query = {
+      code: change.code ?? "gh-code",
+      installation_id: change.id ?? String(INSTALLATION),
+      setup_action: "install",
+      state: location.searchParams.get("state") ?? "",
+    };
+
+    const res = await finish(query, change.cookie === false ? undefined : cookie);
+
+    // Without a verified state the redirect cannot be trusted either, so it falls back to /projects.
+    const page = code === "github_state_mismatch" ? "/projects" : "/settings/integrations";
+    expect(res.headers.location).toBe(`${FRONTEND_ORIGIN}${page}?github_error=${code}`);
+    expect(await prisma.gitHubInstallation.count()).toBe(0);
+  });
+
+  it("refuses an installation that is already linked to another workspace", async () => {
+    const globex = await prisma.workspace.create({ data: { name: "Globex", slug: "globex" } });
+    await prisma.gitHubInstallation.create({
+      data: { installationId: BigInt(INSTALLATION), workspaceId: globex.id, accountLogin: "acme" },
+    });
+    const { location, cookie } = await startInstall();
+
+    const res = await finish(
+      {
+        code: "gh-code",
+        installation_id: String(INSTALLATION),
+        setup_action: "install",
+        state: location.searchParams.get("state") ?? "",
+      },
+      cookie,
+    );
+
+    expect(res.headers.location).toContain("github_error=github_installation_taken");
+  });
+
+  it("lets admins only start an install or unlink, and anyone read the status", async () => {
+    await prisma.gitHubInstallation.create({
+      data: {
+        installationId: BigInt(INSTALLATION),
+        workspaceId: (await prisma.workspace.findUniqueOrThrow({ where: { slug: "acme-inc" } })).id,
+        accountLogin: "acme",
+      },
+    });
+
+    expect((await member.get(`${SETTINGS}/install`)).status).toBe(403);
+    expect((await member.delete(`${SETTINGS}/installations/${INSTALLATION}`)).status).toBe(403);
+    expect((await member.get(SETTINGS)).body.installations).toHaveLength(1);
+    expect((await admin.delete(`${SETTINGS}/installations/${INSTALLATION}`)).status).toBe(204);
+    expect((await admin.delete(`${SETTINGS}/installations/${INSTALLATION}`)).status).toBe(404);
   });
 });

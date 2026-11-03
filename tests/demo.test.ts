@@ -34,6 +34,7 @@ describe("the demo workspace", () => {
       admin.post(`${ACME}/invites`).send({ email: "spam@example.com", role: "member" }),
       admin.patch(`${ACME}/members/${dmitri}`).send({ role: "viewer" }),
       admin.delete(`${ACME}/members/${dmitri}`),
+      admin.get(`${ACME}/integrations/github/install`),
     ]);
 
     for (const res of attempts) expect([res.status, res.body.code]).toEqual([403, "DEMO_WORKSPACE_LOCKED"]);

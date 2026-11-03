@@ -48,6 +48,14 @@ export const envSchema = z
     GITHUB_APP_ID: z.string().optional(),
     GITHUB_APP_PRIVATE_KEY_PATH: z.string().optional(),
     GITHUB_WEBHOOK_SECRET: z.string().optional(),
+    /** The App's URL name (github.com/apps/<slug>), for the install link. */
+    GITHUB_APP_SLUG: z
+      .string()
+      .regex(/^[a-z0-9-]+$/, "must be the App's URL name, e.g. devflow-app")
+      .optional(),
+    /** The GitHub App's own client ID and secret (not the OAuth app's), to verify who installed it. */
+    GITHUB_APP_CLIENT_ID: z.string().optional(),
+    GITHUB_APP_CLIENT_SECRET: z.string().optional(),
 
     /** Defaults to console, except in production, where it must be set (see the check below). */
     EMAIL_PROVIDER: z.enum(["console", "smtp", "resend"]).optional(),

@@ -47,7 +47,7 @@ export function buildOpenApiDocument() {
   registerCommentsDocs(workspace);
   registerSprintsDocs(workspace);
   registerReportsDocs(workspace);
-  registerGitHubDocs(registry);
+  registerGitHubDocs(registry, workspace);
 
   const document = new OpenApiGeneratorV31([...registry.definitions, ...workspace.definitions]).generateDocument({
     openapi: "3.1.0",
@@ -71,7 +71,11 @@ export function buildOpenApiDocument() {
 }
 
 /** Served under /api instead of /api/v2 (app.ts PROVIDER_PREFIX). */
-const PROVIDER_PATHS = ["/auth/oauth/{provider}/callback", "/integrations/github/webhook"];
+const PROVIDER_PATHS = [
+  "/auth/oauth/{provider}/callback",
+  "/integrations/github/webhook",
+  "/integrations/github/setup",
+];
 
 const HTTP_METHODS = ["get", "put", "post", "delete", "patch"] as const;
 

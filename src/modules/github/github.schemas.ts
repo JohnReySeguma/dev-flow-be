@@ -24,10 +24,38 @@ export const pushEvent = z.looseObject({
   head_commit: commit.nullable().optional(),
 });
 
+export const installationEvent = z.looseObject({
+  action: z.string(),
+  installation: z.looseObject({ id: z.number().int() }),
+});
+
+export const githubStatusResponse = z
+  .object({
+    enabled: z.boolean().meta({ description: "The server can link installations (GET /config: githubIntegration)." }),
+    installations: z.array(
+      z.object({
+        installationId: z.number().int(),
+        account: z.string().meta({ description: "The GitHub user or organisation it is installed on." }),
+        linkedAt: z.iso.datetime(),
+      }),
+    ),
+  })
+  .meta({
+    id: "GitHubStatus",
+    example: {
+      enabled: true,
+      installations: [{ installationId: 51234567, account: "acme", linkedAt: "2026-11-03T09:00:00.000Z" }],
+    },
+  });
+
+export type GitHubStatus = z.infer<typeof githubStatusResponse>;
+
 export const webhookResult = z
   .object({
     event: z.string().meta({ description: "The X-GitHub-Event header." }),
-    handled: z.boolean().meta({ description: "False for events and actions DevFlow ignores." }),
+    handled: z.boolean().meta({
+      description: "False for events and actions DevFlow ignores, and for installations not linked to a workspace.",
+    }),
     issues: z.array(z.string()).meta({ description: "Keys of the issues that changed." }),
   })
   .meta({ id: "GitHubWebhookResult", example: { event: "pull_request", handled: true, issues: ["DEV-104"] } });

@@ -13,12 +13,20 @@ import { createMemoryEmailProvider } from "./email.js";
 import { testEnv } from "./env.js";
 
 /** The app and the realtime server on a real HTTP port, as in production. Call `close()` in afterAll. */
-export async function startRealtimeTestServer(options: { env?: Partial<Env> } = {}) {
+export async function startRealtimeTestServer(options: { env?: Partial<Env>; fetch?: typeof fetch } = {}) {
   const env: Env = { ...testEnv(), ...options.env };
   const logger = createLogger(env);
   const prisma = createPrismaClient(env.DATABASE_URL);
   const redis = createRedisClient(env.REDIS_URL, logger);
-  const deps = { env, features: resolveFeatures(env), logger, prisma, redis, email: createMemoryEmailProvider() };
+  const deps = {
+    env,
+    features: resolveFeatures(env),
+    logger,
+    prisma,
+    redis,
+    email: createMemoryEmailProvider(),
+    ...(options.fetch && { fetch: options.fetch }),
+  };
   const services = createServices(deps);
   const app = createApp({ ...deps, services, rateLimits: false });
   const httpServer = createServer(app);

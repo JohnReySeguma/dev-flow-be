@@ -27,8 +27,17 @@ export function resolveFeatures(env: Env, hasKeyFile: (path: string) => boolean 
       github: Boolean(env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET),
       google: Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET),
     },
-    // Docker mounts /dev/null when no key is provided, which counts as missing.
-    githubIntegration: Boolean(env.GITHUB_APP_ID && env.GITHUB_WEBHOOK_SECRET && keyPath && hasKeyFile(keyPath)),
+    // Docker mounts /dev/null when no key is provided, which counts as missing. Linking an
+    // installation to a workspace also needs the App's slug and its own OAuth credentials.
+    githubIntegration: Boolean(
+      env.GITHUB_APP_ID &&
+      env.GITHUB_WEBHOOK_SECRET &&
+      env.GITHUB_APP_SLUG &&
+      env.GITHUB_APP_CLIENT_ID &&
+      env.GITHUB_APP_CLIENT_SECRET &&
+      keyPath &&
+      hasKeyFile(keyPath),
+    ),
     email: { provider: env.EMAIL_PROVIDER === "smtp" ? "smtp" : "console" },
     redis: Boolean(env.REDIS_URL),
   };
