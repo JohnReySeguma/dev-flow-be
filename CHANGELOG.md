@@ -6,6 +6,43 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.0.0-beta.3] - 2026-11-03
+
+Invites for people who already use DevFlow, and roles per workspace end to end.
+
+### Frontend impact
+
+- **Can connect now:** `POST /invites/:token/join` (signed-in session, no body) adds the signed-in account to the
+  inviting workspace and returns that `Workspace` with the role. `docs/INTEGRATION.md` §5.7 describes the `/invite`
+  page for both cases; this is `docs/FRONTEND_BRIEF.md` Step 7.
+- **Changed:** `GET /invites/:token` adds `accountExists` (sign in and join when `true`, accept when `false`) and
+  `workspace.slug`.
+- **BREAKING (small):** `POST /invites/:token/accept` answers `409 EMAIL_TAKEN`, not `ALREADY_MEMBER`, when the email
+  already has an account. Map it to "sign in to join". `POST /workspaces/:ws/invites` now accepts emails that
+  have an account elsewhere; `ALREADY_MEMBER` means a member of this workspace or already invited.
+- **New error code:** `INVITE_EMAIL_MISMATCH` (403): joining while signed in with another account. The invite stays
+  usable; offer to sign out and in again.
+
+### Added
+
+- `POST /invites/:token/join` for existing accounts. Demo accounts cannot join (`DEMO_ACCOUNT_LOCKED`).
+- Accepting or joining marks the account's email verified: the emailed link proves the address.
+
+### Changed
+
+- Invites are refused only for members of the workspace or pending invites, not for anyone with an account.
+
+### Handoff checklist
+
+- [x] `docs/openapi.json` regenerated and valid
+- [x] `docs/INTEGRATION.md` coverage matrix updated (join)
+- [x] New error codes added to the catalogue (`INVITE_EMAIL_MISMATCH`)
+- [x] New realtime events documented with examples (none in this release)
+- [x] **Frontend impact** section in `CHANGELOG.md`, BREAKING changes marked
+- [x] Seed and demo accounts still work on a fresh database
+- [x] `docker compose up --build` instructions in the README still accurate
+- [x] Known limitations or stubs listed (`docs/INTEGRATION.md` §9)
+
 ## [2.0.0-beta.2] - 2026-11-03
 
 API v2: DevFlow is multi-workspace. Every account gets its own workspace, everything except the account lives in a
@@ -508,7 +545,8 @@ Foundation: configuration, database, error format, health checks, feature flags,
 - [x] `docker compose up --build` instructions in the README still accurate
 - [x] Known limitations or stubs listed (`docs/INTEGRATION.md` §8)
 
-[Unreleased]: https://github.com/JohnReySeguma/dev-flow-be/compare/v2.0.0-beta.2...HEAD
+[Unreleased]: https://github.com/JohnReySeguma/dev-flow-be/compare/v2.0.0-beta.3...HEAD
+[2.0.0-beta.3]: https://github.com/JohnReySeguma/dev-flow-be/compare/v2.0.0-beta.2...v2.0.0-beta.3
 [2.0.0-beta.2]: https://github.com/JohnReySeguma/dev-flow-be/compare/v2.0.0-beta.1...v2.0.0-beta.2
 [2.0.0-beta.1]: https://github.com/JohnReySeguma/dev-flow-be/compare/v1.0.1...v2.0.0-beta.1
 [1.0.1]: https://github.com/JohnReySeguma/dev-flow-be/compare/v1.0.0...v1.0.1
