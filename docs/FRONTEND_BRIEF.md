@@ -107,7 +107,8 @@ A thin `fetch` wrapper; every API call goes through it.
 ## 5. Integration roadmap
 
 Steps 1–3 integrated API v1. API v2 (multiple workspaces) changed every path, so the remaining steps target v2;
-v1's projects, sprints and Live Sync steps were never integrated and are folded in below.
+v1's projects, sprints and Live Sync steps were never integrated and are folded in below. ✅ on a step: integrated;
+✅ on an API release: released and ready to integrate.
 
 | Step | API release        | Frontend release | Integrate                                                                                                                                                                                                                                                                 |
 | ---- | ------------------ | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
