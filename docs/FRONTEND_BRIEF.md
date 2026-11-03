@@ -15,9 +15,9 @@ not change: same screens, same flows. What changes is where data comes from, plu
 permission states that a real server introduces.
 
 The API ships in milestones (§5). Each time a backend release lands, integrate exactly what it adds, release the
-frontend, and stop. Steps 1–3 are done (frontend `v1.1.0`–`v1.3.0`, on API v1). **API v2** makes DevFlow
-multi-workspace: everything moves to `/api/v2` and under `/workspaces/{slug}`, so the remaining steps (§5) start with
-moving to v2 (Step 4, §7).
+frontend, and stop. Steps 1–9 are done (frontend `v1.1.0`–`v1.9.0`; Steps 1–3 on API v1, the rest on API v2,
+which makes DevFlow multi-workspace under `/api/v2/workspaces/{slug}`). API `v2.0.0` is the stable contract: only
+Step 10 remains.
 
 ## 2. Ground rules
 
@@ -115,15 +115,15 @@ v1's projects, sprints and Live Sync steps were never integrated and are folded 
 | 1 ✅ | `v0.1.0`           | `v1.1.0`         | §4.1–4.4: config, generated types, API client, error model. `GET /config` hides OAuth buttons that the server has disabled.                                                                                                                                               |
 | 2 ✅ | `v0.2.0`           | `v1.2.0`         | Real sign-in, sign-up, logout; session check on load (`401` → `/login`); refresh once on `TOKEN_EXPIRED` (one refresh in flight at a time, see INTEGRATION §5.3); OAuth redirect; forgot password and a new `/reset-password` page; profile (`PATCH /me`); access tokens. |
 | 3 ✅ | `v0.3.0`           | `v1.3.0`         | Team members, roles and invites; a new `/invite` page; hide write actions from viewers; replace the remove-member undo with a confirmation (see INTEGRATION §5.9).                                                                                                        |
-| 4    | `v2.0.0-beta.2` ✅ | `v1.4.0`         | **Move to API v2, workspace switcher and "Create workspace"** (§7): `/api/v2` paths, `/auth/me` workspaces, the current workspace in the URL, switcher, create / rename / delete / leave, per-workspace roles, tokens bound to a workspace, demo locks.                   |
-| 5    | `v2.0.0-beta.2` ✅ | `v1.5.0`         | Under `/workspaces/:ws`: `/bootstrap`, project snapshot, projects, workflow statuses, issues, ranking, comments, sample-data reset (§4.5); keep sprint actions local until Step 6. Switching workspaces reloads the store.                                                |
-| 6    | `v2.0.0-beta.2` ✅ | `v1.6.0`         | Sprint lifecycle and reports (burndown, velocity, history), under `/workspaces/:ws`.                                                                                                                                                                                      |
-| 7    | `v2.0.0-beta.3` ✅ | `v1.7.0`         | Invites for people who already have an account: the `/invite` page asks them to sign in and join instead of creating an account; the new workspace appears in the switcher.                                                                                               |
-| 8    | `v2.0.0-beta.4` ✅ | `v1.8.0`         | Email verification (verify page, "verify your email" banner, resend; unverified users cannot invite), `RATE_LIMITED` handling (INTEGRATION §4.1) including the limit on creating workspaces.                                                                              |
-| 9    | `v2.0.0-beta.5` ✅ | `v1.9.0`         | Live Sync per workspace: join `{ workspace, projectKey }`, apply events, ignore your own `actorId`, re-fetch after reconnecting; presence avatars; `Issue.git` badges; connecting a GitHub App installation in workspace settings.                                        |
-| 10   | `v2.0.0`           | `v2.0.0`         | Final contract review; API mode becomes the default.                                                                                                                                                                                                                      |
+| 4 ✅ | `v2.0.0-beta.2` ✅ | `v1.4.0`         | **Move to API v2, workspace switcher and "Create workspace"** (§7): `/api/v2` paths, `/auth/me` workspaces, the current workspace in the URL, switcher, create / rename / delete / leave, per-workspace roles, tokens bound to a workspace, demo locks.                   |
+| 5 ✅ | `v2.0.0-beta.2` ✅ | `v1.5.0`         | Under `/workspaces/:ws`: `/bootstrap`, project snapshot, projects, workflow statuses, issues, ranking, comments, sample-data reset (§4.5); keep sprint actions local until Step 6. Switching workspaces reloads the store.                                                |
+| 6 ✅ | `v2.0.0-beta.2` ✅ | `v1.6.0`         | Sprint lifecycle and reports (burndown, velocity, history), under `/workspaces/:ws`.                                                                                                                                                                                      |
+| 7 ✅ | `v2.0.0-beta.3` ✅ | `v1.7.0`         | Invites for people who already have an account: the `/invite` page asks them to sign in and join instead of creating an account; the new workspace appears in the switcher.                                                                                               |
+| 8 ✅ | `v2.0.0-beta.4` ✅ | `v1.8.0`         | Email verification (verify page, "verify your email" banner, resend; unverified users cannot invite), `RATE_LIMITED` handling (INTEGRATION §4.1) including the limit on creating workspaces.                                                                              |
+| 9 ✅ | `v2.0.0-beta.5` ✅ | `v1.9.0`         | Live Sync per workspace: join `{ workspace, projectKey }`, apply events, ignore your own `actorId`, re-fetch after reconnecting; presence avatars; `Issue.git` badges; connecting a GitHub App installation in workspace settings.                                        |
+| 10   | `v2.0.0` ✅        | `v2.0.0`         | Final contract review; API mode becomes the default.                                                                                                                                                                                                                      |
 
-Steps 4–6 need only `beta.2`, so they can go ahead while the API works on `beta.3`. Each API release's
+API `v2.0.0` changes nothing since `beta.5`: it makes that contract stable. Each API release's
 `CHANGELOG.md` entry has a **Frontend impact** section that is the authoritative list for that step. Exact paths,
 payloads and examples are in `INTEGRATION.md` and Swagger UI.
 

@@ -1,14 +1,14 @@
 # DevFlow API — Frontend Integration Guide
 
 > **For:** the frontend ([`dev-flow`](https://github.com/JohnReySeguma/dev-flow)).
-> **Accurate for:** `v2.0.0-beta.5`. Updated at every release (see [`FRONTEND_HANDOFF.md`](FRONTEND_HANDOFF.md)).
+> **Accurate for:** `v2.0.0`. Updated at every release (see [`FRONTEND_HANDOFF.md`](FRONTEND_HANDOFF.md)).
 > **Machine-readable contract:** [`openapi.json`](openapi.json), also served at `/api/v2/openapi.json`, with
 > Swagger UI at `/api/v2/docs`.
 > **Step-by-step plan for the frontend:** [`FRONTEND_BRIEF.md`](FRONTEND_BRIEF.md).
 >
 > **API v2: multiple workspaces.** A user can belong to many workspaces with a different role in each; everything
 > except the account itself lives in a workspace, under `/api/v2/workspaces/{slug}/…` (§1.2). `/api/v1` is gone.
-> What changed from v1, item by item: `CHANGELOG.md`, `2.0.0-beta.2` → Frontend impact.
+> What changed from v1, item by item: the Frontend impact sections of `CHANGELOG.md`, `2.0.0-beta.1` to `2.0.0`.
 
 ---
 
