@@ -36,6 +36,10 @@ export const resetPasswordBody = z
     example: { token: "RESET_TOKEN_FROM_EMAIL", password: "YOUR_NEW_PASSWORD" },
   });
 
+export const verifyEmailBody = z
+  .object({ token: z.string().min(1, "The verification token is missing.").max(256) })
+  .meta({ id: "VerifyEmailRequest", example: { token: "VERIFY_TOKEN_FROM_EMAIL" } });
+
 export const authMeResponse = z
   .object({
     user: userProfile,
@@ -52,4 +56,5 @@ export type SignupInput = z.infer<typeof signupBody>;
 export type LoginInput = z.infer<typeof loginBody>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordBody>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordBody>;
+export type VerifyEmailInput = z.infer<typeof verifyEmailBody>;
 export type AuthMe = z.infer<typeof authMeResponse>;

@@ -27,6 +27,7 @@
     "db:seed": "prisma db seed",
     "db:reset": "tsx scripts/db-reset.ts",
     "demo:reset": "tsx src/jobs/demo-reset.ts",
+    "cleanup:workspaces": "tsx src/jobs/cleanup-workspaces.ts",
     "test:unit": "vitest run --project unit",
     "test:integration": "vitest run --project integration",
     "openapi:generate": "tsx src/openapi/generate.ts",

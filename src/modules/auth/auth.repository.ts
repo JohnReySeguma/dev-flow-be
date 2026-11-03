@@ -58,6 +58,24 @@ export function createAuthRepository(prisma: PrismaClient) {
 
     findPasswordResetToken: (tokenHash: string) => prisma.passwordResetToken.findUnique({ where: { tokenHash } }),
 
+    /** Issues a verification token and retires any earlier unused one, so only the newest link works. */
+    createEmailVerificationToken: (data: { userId: string; tokenHash: string; expiresAt: Date }) =>
+      prisma.$transaction([
+        prisma.emailVerificationToken.updateMany({
+          where: { userId: data.userId, usedAt: null },
+          data: { usedAt: new Date() },
+        }),
+        prisma.emailVerificationToken.create({ data }),
+      ]),
+
+    findEmailVerificationToken: (tokenHash: string) =>
+      prisma.emailVerificationToken.findUnique({ where: { tokenHash } }),
+
+    /** Atomic: a verification link can be used once. */
+    claimEmailVerificationToken: async (id: string, at: Date): Promise<boolean> =>
+      (await prisma.emailVerificationToken.updateMany({ where: { id, usedAt: null }, data: { usedAt: at } })).count ===
+      1,
+
     findUserByOAuthAccount: async (provider: OAuthProvider, providerAccountId: string): Promise<User | null> =>
       (
         await prisma.oAuthAccount.findUnique({

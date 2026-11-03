@@ -10,6 +10,7 @@ import { createAccessTokens } from "./modules/auth/access-token.js";
 import { createAuthRepository } from "./modules/auth/auth.repository.js";
 import { createAuthService, personalWorkspaceName } from "./modules/auth/auth.service.js";
 import { createOAuthService } from "./modules/auth/oauth.service.js";
+import { createEmailVerificationService } from "./modules/auth/email-verification.service.js";
 import { createPasswordResetService } from "./modules/auth/password-reset.service.js";
 import { createBootstrapService } from "./modules/bootstrap/bootstrap.service.js";
 import { createCommentsRepository } from "./modules/comments/comments.repository.js";
@@ -87,6 +88,7 @@ export function createServices(deps: ServiceDeps) {
     events,
     auth,
     passwords: createPasswordResetService({ users, sessions, email, logger, frontendUrl: env.CORS_ORIGIN }),
+    verification: createEmailVerificationService({ users, sessions, email, logger, frontendUrl: env.CORS_ORIGIN }),
     oauth: createOAuthService({
       providers: createOAuthProviders(env, deps.fetch),
       auth,
@@ -100,7 +102,15 @@ export function createServices(deps: ServiceDeps) {
     config,
     users: usersService,
     workspace,
-    invites: createInvitesService({ workspaces, auth, users, email, logger, frontendUrl: env.CORS_ORIGIN }),
+    invites: createInvitesService({
+      workspaces,
+      auth,
+      users,
+      email,
+      logger,
+      frontendUrl: env.CORS_ORIGIN,
+      requireVerifiedEmail: features.email.provider !== "console",
+    }),
     projects,
     issues,
     sprints,

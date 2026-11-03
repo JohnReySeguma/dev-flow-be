@@ -25,6 +25,11 @@ type Deps = {
   logger: Logger;
   /** The frontend origin; the emailed link opens its /invite page. */
   frontendUrl: string;
+  /**
+   * Whether inviting needs a verified email. Only while email is really delivered: otherwise
+   * nobody could verify, and invite links only reach the server log.
+   */
+  requireVerifiedEmail: boolean;
 };
 
 const alreadyMember = (email: string) => new AppError("ALREADY_MEMBER", `${email} is already on this workspace.`);
@@ -32,7 +37,24 @@ const alreadyMember = (email: string) => new AppError("ALREADY_MEMBER", `${email
 const invalidInvite = () =>
   new AppError("INVITE_INVALID", "This invite link is invalid, already used or expired. Ask an admin for a new one.");
 
-export function createInvitesService({ workspaces, auth: accounts, users, email, logger, frontendUrl }: Deps) {
+export function createInvitesService({
+  workspaces,
+  auth: accounts,
+  users,
+  email,
+  logger,
+  frontendUrl,
+  requireVerifiedEmail,
+}: Deps) {
+  /** Invite emails go to addresses the sender chose, so senders must have proven their own first. */
+  async function assertCanSend(auth: AuthContext) {
+    if (!requireVerifiedEmail) return;
+    const sender = await users.findById(auth.userId);
+    if (!sender?.emailVerifiedAt) {
+      throw new AppError("EMAIL_UNVERIFIED", "Verify your email address before inviting people. Check your inbox.");
+    }
+  }
+
   async function findValid(token: string) {
     const invite = await workspaces.findInviteByTokenHash(sha256(token));
     if (!invite || invite.expiresAt <= new Date()) throw invalidInvite();
@@ -69,6 +91,7 @@ export function createInvitesService({ workspaces, auth: accounts, users, email,
   return {
     /** Invites anyone who is not yet a member: new people accept, people with an account join. */
     async invite(auth: AuthContext, input: InviteInput): Promise<TeamMember> {
+      await assertCanSend(auth);
       if (
         (await workspaces.isMemberByEmail(auth.workspaceId, input.email)) ||
         (await workspaces.findInviteByEmail(auth.workspaceId, input.email))
@@ -165,6 +188,7 @@ export function createInvitesService({ workspaces, auth: accounts, users, email,
 
     /** Sends a fresh link; the previous one stops working. */
     async resend(auth: AuthContext, id: string): Promise<TeamMember> {
+      await assertCanSend(auth);
       const existing = z.uuid().safeParse(id).success ? await workspaces.findInvite(auth.workspaceId, id) : null;
       if (!existing) throw new AppError("NOT_FOUND", "No pending invite with that id.");
       const { token, tokenHash, expiresAt } = newToken();

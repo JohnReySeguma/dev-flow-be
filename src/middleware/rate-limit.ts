@@ -8,10 +8,13 @@ import type { Redis } from "../lib/redis.js";
 export type RateLimitRule = { windowMs: number; limit: number };
 
 const MINUTE = 60_000;
+const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
 
 /**
- * Requests allowed per client IP and window. Generous for people, tight where a request costs
- * an Argon2 hash or an email, or guesses a secret.
+ * Requests allowed per client IP and window, unless the rule says otherwise. Generous for people,
+ * tight where a request costs an Argon2 hash, an email or a copy of the sample data, or guesses a
+ * secret.
  */
 export const RATE_LIMITS = {
   /** Every API request. */
@@ -22,8 +25,14 @@ export const RATE_LIMITS = {
   auth: { windowMs: 15 * MINUTE, limit: 50 },
   /** Session refreshes; the frontend needs about four an hour per tab. */
   refresh: { windowMs: 15 * MINUTE, limit: 60 },
+  /** New accounts, each with a workspace and a copy of the sample data. */
+  signups: { windowMs: HOUR, limit: 10 },
+  /** New workspaces per user (POST /workspaces). */
+  workspaces: { windowMs: DAY, limit: 10 },
   /** Invite emails sent (invite and resend). */
-  invites: { windowMs: 60 * MINUTE, limit: 30 },
+  invites: { windowMs: HOUR, limit: 30 },
+  /** Invite emails per workspace, whoever sends them. */
+  workspaceInvites: { windowMs: DAY, limit: 50 },
   /** Invite previews and accepts: guessing invite tokens. */
   inviteTokens: { windowMs: 15 * MINUTE, limit: 30 },
   /** GitHub deliveries. */
@@ -43,6 +52,16 @@ function loginKey(req: Request): string {
   const email = typeof body === "object" && body !== null && "email" in body ? String(body.email) : "";
   return `${ipKeyGenerator(req.ip ?? "")}:${email.trim().toLowerCase()}`;
 }
+
+/**
+ * Rules counted per something other than the client IP. They run after authentication (and, for
+ * workspaces, membership), so nobody can use up someone else's quota.
+ */
+const KEYS: Partial<Record<RateLimitName, (req: Request) => string>> = {
+  login: loginKey,
+  workspaces: (req) => `user:${req.identity?.userId ?? ipKeyGenerator(req.ip ?? "")}`,
+  workspaceInvites: (req) => `workspace:${req.auth?.workspaceId ?? ipKeyGenerator(req.ip ?? "")}`,
+};
 
 /**
  * One limiter per rule, counted in Redis when it is configured (so limits hold across API
@@ -81,7 +100,8 @@ export function createRateLimiters(deps: {
       standardHeaders: "draft-7",
       legacyHeaders: false,
       passOnStoreError: true,
-      ...(name === "login" && { keyGenerator: loginKey, skipSuccessfulRequests: true }),
+      ...(KEYS[name] && { keyGenerator: KEYS[name] }),
+      ...(name === "login" && { skipSuccessfulRequests: true }),
       ...(shared && { store: shared }),
       handler: (req, _res, next) => {
         logger.warn({ limit: name, ip: req.ip, path: req.originalUrl }, "rate limit exceeded");

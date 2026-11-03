@@ -79,6 +79,7 @@ export function createWorkspaceService(deps: {
         throw new AppError("NOT_FOUND", "Workspace not found.");
       }
       const { workspace } = membership;
+      await workspaces.touchActivity(workspace.id, new Date());
       return {
         ...identity,
         workspaceId: workspace.id,

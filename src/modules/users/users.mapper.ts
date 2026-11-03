@@ -38,6 +38,7 @@ export function toProfile(user: User): UserProfile {
     email: user.email,
     timezone: user.timezone,
     bio: user.bio,
+    emailVerified: user.emailVerifiedAt !== null,
     isDemo: user.isDemo,
   };
 }

@@ -20,6 +20,8 @@ beforeEach(async () => {
 });
 
 const tokenFrom = (text = "") => decodeURIComponent(/\/invite\?token=(\S+)/.exec(text)?.[1] ?? "");
+/** The newest invite link; sign-ups also send (verification) mail, in the background. */
+const latestInviteToken = () => tokenFrom(email.sent.findLast((m) => m.text.includes("/invite?token="))?.text);
 
 describe("POST /api/v2/workspaces/acme-inc/invites", () => {
   it("creates a pending invite and emails a link to the frontend's invite page", async () => {
@@ -204,7 +206,7 @@ describe("joining with an existing account", () => {
   async function invite(address = "grace@acme.dev", role = "member") {
     const res = await admin.post("/api/v2/workspaces/acme-inc/invites").send({ email: address, role });
     expect(res.status).toBe(201);
-    return tokenFrom(email.sent.at(-1)?.text);
+    return latestInviteToken();
   }
   const join = (as: ReturnType<typeof asBrowser>, token: string) =>
     as.post(`/api/v2/invites/${encodeURIComponent(token)}/join`);

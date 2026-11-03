@@ -28,6 +28,12 @@ describe("parseEnv", () => {
     expect(env.GITHUB_APP_ID).toBeUndefined();
   });
 
+  it("leaves the sample workspace cleanup off unless a positive number of days is set", () => {
+    expect(parseEnv({ ...required, SAMPLE_WORKSPACE_TTL_DAYS: "" }).SAMPLE_WORKSPACE_TTL_DAYS).toBeUndefined();
+    expect(parseEnv({ ...required, SAMPLE_WORKSPACE_TTL_DAYS: "30" }).SAMPLE_WORKSPACE_TTL_DAYS).toBe(30);
+    expect(() => parseEnv({ ...required, SAMPLE_WORKSPACE_TTL_DAYS: "0" })).toThrow(EnvError);
+  });
+
   it("coerces numbers and booleans", () => {
     const env = parseEnv({ ...required, PORT: "8080", SEED_DEMO_DATA: "false" });
 

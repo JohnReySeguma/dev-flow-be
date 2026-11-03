@@ -15,14 +15,16 @@ datasource db {
 
 /// A private team space: its own members, invites and projects. Users join through memberships.
 model Workspace {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  name      String
+  id             String   @id @default(uuid(7)) @db.Uuid
+  name           String
   /// ^[a-z0-9]+(-[a-z0-9]+)*$, used in URLs; set at creation and unchanged by renames.
-  slug      String   @unique
+  slug           String   @unique
   /// The seeded Acme Inc workspace, whose demo passwords are public; some admin actions are locked.
-  isDemo    Boolean  @default(false) @map("is_demo")
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  isDemo         Boolean  @default(false) @map("is_demo")
+  /// When a member last opened anything in it (at most hourly); the sample cleanup goes by it.
+  lastActivityAt DateTime @default(now()) @map("last_activity_at") @db.Timestamptz(3)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   members      WorkspaceMember[]
   invites      WorkspaceInvite[]
@@ -79,11 +81,12 @@ model User {
   memberships         WorkspaceMember[]
   sessions            Session[]
   passwordResetTokens PasswordResetToken[]
+  emailVerifications  EmailVerificationToken[]
   oauthAccounts       OAuthAccount[]
   accessTokens        AccessToken[]
-  invitesSent         WorkspaceInvite[]    @relation("InvitesSent")
-  projectsLed         Project[]            @relation("ProjectLead")
-  assignedIssues      Issue[]              @relation("IssueAssignee")
+  invitesSent         WorkspaceInvite[]        @relation("InvitesSent")
+  projectsLed         Project[]                @relation("ProjectLead")
+  assignedIssues      Issue[]                  @relation("IssueAssignee")
   comments            IssueComment[]
 
   @@map("users")
@@ -119,6 +122,21 @@ model RefreshToken {
 
   @@index([sessionId])
   @@map("refresh_tokens")
+}
+
+/// Single-use link sent after a password sign-up; following it proves the address. Only the newest one works.
+model EmailVerificationToken {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("email_verification_tokens")
 }
 
 /// Single-use, short-lived link sent by email to set a new password.

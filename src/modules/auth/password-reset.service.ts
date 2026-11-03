@@ -63,6 +63,8 @@ export function createPasswordResetService({ users, sessions, email, logger, fro
       }
       await users.setPasswordHash(record.userId, await hashPassword(password));
       await sessions.revokeAllCredentials(record.userId, now);
+      // The emailed link proved the address.
+      await users.markEmailVerified(record.userId, now);
     },
   };
 }

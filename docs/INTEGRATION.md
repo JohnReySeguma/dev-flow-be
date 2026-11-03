@@ -1,7 +1,7 @@
 # DevFlow API — Frontend Integration Guide
 
 > **For:** the frontend ([`dev-flow`](https://github.com/JohnReySeguma/dev-flow)).
-> **Accurate for:** `v2.0.0-beta.3`. Updated at every release (see [`FRONTEND_HANDOFF.md`](FRONTEND_HANDOFF.md)).
+> **Accurate for:** `v2.0.0-beta.4`. Updated at every release (see [`FRONTEND_HANDOFF.md`](FRONTEND_HANDOFF.md)).
 > **Machine-readable contract:** [`openapi.json`](openapi.json), also served at `/api/v2/openapi.json`, with
 > Swagger UI at `/api/v2/docs`.
 > **Step-by-step plan for the frontend:** [`FRONTEND_BRIEF.md`](FRONTEND_BRIEF.md).
@@ -34,6 +34,7 @@
 | `UserProfile`, `TeamMember`       | No `presence` field: who is online comes from Live Sync's `presence.updated` (§7.2), per project.                                   |
 | `UserProfile`                     | No `role`: roles belong to a workspace membership (`/auth/me` → `workspaces[].role`, `/bootstrap` → `workspace.role`).              |
 | `UserProfile`                     | Adds `isDemo`: a shared demo account, whose profile, tokens and new workspaces are locked (§8).                                     |
+| `UserProfile`                     | Adds `emailVerified`: the owner proved the address (§5.11).                                                                         |
 | `UserProfile`, later `TeamMember` | The avatar field is `gradient`, as in `lib/members.ts`, not the brief's `avatarColor`.                                              |
 | Every `id` except issues          | UUIDs instead of the fixtures' `u-jr`, `p-dev`, `dev-todo`, `s-p-dev-25`, `pat_01` style ids.                                       |
 | `Issue.id`                        | The issue key (`DEV-104`), as in `types.ts`. Keys are never zero-padded: the fixtures' `DEV-088` is `DEV-88` (lookups accept both). |
@@ -104,6 +105,8 @@ starting with `/workspaces/:ws` are relative to `/api/v2`, `:ws` being the works
 | `components/auth/auth-form.tsx`        | Sign in / sign up                 | `POST /auth/login`, `POST /auth/signup`                                         | 0.2.0        |
 | `auth-form.tsx`                        | Forgot password                   | `POST /auth/password/forgot`                                                    | 0.2.0        |
 | `/reset-password` page                 | Choose a new password             | `POST /auth/password/reset`                                                     | 0.2.0        |
+| New `/verify-email` page               | Verify the email address          | `POST /auth/email/verify`                                                       | 2.0.0-beta.4 |
+| New "verify your email" banner         | Resend the verification email     | `POST /auth/email/resend`                                                       | 2.0.0-beta.4 |
 | `auth-form.tsx` OAuth buttons          | Show / hide providers             | `GET /config`                                                                   | 0.1.0        |
 | `auth-form.tsx` OAuth buttons          | Continue with GitHub / Google     | `GET /auth/oauth/:provider` (browser navigation)                                | 0.2.0        |
 | API client                             | Renew an expired access token     | `POST /auth/refresh`                                                            | 0.2.0        |
@@ -170,18 +173,21 @@ Every error is `application/problem+json`:
 
 ### 4.1 Rate limits
 
-Limits are counted per client IP (sign-in failures per IP **and** email). Past a limit the API answers
+Limits are counted per client IP (sign-in failures per IP **and** email), except where the table says otherwise. Past a limit the API answers
 `429 RATE_LIMITED` with `Retry-After` (seconds). Every response except `/health` carries a `RateLimit` header with the
 remaining quota.
 
-| Applies to                                                           | Limit             |
-| -------------------------------------------------------------------- | ----------------- |
-| Every request except `/health`                                       | 600 a minute      |
-| Failed `POST /auth/login` for one email                              | 10 per 15 minutes |
-| `POST /auth/login`, `/auth/signup`, `/auth/password/*`, OAuth starts | 50 per 15 minutes |
-| `POST /auth/refresh`                                                 | 60 per 15 minutes |
-| `POST /workspaces/:ws/invites`, `.../resend`                         | 30 an hour        |
-| `GET /invites/:token`, `POST /invites/:token/accept` and `/join`     | 30 per 15 minutes |
+| Applies to                                                                            | Limit             |
+| ------------------------------------------------------------------------------------- | ----------------- |
+| Every request except `/health`                                                        | 600 a minute      |
+| Failed `POST /auth/login` for one email                                               | 10 per 15 minutes |
+| `POST /auth/login`, `/auth/signup`, `/auth/password/*`, `/auth/email/*`, OAuth starts | 50 per 15 minutes |
+| `POST /auth/signup`                                                                   | 10 an hour        |
+| `POST /auth/refresh`                                                                  | 60 per 15 minutes |
+| `POST /workspaces`, per user                                                          | 10 a day          |
+| `POST /workspaces/:ws/invites`, `.../resend`                                          | 30 an hour        |
+| The same, per workspace (whoever sends them)                                          | 50 a day          |
+| `GET /invites/:token`, `POST /invites/:token/accept` and `/join`                      | 30 per 15 minutes |
 
 On `429`: show "Too many attempts, try again in N minutes" (from `Retry-After`), keep the form's input, and don't
 retry automatically. The refresh flow (§5.3) should treat a `429` from `/auth/refresh` as "try again later", not as
@@ -195,6 +201,7 @@ Codes are stable: new ones may be added, existing ones are never renamed or repu
 | Code                        | HTTP | Meaning                                                                         | Returned by                                                                                                |
 | --------------------------- | ---- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | `BAD_REQUEST`               | 400  | The body is not valid JSON                                                      | Any endpoint with a JSON body, the GitHub webhook                                                          |
+| `VERIFY_TOKEN_INVALID`      | 400  | The verification link is unknown, already used, replaced or expired             | `POST /auth/email/verify` (new in `beta.4`)                                                                |
 | `RESET_TOKEN_INVALID`       | 400  | The reset link is unknown, already used or expired; request a new one           | `POST /auth/password/reset`                                                                                |
 | `INVITE_INVALID`            | 400  | The invite link is unknown, used, replaced by a resend or expired               | `GET /invites/:token`, `POST /invites/:token/accept`, `/join`                                              |
 | `UNAUTHENTICATED`           | 401  | Not signed in (or the session was revoked); redirect to `/login`                | Every authenticated endpoint, `POST /auth/refresh`                                                         |
@@ -205,6 +212,7 @@ Codes are stable: new ones may be added, existing ones are never renamed or repu
 | `CANNOT_CHANGE_OWN_ROLE`    | 403  | Admins cannot change their own role                                             | `PATCH /workspaces/:ws/members/:id`                                                                        |
 | `CANNOT_REMOVE_SELF`        | 403  | Admins cannot remove themselves (use leave)                                     | `DELETE /workspaces/:ws/members/:id`                                                                       |
 | `DEMO_WORKSPACE_LOCKED`     | 403  | Turned off in the public demo workspace (§5.10)                                 | Rename, delete, leave, invites, member changes in the demo workspace (new in `beta.2`)                     |
+| `EMAIL_UNVERIFIED`          | 403  | Verify your email before inviting (only while the server delivers email)        | `POST /workspaces/:ws/invites`, `.../resend` (new in `beta.4`)                                             |
 | `INVITE_EMAIL_MISMATCH`     | 403  | Joining while signed in with an account whose email is not the invited one      | `POST /invites/:token/join` (new in `beta.3`)                                                              |
 | `DEMO_ACCOUNT_LOCKED`       | 403  | Turned off for the shared demo accounts (§8)                                    | `PATCH /me`, `POST`/`DELETE /me/tokens`, `POST /workspaces`, `POST /invites/:token/join` (new in `beta.2`) |
 | `NOT_FOUND`                 | 404  | Unknown route or resource, or a workspace you are not a member of (§1.2)        | Any route, disabled OAuth provider or GitHub App                                                           |
@@ -238,7 +246,8 @@ Call `GET /auth/me` on app load:
 `POST /auth/signup` (`201`) and `POST /auth/login` (`200`) return the same body and set the session cookies.
 **Every new account gets its own workspace**, "`<name>`'s workspace", as admin, pre-filled with a copy of the sample
 projects (§5.10); so right after sign-up `workspaces` has one entry. An account can also end up with **no
-workspaces** (it left or was removed from all of them): show a "Create a workspace" screen then.
+workspaces** (it left or was removed from all of them): show a "Create a workspace" screen then. A password sign-up
+also emails a verification link (§5.11).
 
 ```json
 {
@@ -375,8 +384,10 @@ All three answer `400 INVITE_INVALID` for a link that is unknown, already used, 
 days. An invite works once, whichever way it is used.
 
 `POST /workspaces/:ws/invites/:id/resend` emails a fresh link; the previous link stops working. Inviting an email that
-is already a member of this workspace or already invited to it answers `409 ALREADY_MEMBER`. If the email cannot be sent, the API answers
-`502 EMAIL_DELIVERY_FAILED` but keeps the invite, so show the error and offer Resend instead of "Invite sent".
+is already a member of this workspace or already invited to it answers `409 ALREADY_MEMBER`. If the email cannot be
+sent, the API answers `502 EMAIL_DELIVERY_FAILED` but keeps the invite, so show the error and offer Resend instead of
+"Invite sent". While the server delivers email (`GET /config` → `email: true`), only accounts with a verified email
+can invite: others get `403 EMAIL_UNVERIFIED` (§5.11).
 
 ### 5.8 Personal access tokens
 
@@ -456,6 +467,26 @@ locked actions when `isDemo` is true and suggest "Create your own workspace".
 **Switching.** The API has no "current workspace": every request names one in its path. Keep the slug in the
 frontend's URL (e.g. `/w/{slug}/projects`) so links are shareable, and remember the last one used for redirects such
 as the OAuth landing page `/projects`.
+
+### 5.11 Email verification
+
+Sign-up does not prove that the address belongs to whoever signed up, so a password sign-up emails a link to:
+
+```
+${CORS_ORIGIN}/verify-email?token=<token>
+```
+
+The new `/verify-email` page reads `token` and calls `POST /auth/email/verify { token }` (no session needed):
+`204` → "Email verified"; `400 VERIFY_TOKEN_INVALID` → the link is unknown, used, replaced by a newer one or older
+than 48 hours: offer to send a new one. `POST /auth/email/resend` (signed-in session, no body) always answers `202`
+and emails a fresh link unless the address is already verified; earlier links stop working.
+
+`UserProfile.emailVerified` says where the account stands. OAuth accounts, accounts created or joined through an
+invite, and accounts that reset their password are verified by those steps. Unverified accounts can do everything in
+their own workspaces except **send invites**, which answer `403 EMAIL_UNVERIFIED`. That rule only applies while the
+server delivers email (`GET /config` → `email: true`): with `email: false` the links only reach the server log, so
+nobody is asked to verify. Show a "Verify your email" banner with a Resend button when `emailVerified` is `false` and
+`config.email` is `true`.
 
 ## 6. Projects, workflow and issues
 
@@ -698,9 +729,7 @@ see the API's `docs/DEPLOYMENT.md`).
 
 ## 9. Known limitations
 
-- `beta.2`: sign-up does not verify email addresses, and creating workspaces is limited only by the general rate
-  limit; `beta.4` adds email verification (needed to send invites) and a per-user limit on new workspaces. OAuth
-  sign-in reclaims accounts registered with someone else's address (§5.5).
+- OAuth sign-in still reclaims accounts registered with someone else's unverified address (§5.5).
 - `beta.2`: GitHub deliveries apply to the demo workspace only (§7.5).
 - Deleting an issue also deletes its history, so it disappears from past burndowns.
 - Live Sync checks membership when a socket joins a room: a member who is demoted or removed keeps receiving that
