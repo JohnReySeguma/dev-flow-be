@@ -69,7 +69,8 @@ and point `GITHUB_APP_PRIVATE_KEY_PATH` at it, as `docker-compose.yml` does.
 - [ ] `TRUST_PROXY` matches the proxies in front of the API (check that a request log shows your own IP)
 - [ ] PostgreSQL and Redis unreachable from the internet, with non-default credentials
 - [ ] OAuth apps and the GitHub App registered with the production callback and webhook URLs
-      (`/api/auth/oauth/{provider}/callback`, `/api/integrations/github/webhook`)
+      (`/api/auth/oauth/{provider}/callback`, `/api/integrations/github/webhook`, and the GitHub App's callback
+      `/api/integrations/github/setup`)
 - [ ] Logs collected; they are JSON lines and never contain cookies, tokens or passwords
 - [ ] Database backups scheduled and a restore tested
 

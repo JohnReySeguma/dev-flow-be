@@ -1,7 +1,7 @@
 # DevFlow API — Frontend Integration Guide
 
 > **For:** the frontend ([`dev-flow`](https://github.com/JohnReySeguma/dev-flow)).
-> **Accurate for:** `v2.0.0-beta.4`. Updated at every release (see [`FRONTEND_HANDOFF.md`](FRONTEND_HANDOFF.md)).
+> **Accurate for:** `v2.0.0-beta.5`. Updated at every release (see [`FRONTEND_HANDOFF.md`](FRONTEND_HANDOFF.md)).
 > **Machine-readable contract:** [`openapi.json`](openapi.json), also served at `/api/v2/openapi.json`, with
 > Swagger UI at `/api/v2/docs`.
 > **Step-by-step plan for the frontend:** [`FRONTEND_BRIEF.md`](FRONTEND_BRIEF.md).
@@ -99,30 +99,32 @@ starting with `/workspaces/:ws` are relative to `/api/v2`, `:ws` being the works
 
 ### Account and workspaces
 
-| Frontend component                     | UI action                         | Endpoint                                                                        | Since        |
-| -------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------- | ------------ |
-| App load                               | Session check, list of workspaces | `GET /auth/me`                                                                  | 0.2.0        |
-| `components/auth/auth-form.tsx`        | Sign in / sign up                 | `POST /auth/login`, `POST /auth/signup`                                         | 0.2.0        |
-| `auth-form.tsx`                        | Forgot password                   | `POST /auth/password/forgot`                                                    | 0.2.0        |
-| `/reset-password` page                 | Choose a new password             | `POST /auth/password/reset`                                                     | 0.2.0        |
-| New `/verify-email` page               | Verify the email address          | `POST /auth/email/verify`                                                       | 2.0.0-beta.4 |
-| New "verify your email" banner         | Resend the verification email     | `POST /auth/email/resend`                                                       | 2.0.0-beta.4 |
-| `auth-form.tsx` OAuth buttons          | Show / hide providers             | `GET /config`                                                                   | 0.1.0        |
-| `auth-form.tsx` OAuth buttons          | Continue with GitHub / Google     | `GET /auth/oauth/:provider` (browser navigation)                                | 0.2.0        |
-| API client                             | Renew an expired access token     | `POST /auth/refresh`                                                            | 0.2.0        |
-| `components/layout/app-sidebar.tsx`    | Log out                           | `POST /auth/logout`                                                             | 0.2.0        |
-| `components/profile/profile-view.tsx`  | Load / save personal settings     | `GET /me`, `PATCH /me`                                                          | 0.2.0        |
-| `components/profile/access-tokens.tsx` | List / generate / revoke tokens   | `GET /me/tokens`, `POST /me/tokens` (pick a workspace), `DELETE /me/tokens/:id` | 0.2.0        |
-| New workspace switcher                 | List and switch workspaces        | `GET /auth/me` (`workspaces`), `GET /workspaces`                                | 2.0.0-beta.2 |
-| New "Create workspace" dialog          | Create a workspace                | `POST /workspaces`                                                              | 2.0.0-beta.2 |
-| Workspace settings                     | Rename / delete / leave           | `PATCH`/`DELETE /workspaces/:ws`, `POST /workspaces/:ws/leave`                  | 2.0.0-beta.2 |
-| Settings header, permissions           | Workspace name and your role      | `GET /workspaces/:ws` (also in `/bootstrap`)                                    | 0.3.0        |
-| `components/settings/team-members.tsx` | List members and pending invites  | `GET /workspaces/:ws/members`                                                   | 0.3.0        |
-| `team-members.tsx`                     | Invite / resend invite            | `POST /workspaces/:ws/invites`, `POST /workspaces/:ws/invites/:id/resend`       | 0.3.0        |
-| `team-members.tsx`                     | Change role                       | `PATCH /workspaces/:ws/members/:id`                                             | 0.3.0        |
-| `team-members.tsx`                     | Remove member / revoke invite     | `DELETE /workspaces/:ws/members/:id`                                            | 0.3.0        |
-| `/invite` page                         | Preview and accept an invite      | `GET /invites/:token`, `POST /invites/:token/accept`                            | 0.3.0        |
-| `/invite` page, signed in              | Join with an existing account     | `POST /invites/:token/join`                                                     | 2.0.0-beta.3 |
+| Frontend component                     | UI action                         | Endpoint                                                                                   | Since        |
+| -------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------ | ------------ |
+| App load                               | Session check, list of workspaces | `GET /auth/me`                                                                             | 0.2.0        |
+| `components/auth/auth-form.tsx`        | Sign in / sign up                 | `POST /auth/login`, `POST /auth/signup`                                                    | 0.2.0        |
+| `auth-form.tsx`                        | Forgot password                   | `POST /auth/password/forgot`                                                               | 0.2.0        |
+| `/reset-password` page                 | Choose a new password             | `POST /auth/password/reset`                                                                | 0.2.0        |
+| New `/verify-email` page               | Verify the email address          | `POST /auth/email/verify`                                                                  | 2.0.0-beta.4 |
+| New "verify your email" banner         | Resend the verification email     | `POST /auth/email/resend`                                                                  | 2.0.0-beta.4 |
+| `auth-form.tsx` OAuth buttons          | Show / hide providers             | `GET /config`                                                                              | 0.1.0        |
+| `auth-form.tsx` OAuth buttons          | Continue with GitHub / Google     | `GET /auth/oauth/:provider` (browser navigation)                                           | 0.2.0        |
+| API client                             | Renew an expired access token     | `POST /auth/refresh`                                                                       | 0.2.0        |
+| `components/layout/app-sidebar.tsx`    | Log out                           | `POST /auth/logout`                                                                        | 0.2.0        |
+| `components/profile/profile-view.tsx`  | Load / save personal settings     | `GET /me`, `PATCH /me`                                                                     | 0.2.0        |
+| `components/profile/access-tokens.tsx` | List / generate / revoke tokens   | `GET /me/tokens`, `POST /me/tokens` (pick a workspace), `DELETE /me/tokens/:id`            | 0.2.0        |
+| New workspace switcher                 | List and switch workspaces        | `GET /auth/me` (`workspaces`), `GET /workspaces`                                           | 2.0.0-beta.2 |
+| New "Create workspace" dialog          | Create a workspace                | `POST /workspaces`                                                                         | 2.0.0-beta.2 |
+| Workspace settings                     | Rename / delete / leave           | `PATCH`/`DELETE /workspaces/:ws`, `POST /workspaces/:ws/leave`                             | 2.0.0-beta.2 |
+| Workspace settings → GitHub            | Linked installations              | `GET /workspaces/:ws/integrations/github`                                                  | 2.0.0-beta.5 |
+| Workspace settings → GitHub            | Connect / disconnect GitHub       | `GET .../integrations/github/install` (browser navigation), `DELETE .../installations/:id` | 2.0.0-beta.5 |
+| Settings header, permissions           | Workspace name and your role      | `GET /workspaces/:ws` (also in `/bootstrap`)                                               | 0.3.0        |
+| `components/settings/team-members.tsx` | List members and pending invites  | `GET /workspaces/:ws/members`                                                              | 0.3.0        |
+| `team-members.tsx`                     | Invite / resend invite            | `POST /workspaces/:ws/invites`, `POST /workspaces/:ws/invites/:id/resend`                  | 0.3.0        |
+| `team-members.tsx`                     | Change role                       | `PATCH /workspaces/:ws/members/:id`                                                        | 0.3.0        |
+| `team-members.tsx`                     | Remove member / revoke invite     | `DELETE /workspaces/:ws/members/:id`                                                       | 0.3.0        |
+| `/invite` page                         | Preview and accept an invite      | `GET /invites/:token`, `POST /invites/:token/accept`                                       | 0.3.0        |
+| `/invite` page, signed in              | Join with an existing account     | `POST /invites/:token/join`                                                                | 2.0.0-beta.3 |
 
 ### Operational
 
@@ -614,6 +616,10 @@ Membership is checked on join, as on the REST routes: a workspace you are not a 
 bare key (`"DEV"`, the v1 payload) answers `VALIDATION_FAILED`. When switching workspaces, leave the old workspace's
 rooms.
 
+When you are removed from a workspace, leave it, or it is deleted, your sockets receive
+`membership.ended { workspaceId }` and leave every room of that workspace at once; the others in those rooms get a
+`presence.updated` without you. Refresh `/auth/me` and move to another workspace.
+
 Rooms are not remembered across reconnects: **re-join on every `connect`**, then re-fetch
 `GET /workspaces/:ws/projects/:key/snapshot`, because events sent while disconnected are not replayed.
 
@@ -646,6 +652,7 @@ updated the store. Resources inside payloads have exactly the REST shapes (`Issu
 | `project.updated`  | `project`                           | Replace the project (name, description, …)                                          |
 | `project.deleted`  | —                                   | Remove the project and its data; leave the page if it is open                       |
 | `presence.updated` | `online`                            | §7.2                                                                                |
+| `membership.ended` | (only `workspaceId`)                | You lost access to the workspace: drop its data and leave its pages (below)         |
 
 `sprint.completed.issues` are the carried-over issues with their new `sprintId` (`null` for the backlog). Issues
 completed in the sprint stay in it and are not repeated.
@@ -697,8 +704,33 @@ callback) keep `Issue.git` up to date:
 - A commit sets `git: { kind: "commit", sha }` (7 characters), but never replaces a pull request link.
 - Each change arrives as `issue.updated`, or `issue.moved` when the status changed, with `actorId: null`. Show it
   as a GitHub change (e.g. "via GitHub").
-- **In `beta.2` every delivery applies to the demo workspace only.** `beta.5` links a GitHub App installation to a
-  workspace and matches issue keys within it.
+- **Per workspace:** a delivery changes issues only in the workspace its installation is linked to, so `DEV-104` in
+  one workspace never moves `DEV-104` in another. Deliveries from installations not linked anywhere change nothing.
+
+**Connecting GitHub** (workspace settings, admins, not in the demo workspace). `GET /workspaces/:ws/integrations/github`
+→ `{ enabled, installations: [{ installationId, account, linkedAt }] }` (any member). To connect, **navigate the
+browser** (not `fetch`) to:
+
+```
+http://localhost:4000/api/v2/workspaces/acme-inc/integrations/github/install?redirect=/settings/integrations
+```
+
+GitHub shows its install page (pick the account and repositories) and asks the user to authorize the App, then comes
+back through the API, which checks with GitHub that this user can access the installation and links it. The browser
+lands on `${CORS_ORIGIN}${redirect}?github=linked`, or `?github_error=<code>`:
+
+| `github_error`                 | Meaning                                                                              |
+| ------------------------------ | ------------------------------------------------------------------------------------ |
+| `github_denied`                | The user cancelled on GitHub                                                         |
+| `github_state_mismatch`        | The link expired (10 minutes) or was opened in another browser; lands on `/projects` |
+| `github_not_your_installation` | The GitHub user cannot access that installation                                      |
+| `github_installation_taken`    | The installation is already connected to another workspace                           |
+| `github_forbidden`             | The user is no longer an admin of the workspace                                      |
+| `github_failed`                | GitHub could not be reached: try again                                               |
+
+`DELETE /workspaces/:ws/integrations/github/installations/:id` (admins) disconnects one; the App stays installed on
+GitHub, and uninstalling it there disconnects it too. An installation belongs to one workspace at most; a workspace
+can connect several (e.g. a personal account and an organisation). Show the section only when `enabled` is true.
 
 ## 8. Demo data and accounts
 
@@ -730,13 +762,10 @@ see the API's `docs/DEPLOYMENT.md`).
 ## 9. Known limitations
 
 - OAuth sign-in still reclaims accounts registered with someone else's unverified address (§5.5).
-- `beta.2`: GitHub deliveries apply to the demo workspace only (§7.5).
 - Deleting an issue also deletes its history, so it disappears from past burndowns.
-- Live Sync checks membership when a socket joins a room: a member who is demoted or removed keeps receiving that
-  project's events until their socket disconnects (their next request is refused as usual).
 - Live Sync events are not replayed after a disconnect; re-fetch the snapshot after reconnecting (§7.2).
-- GitHub is one-way: DevFlow receives webhooks but does not call GitHub's API, so pull requests opened before the App
-  was installed are not linked until their next event.
+- DevFlow reads GitHub only through webhooks (and, once, the installing user's installations), so pull requests
+  opened before an installation was connected are not linked until their next event.
 - Rate limits are per client IP: users behind one corporate NAT share them (the overall limit is generous for that).
 - `GET .../projects/:key/snapshot` returns every open issue unpaginated, as the store expects. Large projects make it
   slow; use `GET .../projects/:key/issues` for paged access.
