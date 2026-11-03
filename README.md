@@ -3,7 +3,7 @@
 REST + realtime API for [DevFlow](https://github.com/JohnReySeguma/dev-flow), a sprint-based issue tracker:
 projects with custom workflows, backlogs, sprints, reports, GitHub integration and Live Sync.
 
-> **Status:** `v2.0.0-beta.2` — API v2 is multi-workspace: every account gets its own workspace and can belong to
+> **Status:** `v2.0.0-beta.3` — API v2 is multi-workspace: every account gets its own workspace and can belong to
 > others with a different role in each. Authentication, workspaces (members, roles, invites), the tracker (projects,
 > workflows, issues with ranking and comments, the sprint lifecycle and reports), Live Sync over Socket.IO, GitHub
 > webhooks, and hardening (rate limits, a security review). Deploying it: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
