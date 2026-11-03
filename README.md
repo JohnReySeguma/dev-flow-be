@@ -75,20 +75,21 @@ is empty, `/dev/null` is mounted and the integration is disabled.
 
 ## Scripts
 
-| Script                      | What it does                                                                   |
-| --------------------------- | ------------------------------------------------------------------------------ |
-| `npm run dev`               | API with reload (`tsx watch`)                                                  |
-| `npm run build` / `start`   | Compile to `dist/` / run the compiled server                                   |
-| `npm run typecheck`         | `tsc` without emitting                                                         |
-| `npm run lint`              | ESLint                                                                         |
-| `npm run format`            | Prettier (`format:check` in CI)                                                |
-| `npm test`                  | Unit and integration tests (`test:unit`, `test:integration`)                   |
-| `npm run db:up` / `db:down` | Start / stop the Postgres and Redis containers                                 |
-| `npm run db:migrate`        | Create and apply migrations in development (`prisma migrate dev`)              |
-| `npm run db:seed`           | Seed demo data into an empty database                                          |
-| `npm run db:reset`          | **Destroys local data:** recreate the dev and test databases, migrate and seed |
-| `npm run demo:reset`        | Restore the demo workspace (name, team, projects); for a nightly cron          |
-| `npm run openapi:generate`  | Regenerate `docs/openapi.json` (`openapi:check` fails if it is stale)          |
+| Script                       | What it does                                                                           |
+| ---------------------------- | -------------------------------------------------------------------------------------- |
+| `npm run dev`                | API with reload (`tsx watch`)                                                          |
+| `npm run build` / `start`    | Compile to `dist/` / run the compiled server                                           |
+| `npm run typecheck`          | `tsc` without emitting                                                                 |
+| `npm run lint`               | ESLint                                                                                 |
+| `npm run format`             | Prettier (`format:check` in CI)                                                        |
+| `npm test`                   | Unit and integration tests (`test:unit`, `test:integration`)                           |
+| `npm run db:up` / `db:down`  | Start / stop the Postgres and Redis containers                                         |
+| `npm run db:migrate`         | Create and apply migrations in development (`prisma migrate dev`)                      |
+| `npm run db:seed`            | Seed demo data into an empty database                                                  |
+| `npm run db:reset`           | **Destroys local data:** recreate the dev and test databases, migrate and seed         |
+| `npm run demo:reset`         | Restore the demo workspace (name, team, projects); for a nightly cron                  |
+| `npm run cleanup:workspaces` | Delete sample workspaces unused for `SAMPLE_WORKSPACE_TTL_DAYS` days; for a daily cron |
+| `npm run openapi:generate`   | Regenerate `docs/openapi.json` (`openapi:check` fails if it is stale)                  |
 
 Integration tests use `TEST_DATABASE_URL` (`devflow_test` in the same container), migrated once per run and
 truncated between tests.
@@ -109,6 +110,7 @@ with a clear message when one is invalid. Empty values count as unset, which dis
 | `CORS_ORIGIN`                            | no          | `http://localhost:3000` | The frontend origin, allowed with credentials; also the base of emailed links and OAuth redirects |
 | `API_URL`                                | no          | `http://localhost:4000` | Public URL of this API; builds the OAuth callback URLs registered with GitHub and Google          |
 | `SEED_DEMO_DATA`                         | production  | `true`                  | Seed demo data into an empty database; must be set explicitly when `NODE_ENV=production`          |
+| `SAMPLE_WORKSPACE_TTL_DAYS`              | no          | (never)                 | Days after which `npm run cleanup:workspaces` deletes an untouched sample workspace               |
 | `REDIS_URL`                              | no          |                         | Set → Redis (Live Sync fan-out, shared rate limits); empty → in-memory fallback                   |
 | `GITHUB_CLIENT_ID` / `_SECRET`           | no          |                         | GitHub sign-in (both required to enable)                                                          |
 | `GOOGLE_CLIENT_ID` / `_SECRET`           | no          |                         | Google sign-in (both required to enable)                                                          |

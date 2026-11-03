@@ -15,14 +15,16 @@ datasource db {
 
 /// A private team space: its own members, invites and projects. Users join through memberships.
 model Workspace {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  name      String
+  id             String   @id @default(uuid(7)) @db.Uuid
+  name           String
   /// ^[a-z0-9]+(-[a-z0-9]+)*$, used in URLs; set at creation and unchanged by renames.
-  slug      String   @unique
+  slug           String   @unique
   /// The seeded Acme Inc workspace, whose demo passwords are public; some admin actions are locked.
-  isDemo    Boolean  @default(false) @map("is_demo")
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  isDemo         Boolean  @default(false) @map("is_demo")
+  /// When a member last opened anything in it (at most hourly); the sample cleanup goes by it.
+  lastActivityAt DateTime @default(now()) @map("last_activity_at") @db.Timestamptz(3)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   members      WorkspaceMember[]
   invites      WorkspaceInvite[]

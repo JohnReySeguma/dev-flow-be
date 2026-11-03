@@ -9,6 +9,7 @@ type Db = PrismaClient | Prisma.TransactionClient;
 export type Member = { workspaceId: string; userId: string; role: Role; createdAt: Date; user: User };
 
 const SLUG_ATTEMPTS = 5;
+const ACTIVITY_RESOLUTION_MS = 60 * 60_000;
 
 const isUniqueViolation = (error: unknown) =>
   error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
@@ -118,6 +119,13 @@ function repository(db: Db) {
       await db.project.updateMany({ where: { leadId: userId, workspaceId }, data: { leadId: null } });
       await db.workspaceMember.delete({ where: { workspaceId_userId: { workspaceId, userId } } });
     },
+
+    /** Records that a member used the workspace, at most once an hour so busy ones are not written on every request. */
+    touchActivity: (id: string, at: Date) =>
+      db.workspace.updateMany({
+        where: { id, lastActivityAt: { lt: new Date(at.getTime() - ACTIVITY_RESOLUTION_MS) } },
+        data: { lastActivityAt: at },
+      }),
 
     /** Every workspace the user belongs to, oldest membership first. */
     listMemberships: (userId: string) =>

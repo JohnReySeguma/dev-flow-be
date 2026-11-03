@@ -29,6 +29,11 @@ export const envSchema = z
     JWT_SECRET: z.string({ error: "is required" }).min(32, "must be at least 32 characters"),
     /** Defaults to true, except in production, where it must be set (see the check below). */
     SEED_DEMO_DATA: booleanString.optional(),
+    /**
+     * Unset = never. npm run cleanup:workspaces deletes sample workspaces nobody has opened for this
+     * many days (one member, no invites, only sample projects).
+     */
+    SAMPLE_WORKSPACE_TTL_DAYS: z.coerce.number().int().min(1).max(3650).optional(),
 
     DATABASE_URL: postgresUrl,
     TEST_DATABASE_URL: postgresUrl.optional(),
