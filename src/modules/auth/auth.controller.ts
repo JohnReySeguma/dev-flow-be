@@ -9,9 +9,16 @@ import {
   setOAuthStateCookie,
   setSessionCookies,
 } from "./auth.cookies.js";
-import type { ForgotPasswordInput, LoginInput, ResetPasswordInput, SignupInput } from "./auth.schemas.js";
+import type {
+  ForgotPasswordInput,
+  LoginInput,
+  ResetPasswordInput,
+  SignupInput,
+  VerifyEmailInput,
+} from "./auth.schemas.js";
 import type { AuthService } from "./auth.service.js";
 import type { RequestMeta } from "./auth.types.js";
+import type { EmailVerificationService } from "./email-verification.service.js";
 import { OAUTH_STATE_TTL_SECONDS, OAuthFlowError, type OAuthService } from "./oauth.service.js";
 import type { PasswordResetService } from "./password-reset.service.js";
 
@@ -20,11 +27,12 @@ const metaOf = (req: Request): RequestMeta => ({ userAgent: req.get("user-agent"
 export function createAuthController(deps: {
   auth: AuthService;
   passwords: PasswordResetService;
+  verification: EmailVerificationService;
   oauth: OAuthService;
   /** The frontend origin OAuth redirects back to. */
   frontendUrl: string;
 }) {
-  const { auth, passwords, oauth, frontendUrl } = deps;
+  const { auth, passwords, verification, oauth, frontendUrl } = deps;
 
   const providerOf = (req: Request) => {
     const provider = String(req.params.provider);
@@ -34,6 +42,8 @@ export function createAuthController(deps: {
 
   const signup: RequestHandler = async (req, res) => {
     const { session, me } = await auth.signup(req.body as SignupInput, metaOf(req));
+    // In the background: a slow or failing mail server must not hold up or fail the sign-up.
+    void verification.requestLink(me.user.id);
     setSessionCookies(res, session);
     res.status(201).json(me);
   };
@@ -100,5 +110,27 @@ export function createAuthController(deps: {
     res.set("Cache-Control", "no-store").json(await auth.me(identityOf(req).userId));
   };
 
-  return { signup, login, refresh, logout, forgotPassword, resetPassword, startOAuth, finishOAuth, me };
+  const verifyEmail: RequestHandler = async (req, res) => {
+    await verification.verify((req.body as VerifyEmailInput).token);
+    res.status(204).end();
+  };
+
+  const resendVerification: RequestHandler = (req, res) => {
+    void verification.requestLink(identityOf(req).userId);
+    res.status(202).end();
+  };
+
+  return {
+    signup,
+    login,
+    refresh,
+    logout,
+    forgotPassword,
+    resetPassword,
+    verifyEmail,
+    resendVerification,
+    startOAuth,
+    finishOAuth,
+    me,
+  };
 }

@@ -79,7 +79,7 @@ describe("GET /api/v2/auth/oauth/:provider/callback", () => {
     expect(callback.status).toBe(302);
     expect(callback.headers.location).toBe(`${FRONTEND_ORIGIN}/projects/DEV`);
     const me = await request(app).get("/api/v2/auth/me").set("Cookie", sessionCookieHeader(callback));
-    expect(me.body.user).toMatchObject({ name: "Ada Lovelace", email: "ada@acme.dev" });
+    expect(me.body.user).toMatchObject({ name: "Ada Lovelace", email: "ada@acme.dev", emailVerified: true });
     expect(me.body.workspaces).toEqual([expect.objectContaining({ name: "Ada Lovelace's workspace", role: "admin" })]);
     expect(setCookies(callback).devflow_oauth?.value).toBe("");
   });

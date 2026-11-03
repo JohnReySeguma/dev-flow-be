@@ -99,9 +99,16 @@ export function createOAuthService({ providers, auth, users, sessions, secret, a
       await users.setPasswordHash(existing.id, null);
       await sessions.revokeAllCredentials(existing.id, new Date());
     }
+    // The provider verified the address.
+    if (existing) await users.markEmailVerified(existing.id, new Date());
     const user =
       existing ??
-      (await auth.createUser({ name: profile.name.slice(0, 48), email: profile.email, passwordHash: null }));
+      (await auth.createUser({
+        name: profile.name.slice(0, 48),
+        email: profile.email,
+        passwordHash: null,
+        emailVerifiedAt: new Date(),
+      }));
     await sessions.linkOAuthAccount(user.id, name, profile.providerAccountId);
     return user;
   }

@@ -68,6 +68,7 @@
               "BAD_REQUEST",
               "RESET_TOKEN_INVALID",
               "INVITE_INVALID",
+              "VERIFY_TOKEN_INVALID",
               "UNAUTHENTICATED",
               "TOKEN_EXPIRED",
               "INVALID_CREDENTIALS",
@@ -78,6 +79,7 @@
               "DEMO_WORKSPACE_LOCKED",
               "DEMO_ACCOUNT_LOCKED",
               "INVITE_EMAIL_MISMATCH",
+              "EMAIL_UNVERIFIED",
               "NOT_FOUND",
               "EMAIL_TAKEN",
               "PROJECT_KEY_TAKEN",
@@ -260,6 +262,7 @@
             "email": "demo@devflow.local",
             "timezone": "America/New_York",
             "bio": "Frontend platform lead. Owns the board, realtime sync and the design system.",
+            "emailVerified": true,
             "isDemo": true
           },
           "workspaces": [
@@ -302,6 +305,10 @@
           "bio": {
             "type": "string"
           },
+          "emailVerified": {
+            "type": "boolean",
+            "description": "The owner proved the address (emailed link, OAuth provider or accepted invite). Unverified accounts cannot send invites while the server delivers email."
+          },
           "isDemo": {
             "type": "boolean",
             "description": "A shared demo account (public password): profile edits, access tokens and creating workspaces are locked."
@@ -316,6 +323,7 @@
           "email",
           "timezone",
           "bio",
+          "emailVerified",
           "isDemo"
         ],
         "example": {
@@ -327,6 +335,7 @@
           "email": "demo@devflow.local",
           "timezone": "America/New_York",
           "bio": "Frontend platform lead. Owns the board, realtime sync and the design system.",
+          "emailVerified": true,
           "isDemo": true
         }
       },
@@ -457,6 +466,22 @@
         "example": {
           "token": "RESET_TOKEN_FROM_EMAIL",
           "password": "YOUR_NEW_PASSWORD"
+        }
+      },
+      "VerifyEmailRequest": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "example": {
+          "token": "VERIFY_TOKEN_FROM_EMAIL"
         }
       },
       "UpdateProfileRequest": {
@@ -1100,6 +1125,7 @@
             "email": "demo@devflow.local",
             "timezone": "America/New_York",
             "bio": "Frontend platform lead. Owns the board, realtime sync and the design system.",
+            "emailVerified": true,
             "isDemo": true
           },
           "workspace": {
@@ -3354,6 +3380,116 @@
         }
       }
     },
+    "/auth/email/verify": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Verify the email address with the emailed token",
+        "description": "Public: the token is the credential. Sign-up emails a link to {CORS_ORIGIN}/verify-email?token=…, valid for 48 hours; only the newest link works. Errors: 400 VERIFY_TOKEN_INVALID, 422 VALIDATION_FAILED.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyEmailRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Email verified."
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/email/resend": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Email a new verification link",
+        "description": "Signed-in session only. Always 202; nothing is sent when the address is already verified. Earlier links stop working.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "A link is on its way if the address still needs verifying."
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/oauth/{provider}": {
       "get": {
         "tags": [
@@ -4960,7 +5096,7 @@
           "Workspace"
         ],
         "summary": "Invite someone by email",
-        "description": "Admins only, signed-in session only. Emails a single-use link to {CORS_ORIGIN}/invite?token=… that expires after 7 days. Errors: 409 ALREADY_MEMBER (already a member or already invited), 502 EMAIL_DELIVERY_FAILED (the invite is kept; use resend). 403 DEMO_WORKSPACE_LOCKED in the demo workspace.",
+        "description": "Admins only, signed-in session only. Emails a single-use link to {CORS_ORIGIN}/invite?token=… that expires after 7 days. Errors: 409 ALREADY_MEMBER (already a member or already invited), 502 EMAIL_DELIVERY_FAILED (the invite is kept; use resend). 403 DEMO_WORKSPACE_LOCKED in the demo workspace. 403 EMAIL_UNVERIFIED when the server delivers email and yours is not verified yet.",
         "security": [
           {
             "cookieAuth": []

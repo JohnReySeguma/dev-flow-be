@@ -1,7 +1,14 @@
 import type { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
 import { problemResponse } from "../../openapi/problem.js";
-import { authMeResponse, forgotPasswordBody, loginBody, resetPasswordBody, signupBody } from "./auth.schemas.js";
+import {
+  authMeResponse,
+  forgotPasswordBody,
+  loginBody,
+  resetPasswordBody,
+  signupBody,
+  verifyEmailBody,
+} from "./auth.schemas.js";
 
 const setsSessionCookies = {
   "Set-Cookie": {
@@ -82,6 +89,31 @@ export function registerAuthDocs(registry: OpenAPIRegistry) {
       "Errors: 400 RESET_TOKEN_INVALID, 422 VALIDATION_FAILED.",
     request: { body: json(resetPasswordBody) },
     responses: { 204: { description: "Password changed." }, default: problemResponse },
+  });
+  registry.registerPath({
+    method: "post",
+    path: "/auth/email/verify",
+    tags: ["Auth"],
+    summary: "Verify the email address with the emailed token",
+    description:
+      "Public: the token is the credential. Sign-up emails a link to {CORS_ORIGIN}/verify-email?token=…, valid for " +
+      "48 hours; only the newest link works. Errors: 400 VERIFY_TOKEN_INVALID, 422 VALIDATION_FAILED.",
+    request: { body: json(verifyEmailBody) },
+    responses: { 204: { description: "Email verified." }, default: problemResponse },
+  });
+  registry.registerPath({
+    method: "post",
+    path: "/auth/email/resend",
+    tags: ["Auth"],
+    summary: "Email a new verification link",
+    description:
+      "Signed-in session only. Always 202; nothing is sent when the address is already verified. Earlier links stop " +
+      "working.",
+    security: [{ cookieAuth: [] }],
+    responses: {
+      202: { description: "A link is on its way if the address still needs verifying." },
+      default: problemResponse,
+    },
   });
   const provider = z.enum(["github", "google"]).meta({ description: "Must be enabled (see GET /config)." });
   registry.registerPath({

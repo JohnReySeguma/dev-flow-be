@@ -7,6 +7,8 @@ const document = buildOpenApiDocument();
 describe("OpenAPI document", () => {
   it("documents every route the app serves", () => {
     expect(Object.keys(document.paths ?? {}).sort()).toEqual([
+      "/auth/email/resend",
+      "/auth/email/verify",
       "/auth/login",
       "/auth/logout",
       "/auth/me",

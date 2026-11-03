@@ -21,6 +21,25 @@ export function passwordResetEmail(input: {
   };
 }
 
+export function verifyEmailEmail(input: {
+  to: string;
+  name: string;
+  link: string;
+  expiresInHours: number;
+}): EmailMessage {
+  const greeting = `Hi ${input.name},`;
+  const body = `Confirm that this is your email address to finish setting up DevFlow. The link works once and expires in ${input.expiresInHours} hours.`;
+  const ignore = "If you didn't sign up for DevFlow, ignore this email.";
+  return {
+    to: input.to,
+    subject: "Verify your email for DevFlow",
+    text: `${greeting}\n\n${body}\n\n${input.link}\n\n${ignore}\n`,
+    html:
+      `<p>${escapeHtml(greeting)}</p><p>${escapeHtml(body)}</p>` +
+      `<p><a href="${escapeHtml(input.link)}">Verify my email</a></p><p>${escapeHtml(ignore)}</p>`,
+  };
+}
+
 export function inviteEmail(input: {
   to: string;
   inviterName: string | null;

@@ -83,9 +83,11 @@ export function createApp(deps: AppDeps): Express {
   const authDeps = {
     auth: services.auth,
     passwords: services.passwords,
+    verification: services.verification,
     oauth: services.oauth,
     frontendUrl: env.CORS_ORIGIN,
     ...withAuth,
+    requireSession,
   };
   // Version-free, like the webhook; a GET, so the origin check does not apply.
   app.use(`${PROVIDER_PREFIX}/auth/oauth`, limit.api, createOAuthCallbackRouter(authDeps));
@@ -96,7 +98,10 @@ export function createApp(deps: AppDeps): Express {
   api.use("/health", createHealthRouter({ prisma, redis }));
   api.use(limit.api);
   api.post("/auth/login", limit.auth, limit.login);
-  api.post(["/auth/signup", "/auth/password/forgot", "/auth/password/reset"], limit.auth);
+  api.post(
+    ["/auth/signup", "/auth/password/forgot", "/auth/password/reset", "/auth/email/verify", "/auth/email/resend"],
+    limit.auth,
+  );
   api.post("/auth/signup", limit.signups);
   api.get("/auth/oauth/:provider", limit.auth);
   api.post("/auth/refresh", limit.refresh);

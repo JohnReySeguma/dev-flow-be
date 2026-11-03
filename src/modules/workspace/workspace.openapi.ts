@@ -132,7 +132,8 @@ export function registerWorkspaceDocs(registry: OpenAPIRegistry, workspace: Open
     description:
       "Admins only, signed-in session only. Emails a single-use link to {CORS_ORIGIN}/invite?token=… that expires " +
       "after 7 days. Errors: 409 ALREADY_MEMBER (already a member or already invited), 502 EMAIL_DELIVERY_FAILED " +
-      "(the invite is kept; use resend). 403 DEMO_WORKSPACE_LOCKED in the demo workspace.",
+      "(the invite is kept; use resend). 403 DEMO_WORKSPACE_LOCKED in the demo workspace. 403 EMAIL_UNVERIFIED " +
+      "when the server delivers email and yours is not verified yet.",
     security: [{ cookieAuth: [] }],
     request: { body: json(inviteBody) },
     responses: { 201: { description: "The pending invite.", ...json(teamMember) }, default: problemResponse },

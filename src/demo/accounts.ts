@@ -123,6 +123,8 @@ export async function seedAccounts(
         ...member,
         passwordHash,
         isDemo: true,
+        // Seed fixtures, never verified by mail; locked like every demo account.
+        emailVerifiedAt: new Date(now),
         lastActiveAt: at(lastActive),
         memberships: { create: { workspaceId: workspace.id, role } },
       },

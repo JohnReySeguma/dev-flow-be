@@ -19,6 +19,11 @@ beforeEach(async () => {
   const signup = await post("/signup", ada);
   session = sessionCookieHeader(signup);
   workspace = signup.body.workspaces[0].slug;
+  // Sign-up emails a verification link in the background; start each test with an empty outbox.
+  await vi.waitFor(() => {
+    expect(email.sent).toHaveLength(1);
+  });
+  email.sent.length = 0;
 });
 
 /** Requests a reset and returns the token from the emailed link. */
