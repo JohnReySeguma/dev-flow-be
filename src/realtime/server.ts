@@ -11,7 +11,7 @@ import type { Identity } from "../modules/auth/auth.types.js";
 import type { ProjectsService } from "../modules/projects/projects.service.js";
 import type { TokensService } from "../modules/tokens/tokens.service.js";
 import type { WorkspaceService } from "../modules/workspace/workspace.service.js";
-import { projectRoom, type EventBus } from "./events.js";
+import { memberRoom, projectRoom, type EventBus } from "./events.js";
 
 /** Under /api/v2 so the browser sends the /api/v2-scoped session cookie with the handshake. */
 export const SOCKET_PATH = "/api/v2/socket.io";
@@ -107,9 +107,17 @@ export function createRealtimeServer(deps: {
   });
 
   /** Everyone currently in a project's room, across API instances. */
-  async function broadcastPresence(projectId: string, room: JoinedProject, actorId: string | null) {
+  /** `gone`: users leaving right now, whose sockets may not have left the room yet on every instance. */
+  async function broadcastPresence(
+    projectId: string,
+    room: JoinedProject,
+    actorId: string | null,
+    gone: string[] = [],
+  ) {
     const sockets = await realtime.in(projectRoom(projectId)).fetchSockets();
-    const online = [...new Set(sockets.map((s) => (s.data as SocketData).identity.userId))];
+    const online = [...new Set(sockets.map((s) => (s.data as SocketData).identity.userId))].filter(
+      (userId) => !gone.includes(userId),
+    );
     realtime
       .to(projectRoom(projectId))
       .emit("presence.updated", { workspaceId: room.workspaceId, projectKey: room.projectKey, actorId, online });
@@ -132,7 +140,7 @@ export function createRealtimeServer(deps: {
         const auth = await deps.workspace.enter(identity, request.workspace);
         const project = await deps.projects.find(auth, request.projectKey);
         const room = { workspaceId: auth.workspaceId, workspace: auth.workspace.slug, projectKey: project.key };
-        await socket.join(projectRoom(project.id));
+        await socket.join([projectRoom(project.id), memberRoom(auth.workspaceId, identity.userId)]);
         projects.set(project.id, room);
         ack?.({ ok: true, workspace: room.workspace, projectKey: room.projectKey });
         await broadcastPresence(project.id, room, identity.userId);
@@ -167,8 +175,22 @@ export function createRealtimeServer(deps: {
     });
   });
 
-  deps.events.attach((room, event, payload) => {
-    realtime.to(room).emit(event, payload);
+  deps.events.attach({
+    emit: (room, event, payload) => {
+      realtime.to(room).emit(event, payload);
+    },
+    // socketsLeave reaches sockets on every instance through the adapter.
+    endMemberships: async (workspaceId, userIds, workspaceProjects) => {
+      const rooms = workspaceProjects.map((p) => projectRoom(p.id));
+      for (const userId of userIds) {
+        const own = memberRoom(workspaceId, userId);
+        realtime.to(own).emit("membership.ended", { workspaceId });
+        realtime.in(own).socketsLeave([...rooms, own]);
+      }
+      for (const project of workspaceProjects) {
+        await broadcastPresence(project.id, { workspaceId, workspace: "", projectKey: project.key }, null, userIds);
+      }
+    },
   });
 
   return {

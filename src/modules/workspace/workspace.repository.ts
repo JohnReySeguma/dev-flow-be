@@ -23,10 +23,6 @@ const inviteListArgs = (workspaceId: string, limit: number, cursor?: Cursor) => 
 function repository(db: Db) {
   return {
     findById: (id: string): Promise<Workspace | null> => db.workspace.findUnique({ where: { id } }),
-    /** The seeded demo workspace, which GitHub deliveries apply to until installations are linked per workspace. */
-    findDemo: (): Promise<Workspace | null> =>
-      db.workspace.findFirst({ where: { isDemo: true }, orderBy: { createdAt: "asc" } }),
-
     /**
      * Creates a workspace with a slug from its name, suffixed when that slug is taken, and makes
      * `ownerId` its admin.
@@ -74,6 +70,12 @@ function repository(db: Db) {
       }),
 
     countMembers: (workspaceId: string) => db.workspaceMember.count({ where: { workspaceId } }),
+
+    memberIds: async (workspaceId: string): Promise<string[]> =>
+      (await db.workspaceMember.findMany({ where: { workspaceId }, select: { userId: true } })).map((m) => m.userId),
+
+    projectRefs: (workspaceId: string): Promise<{ id: string; key: string }[]> =>
+      db.project.findMany({ where: { workspaceId }, select: { id: true, key: true } }),
 
     isMemberByEmail: async (workspaceId: string, email: string) =>
       (await db.workspaceMember.count({ where: { workspaceId, user: { email } } })) > 0,

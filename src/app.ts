@@ -13,7 +13,11 @@ import { createAuthRouter, createOAuthCallbackRouter } from "./modules/auth/auth
 import { createBootstrapRouter } from "./modules/bootstrap/bootstrap.routes.js";
 import { createCommentsRouter } from "./modules/comments/comments.routes.js";
 import { createConfigRouter } from "./modules/config/config.routes.js";
-import { createGitHubRouter } from "./modules/github/github.routes.js";
+import {
+  createGitHubRouter,
+  createGitHubSetupRouter,
+  createWorkspaceGitHubRouter,
+} from "./modules/github/github.routes.js";
 import { createHealthRouter } from "./modules/health/health.routes.js";
 import { createIssuesRouter, createProjectIssuesRouter } from "./modules/issues/issues.routes.js";
 import { createProjectsRouter } from "./modules/projects/projects.routes.js";
@@ -91,6 +95,7 @@ export function createApp(deps: AppDeps): Express {
   };
   // Version-free, like the webhook; a GET, so the origin check does not apply.
   app.use(`${PROVIDER_PREFIX}/auth/oauth`, limit.api, createOAuthCallbackRouter(authDeps));
+  app.use(`${PROVIDER_PREFIX}/integrations/github`, limit.api, createGitHubSetupRouter({ github: services.github }));
 
   const api = express.Router();
   api.use(originCheck(env.CORS_ORIGIN));
@@ -129,6 +134,10 @@ export function createApp(deps: AppDeps): Express {
   workspace.use("/sprints", createSprintsRouter({ sprints: services.sprints, ...inWorkspace }));
   workspace.use("/issues/:issueKey/comments", createCommentsRouter({ comments: services.comments, ...inWorkspace }));
   workspace.use("/issues", createIssuesRouter({ issues: services.issues, ...inWorkspace }));
+  workspace.use(
+    "/integrations/github",
+    createWorkspaceGitHubRouter({ github: services.github, ...inWorkspace, requireSession }),
+  );
   workspace.use(
     "/",
     createWorkspaceRouter({

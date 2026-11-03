@@ -114,6 +114,66 @@ describe("project rooms and presence", () => {
   });
 });
 
+describe("losing access to a workspace", () => {
+  const silentFor = (socket: ReturnType<typeof client>, event: string, ms = 400) =>
+    new Promise<boolean>((resolve) => {
+      const timer = setTimeout(() => {
+        socket.off(event, onEvent);
+        resolve(true);
+      }, ms);
+      const onEvent = () => {
+        clearTimeout(timer);
+        resolve(false);
+      };
+      socket.once(event, onEvent);
+    });
+
+  it("ends a removed member's Live Sync at once and tells them", async () => {
+    const admin = asBrowser(app, await signIn(app, "demo@devflow.local"));
+    const socket = client({ cookie, origin: FRONTEND_ORIGIN });
+    await connected(socket);
+    await join(socket, "DEV");
+    const ended = nextEvent<{ workspaceId: string }>(socket, "membership.ended");
+    const dmitri = await prisma.user.findUniqueOrThrow({ where: { email: "member@devflow.local" } });
+
+    await admin.delete(`/api/v2/workspaces/acme-inc/members/${dmitri.id}`);
+
+    const acme = await prisma.workspace.findUniqueOrThrow({ where: { slug: "acme-inc" } });
+    expect(await ended).toEqual({ workspaceId: acme.id });
+    const quiet = silentFor(socket, "issue.created");
+    await admin.post("/api/v2/workspaces/acme-inc/projects/DEV/issues").send({ title: "After removal" });
+    expect(await quiet).toBe(true);
+  });
+
+  it("tells the room who is still online", async () => {
+    const watcherCookie = await signIn(app, "viewer@devflow.local");
+    const watcher = client({ cookie: watcherCookie, origin: FRONTEND_ORIGIN });
+    const leaver = client({ cookie, origin: FRONTEND_ORIGIN });
+    await Promise.all([connected(watcher), connected(leaver)]);
+    await join(watcher, "DEV");
+    const both = eventMatching<{ online: string[] }>(watcher, "presence.updated", (p) => p.online.length === 2);
+    await join(leaver, "DEV");
+    await both;
+    const alone = eventMatching<{ online: string[] }>(watcher, "presence.updated", (p) => p.online.length === 1);
+
+    await asBrowser(app, cookie).post("/api/v2/workspaces/acme-inc/leave");
+
+    const lucas = await prisma.user.findUniqueOrThrow({ where: { email: "viewer@devflow.local" } });
+    expect((await alone).online).toEqual([lucas.id]);
+  });
+
+  it("ends everyone's Live Sync when the workspace is deleted", async () => {
+    const socket = client({ cookie, origin: FRONTEND_ORIGIN });
+    await connected(socket);
+    await join(socket, "DEV");
+    const ended = nextEvent<{ workspaceId: string }>(socket, "membership.ended");
+
+    await asBrowser(app, await signIn(app, "demo@devflow.local")).delete("/api/v2/workspaces/acme-inc");
+
+    expect((await ended).workspaceId).toEqual(expect.any(String));
+  });
+});
+
 describe("without Redis", () => {
   it("still connects and joins with the in-memory adapter", async () => {
     const memory = await startRealtimeTestServer({ env: { REDIS_URL: undefined } });

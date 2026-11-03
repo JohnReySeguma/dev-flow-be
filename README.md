@@ -3,7 +3,7 @@
 REST + realtime API for [DevFlow](https://github.com/JohnReySeguma/dev-flow), a sprint-based issue tracker:
 projects with custom workflows, backlogs, sprints, reports, GitHub integration and Live Sync.
 
-> **Status:** `v2.0.0-beta.4` — API v2 is multi-workspace: every account gets its own workspace and can belong to
+> **Status:** `v2.0.0-beta.5` — API v2 is multi-workspace: every account gets its own workspace and can belong to
 > others with a different role in each. Authentication, workspaces (members, roles, invites), the tracker (projects,
 > workflows, issues with ranking and comments, the sprint lifecycle and reports), Live Sync over Socket.IO, GitHub
 > webhooks, and hardening (rate limits, a security review). Deploying it: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
@@ -99,27 +99,28 @@ truncated between tests.
 Every variable is listed in [`.env.example`](.env.example) and validated at startup; the server refuses to start
 with a clear message when one is invalid. Empty values count as unset, which disables optional integrations.
 
-| Variable                                 | Required    | Default                 | Purpose                                                                                           |
-| ---------------------------------------- | ----------- | ----------------------- | ------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`                           | yes         |                         | Postgres connection string                                                                        |
-| `JWT_SECRET`                             | yes         |                         | Signs session tokens; at least 32 characters                                                      |
-| `TEST_DATABASE_URL`                      | for tests   |                         | Database used by `npm test`                                                                       |
-| `NODE_ENV`                               | no          | `development`           | `development` · `test` · `production`                                                             |
-| `TRUST_PROXY`                            | no          | `0`                     | Proxies in front of the API, so rate limits see client IPs ([deployment](docs/DEPLOYMENT.md))     |
-| `PORT`                                   | no          | `4000`                  | HTTP port                                                                                         |
-| `CORS_ORIGIN`                            | no          | `http://localhost:3000` | The frontend origin, allowed with credentials; also the base of emailed links and OAuth redirects |
-| `API_URL`                                | no          | `http://localhost:4000` | Public URL of this API; builds the OAuth callback URLs registered with GitHub and Google          |
-| `SEED_DEMO_DATA`                         | production  | `true`                  | Seed demo data into an empty database; must be set explicitly when `NODE_ENV=production`          |
-| `SAMPLE_WORKSPACE_TTL_DAYS`              | no          | (never)                 | Days after which `npm run cleanup:workspaces` deletes an untouched sample workspace               |
-| `REDIS_URL`                              | no          |                         | Set → Redis (Live Sync fan-out, shared rate limits); empty → in-memory fallback                   |
-| `GITHUB_CLIENT_ID` / `_SECRET`           | no          |                         | GitHub sign-in (both required to enable)                                                          |
-| `GOOGLE_CLIENT_ID` / `_SECRET`           | no          |                         | Google sign-in (both required to enable)                                                          |
-| `GITHUB_APP_ID`, `GITHUB_WEBHOOK_SECRET` | no          |                         | GitHub App integration (with the key below; see [GitHub integration](#github-integration))        |
-| `GITHUB_APP_PRIVATE_KEY_PATH`            | no          |                         | Path the API reads the App key from                                                               |
-| `GITHUB_APP_PRIVATE_KEY_FILE`            | Docker only |                         | `./` path of the key Compose mounts                                                               |
-| `EMAIL_PROVIDER`                         | production  | `console`               | `console` logs emails · `smtp` delivers them; must be set explicitly in production                |
-| `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`    | when `smtp` |                         | SMTP delivery (e.g. Gmail with an App Password)                                                   |
-| `SMTP_PORT`, `EMAIL_FROM`                | no          | `465`, `DevFlow <…>`    |                                                                                                   |
+| Variable                                                              | Required    | Default                 | Purpose                                                                                           |
+| --------------------------------------------------------------------- | ----------- | ----------------------- | ------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                                                        | yes         |                         | Postgres connection string                                                                        |
+| `JWT_SECRET`                                                          | yes         |                         | Signs session tokens; at least 32 characters                                                      |
+| `TEST_DATABASE_URL`                                                   | for tests   |                         | Database used by `npm test`                                                                       |
+| `NODE_ENV`                                                            | no          | `development`           | `development` · `test` · `production`                                                             |
+| `TRUST_PROXY`                                                         | no          | `0`                     | Proxies in front of the API, so rate limits see client IPs ([deployment](docs/DEPLOYMENT.md))     |
+| `PORT`                                                                | no          | `4000`                  | HTTP port                                                                                         |
+| `CORS_ORIGIN`                                                         | no          | `http://localhost:3000` | The frontend origin, allowed with credentials; also the base of emailed links and OAuth redirects |
+| `API_URL`                                                             | no          | `http://localhost:4000` | Public URL of this API; builds the OAuth callback URLs registered with GitHub and Google          |
+| `SEED_DEMO_DATA`                                                      | production  | `true`                  | Seed demo data into an empty database; must be set explicitly when `NODE_ENV=production`          |
+| `SAMPLE_WORKSPACE_TTL_DAYS`                                           | no          | (never)                 | Days after which `npm run cleanup:workspaces` deletes an untouched sample workspace               |
+| `REDIS_URL`                                                           | no          |                         | Set → Redis (Live Sync fan-out, shared rate limits); empty → in-memory fallback                   |
+| `GITHUB_CLIENT_ID` / `_SECRET`                                        | no          |                         | GitHub sign-in (both required to enable)                                                          |
+| `GOOGLE_CLIENT_ID` / `_SECRET`                                        | no          |                         | Google sign-in (both required to enable)                                                          |
+| `GITHUB_APP_ID`, `GITHUB_WEBHOOK_SECRET`                              | no          |                         | GitHub App integration (with the key below; see [GitHub integration](#github-integration))        |
+| `GITHUB_APP_SLUG`, `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET` | no          |                         | The App's URL name and its own client credentials, to connect installations to workspaces         |
+| `GITHUB_APP_PRIVATE_KEY_PATH`                                         | no          |                         | Path the API reads the App key from                                                               |
+| `GITHUB_APP_PRIVATE_KEY_FILE`                                         | Docker only |                         | `./` path of the key Compose mounts                                                               |
+| `EMAIL_PROVIDER`                                                      | production  | `console`               | `console` logs emails · `smtp` delivers them; must be set explicitly in production                |
+| `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`                                 | when `smtp` |                         | SMTP delivery (e.g. Gmail with an App Password)                                                   |
+| `SMTP_PORT`, `EMAIL_FROM`                                             | no          | `465`, `DevFlow <…>`    |                                                                                                   |
 
 The active modes are logged at startup (`realtime`, `email`, OAuth providers, GitHub integration).
 
@@ -161,11 +162,19 @@ Optional. Create a GitHub App (Settings → Developer settings → GitHub Apps) 
 - **Webhook secret:** a random string, also set as `GITHUB_WEBHOOK_SECRET`.
 - **Content type** `application/json`; **permissions** Pull requests and Contents (read-only); **events** Pull request
   and Push.
+- **Callback URL:** `<API_URL>/api/integrations/github/setup`, with **Request user authorization (OAuth) during
+  installation** ticked. DevFlow uses it to check that whoever installs the App can access the installation before
+  connecting it to their workspace.
 
-Set `GITHUB_APP_ID`, download a private key into the project root (git-ignored) and point
-`GITHUB_APP_PRIVATE_KEY_PATH` (or `GITHUB_APP_PRIVATE_KEY_FILE` for Docker) at it, then restart: `GET /config`
-reports `githubIntegration: true`. Install the App on a repository and mention issue keys (`DEV-104`) in branch
-names, PR titles or commit messages; GitHub's "Recent Deliveries" tab shows each delivery and DevFlow's answer.
+Set `GITHUB_APP_ID`, `GITHUB_APP_SLUG` (the App's URL name, `github.com/apps/<slug>`), and the App's own
+`GITHUB_APP_CLIENT_ID` and `GITHUB_APP_CLIENT_SECRET` (General → Client secrets; not the OAuth app's). Download a
+private key into the project root (git-ignored) and point `GITHUB_APP_PRIVATE_KEY_PATH` (or
+`GITHUB_APP_PRIVATE_KEY_FILE` for Docker) at it, then restart: `GET /config` reports `githubIntegration: true`.
+
+Each workspace connects its own installations: an admin opens the workspace's GitHub settings, which sends them to
+GitHub to install the App (`docs/INTEGRATION.md` §7.5). Deliveries change issues only in the workspace their
+installation is connected to. Mention issue keys (`DEV-104`) in branch names, PR titles or commit messages; GitHub's
+"Recent Deliveries" tab shows each delivery and DevFlow's answer.
 
 ## Demo accounts
 

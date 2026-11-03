@@ -30,6 +30,8 @@ import { createUsersRepository } from "./modules/users/users.repository.js";
 import { createUsersService } from "./modules/users/users.service.js";
 import { createWorkflowRepository } from "./modules/workflow/workflow.repository.js";
 import { createWorkflowService } from "./modules/workflow/workflow.service.js";
+import { createGitHubAppClient } from "./integrations/github/app-client.js";
+import { createGitHubRepository } from "./modules/github/github.repository.js";
 import { createGitHubService } from "./modules/github/github.service.js";
 import { createInvitesService } from "./modules/workspace/invites.service.js";
 import { createWorkspaceRepository } from "./modules/workspace/workspace.repository.js";
@@ -63,6 +65,7 @@ export function createServices(deps: ServiceDeps) {
   const sessions = createAuthRepository(prisma);
   const workspace = createWorkspaceService({
     workspaces,
+    events,
     copySampleData: (workspaceId, ownerId) => copySampleTracker(prisma, workspaceId, ownerId),
     resetSampleData: (target, userId) =>
       target.isDemo ? resetDemoTracker(prisma, target.id) : resetSampleTracker(prisma, target.id, userId),
@@ -117,7 +120,23 @@ export function createServices(deps: ServiceDeps) {
     reports: createReportsService({ reports: createReportsRepository(prisma), sprints, projects }),
     workflow: createWorkflowService({ workflow: createWorkflowRepository(prisma), projects, events }),
     comments: createCommentsService({ comments: createCommentsRepository(prisma), issues }),
-    github: createGitHubService({ issues, workspaces }),
+    github: createGitHubService({
+      issues,
+      installations: createGitHubRepository(prisma),
+      workspaces,
+      app:
+        features.githubIntegration && env.GITHUB_APP_CLIENT_ID && env.GITHUB_APP_CLIENT_SECRET
+          ? createGitHubAppClient({
+              clientId: env.GITHUB_APP_CLIENT_ID,
+              clientSecret: env.GITHUB_APP_CLIENT_SECRET,
+              fetch: deps.fetch ?? fetch,
+            })
+          : null,
+      appSlug: env.GITHUB_APP_SLUG,
+      secret: env.JWT_SECRET,
+      frontendUrl: env.CORS_ORIGIN,
+      logger,
+    }),
     bootstrap: createBootstrapService({ users: usersService, workspace, config, projects }),
   };
 }

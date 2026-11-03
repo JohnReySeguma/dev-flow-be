@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { Role } from "../../generated/prisma/client.js";
 import { AppError } from "../../lib/errors.js";
 import { byCreatedAsc, decodeCursor, toPage, type Page, type PaginationQuery } from "../../lib/pagination.js";
+import type { EventBus } from "../../realtime/events.js";
 import type { AuthContext, Identity, WorkspaceRef } from "../auth/auth.types.js";
 import { memberFromInvite, memberFromMembership, toWorkspaceView } from "./workspace.mapper.js";
 import type { WorkspaceRepository } from "./workspace.repository.js";
@@ -13,12 +14,18 @@ const lastAdmin = () =>
 
 export function createWorkspaceService(deps: {
   workspaces: WorkspaceRepository;
+  /** Ends the Live Sync access of people who lost access to a workspace. */
+  events: EventBus;
   /** Copies the sample projects into a new workspace for its owner. */
   copySampleData: (workspaceId: string, ownerId: string) => Promise<void>;
   /** Restores a workspace's sample projects, for `userId` (or the demo team in the demo workspace). */
   resetSampleData: (workspace: WorkspaceRef, userId: string) => Promise<void>;
 }) {
-  const { workspaces, copySampleData, resetSampleData } = deps;
+  const { workspaces, events, copySampleData, resetSampleData } = deps;
+
+  const endLiveSync = async (workspaceId: string, userIds: string[]) => {
+    await events.membershipsEnded(workspaceId, userIds, await workspaces.projectRefs(workspaceId));
+  };
 
   return {
     /** A new workspace with `userId` as its admin, by default with a copy of the sample projects. */
@@ -46,7 +53,12 @@ export function createWorkspaceService(deps: {
 
     /** Admins only (enforced by the route). Deletes everything in the workspace; there is no undo. */
     async delete(auth: AuthContext): Promise<void> {
+      const [memberIds, projects] = await Promise.all([
+        workspaces.memberIds(auth.workspaceId),
+        workspaces.projectRefs(auth.workspaceId),
+      ]);
       await workspaces.delete(auth.workspaceId);
+      await events.membershipsEnded(auth.workspaceId, memberIds, projects);
     },
 
     /**
@@ -67,6 +79,7 @@ export function createWorkspaceService(deps: {
         }
         await tx.removeMembership(auth.workspaceId, auth.userId);
       });
+      await endLiveSync(auth.workspaceId, [auth.userId]);
     },
 
     /**
@@ -151,18 +164,20 @@ export function createWorkspaceService(deps: {
         throw new AppError("CANNOT_REMOVE_SELF", "Ask another admin to remove you from the workspace.");
       }
 
-      await workspaces.transaction(async (tx) => {
+      const removedMember = await workspaces.transaction(async (tx) => {
         const admins = await tx.lockAdminIds(auth.workspaceId);
         const member = await tx.findMember(auth.workspaceId, id);
         if (member) {
           if (member.role === "admin" && admins.length <= 1) throw lastAdmin();
           await tx.removeMembership(auth.workspaceId, id);
-          return;
+          return true;
         }
         const invite = await tx.findInvite(auth.workspaceId, id);
         if (!invite) throw notFound();
         await tx.deleteInvite(id);
+        return false;
       });
+      if (removedMember) await endLiveSync(auth.workspaceId, [id]);
     },
   };
 }

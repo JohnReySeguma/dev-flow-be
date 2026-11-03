@@ -30,8 +30,26 @@ model Workspace {
   invites      WorkspaceInvite[]
   projects     Project[]
   accessTokens AccessToken[]
+  github       GitHubInstallation[]
 
   @@map("workspaces")
+}
+
+/// A GitHub App installation linked to a workspace: its deliveries change issues there, and nowhere else.
+model GitHubInstallation {
+  /// GitHub's installation id; an installation belongs to one workspace at most.
+  installationId BigInt   @id @map("installation_id")
+  workspaceId    String   @map("workspace_id") @db.Uuid
+  /// The GitHub user or organisation the App is installed on.
+  accountLogin   String   @map("account_login")
+  linkedById     String?  @map("linked_by_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  linkedBy  User?     @relation(fields: [linkedById], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId])
+  @@map("github_installations")
 }
 
 /// viewer = read-only · member = edit issues and sprints · admin = also members, workflow, project delete
@@ -82,6 +100,7 @@ model User {
   sessions            Session[]
   passwordResetTokens PasswordResetToken[]
   emailVerifications  EmailVerificationToken[]
+  githubInstallations GitHubInstallation[]
   oauthAccounts       OAuthAccount[]
   accessTokens        AccessToken[]
   invitesSent         WorkspaceInvite[]        @relation("InvitesSent")

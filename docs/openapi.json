@@ -904,7 +904,7 @@
           },
           "handled": {
             "type": "boolean",
-            "description": "False for events and actions DevFlow ignores."
+            "description": "False for events and actions DevFlow ignores, and for installations not linked to a workspace."
           },
           "issues": {
             "type": "array",
@@ -2879,6 +2879,53 @@
           ],
           "nextCursor": null
         }
+      },
+      "GitHubStatus": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "The server can link installations (GET /config: githubIntegration)."
+          },
+          "installations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "installationId": {
+                  "type": "integer"
+                },
+                "account": {
+                  "type": "string",
+                  "description": "The GitHub user or organisation it is installed on."
+                },
+                "linkedAt": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "required": [
+                "installationId",
+                "account",
+                "linkedAt"
+              ]
+            }
+          }
+        },
+        "required": [
+          "enabled",
+          "installations"
+        ],
+        "example": {
+          "enabled": true,
+          "installations": [
+            {
+              "installationId": 51234567,
+              "account": "acme",
+              "linkedAt": "2026-11-03T09:00:00.000Z"
+            }
+          ]
+        }
       }
     },
     "parameters": {}
@@ -4448,7 +4495,7 @@
           "GitHub"
         ],
         "summary": "GitHub App webhook",
-        "description": "Called by GitHub, not by the frontend. Authenticated by `X-Hub-Signature-256` (HMAC-SHA256 of the raw body with GITHUB_WEBHOOK_SECRET); returns 404 when the integration is not configured. Issue keys (DEV-104) are read from PR titles, branch names and commit messages. A pull request links itself to those issues (`git.kind = pr`), a merged one moves them to the project's first done status, and one closed without merging removes its link. A commit links issues that have no pull request link. Changes are broadcast over Live Sync with `actorId: null`. Handles `ping`, `pull_request` and `push`; other events are acknowledged with 202.",
+        "description": "Called by GitHub, not by the frontend. Authenticated by `X-Hub-Signature-256` (HMAC-SHA256 of the raw body with GITHUB_WEBHOOK_SECRET); returns 404 when the integration is not configured. Issue keys (DEV-104) are read from PR titles, branch names and commit messages. A pull request links itself to those issues (`git.kind = pr`), a merged one moves them to the project's first done status, and one closed without merging removes its link. A commit links issues that have no pull request link. Changes are broadcast over Live Sync with `actorId: null`. Deliveries change issues only in the workspace their installation is linked to; deliveries from unlinked installations are acknowledged with 202. Handles `ping`, `pull_request`, `push` and `installation` (uninstalling unlinks); other events are acknowledged with 202.",
         "parameters": [
           {
             "schema": {
@@ -4527,6 +4574,84 @@
           },
           "default": {
             "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "servers": [
+        {
+          "url": "/api",
+          "description": "Version-free: the URL registered with the provider."
+        }
+      ]
+    },
+    "/integrations/github/setup": {
+      "get": {
+        "tags": [
+          "GitHub"
+        ],
+        "summary": "GitHub's redirect after installing the App (called by the browser)",
+        "description": "Registered as the GitHub App's callback URL, with user authorization during installation. Checks the state against the devflow_github cookie, asks GitHub which installations the installing user can access, and links the installation to the workspace the install started from. Always redirects to {CORS_ORIGIN}{redirect}?github=linked, or ?github_error=<code>: github_denied, github_state_mismatch, github_not_your_installation, github_installation_taken, github_forbidden, github_failed.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "code",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "installation_id",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "setup_action",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "state",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Back to the frontend."
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -8103,6 +8228,233 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspaces/{workspace}/integrations/github": {
+      "get": {
+        "tags": [
+          "GitHub"
+        ],
+        "summary": "GitHub installations linked to the workspace",
+        "description": "Any role; access tokens need issues:read.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Whether linking is available, and the linked installations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitHubStatus"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspaces/{workspace}/integrations/github/install": {
+      "get": {
+        "tags": [
+          "GitHub"
+        ],
+        "summary": "Install the GitHub App for this workspace (browser navigation)",
+        "description": "Admins only, signed-in session only; navigate the browser here, not fetch. Sets a short-lived state cookie and redirects to GitHub's install page; GitHub comes back through /api/integrations/github/setup, which redirects to {CORS_ORIGIN}{redirect}. redirect is a relative frontend path (default /projects). 404 when the integration is not configured; 403 DEMO_WORKSPACE_LOCKED in the demo workspace.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "redirect",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "To GitHub."
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspaces/{workspace}/integrations/github/installations/{id}": {
+      "delete": {
+        "tags": [
+          "GitHub"
+        ],
+        "summary": "Unlink an installation",
+        "description": "Admins only, signed-in session only. Its deliveries stop changing this workspace; the App stays installed on GitHub (uninstall it there to remove it). 404 when it is not linked here; 403 DEMO_WORKSPACE_LOCKED.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The workspace's slug.",
+              "example": "acme-inc"
+            },
+            "required": true,
+            "description": "The workspace's slug.",
+            "name": "workspace",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Unlinked."
           },
           "429": {
             "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
