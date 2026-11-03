@@ -97,13 +97,17 @@ export function createApp(deps: AppDeps): Express {
   api.use(limit.api);
   api.post("/auth/login", limit.auth, limit.login);
   api.post(["/auth/signup", "/auth/password/forgot", "/auth/password/reset"], limit.auth);
+  api.post("/auth/signup", limit.signups);
   api.get("/auth/oauth/:provider", limit.auth);
   api.post("/auth/refresh", limit.refresh);
   api.post(["/workspaces/:ws/invites", "/workspaces/:ws/invites/:id/resend"], limit.invites);
   api.use("/invites", limit.inviteTokens);
   api.use("/config", createConfigRouter({ config: services.config }));
   api.use("/invites", createInviteAcceptRouter({ invites: services.invites, ...withAuth, requireSession }));
-  api.use("/workspaces", createWorkspacesRouter({ workspace: services.workspace, ...withAuth, requireSession }));
+  api.use(
+    "/workspaces",
+    createWorkspacesRouter({ workspace: services.workspace, ...withAuth, requireSession, limit: limit.workspaces }),
+  );
 
   // Everything that belongs to one workspace. Membership is resolved once, here: routers below
   // read the caller's role in this workspace from req.auth.
@@ -122,7 +126,13 @@ export function createApp(deps: AppDeps): Express {
   workspace.use("/issues", createIssuesRouter({ issues: services.issues, ...inWorkspace }));
   workspace.use(
     "/",
-    createWorkspaceRouter({ workspace: services.workspace, invites: services.invites, ...inWorkspace, requireSession }),
+    createWorkspaceRouter({
+      workspace: services.workspace,
+      invites: services.invites,
+      ...inWorkspace,
+      requireSession,
+      limitInvites: limit.workspaceInvites,
+    }),
   );
   api.use("/workspaces/:ws", workspace);
   api.use("/me/tokens", createTokensRouter({ tokens: services.tokens, ...withAuth, requireSession }));

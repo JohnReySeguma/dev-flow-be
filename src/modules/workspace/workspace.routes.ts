@@ -17,6 +17,8 @@ export function createWorkspacesRouter(deps: {
   workspace: WorkspaceService;
   requireAuth: RequestHandler;
   requireSession: RequestHandler;
+  /** New workspaces per user. */
+  limit: RequestHandler;
 }): Router {
   const controller = createWorkspaceController(deps.workspace);
 
@@ -27,6 +29,7 @@ export function createWorkspacesRouter(deps: {
     deps.requireAuth,
     deps.requireSession,
     lockedForDemoAccounts,
+    deps.limit,
     validate({ body: createWorkspaceBody }),
     controller.create,
   );
@@ -39,6 +42,8 @@ export function createWorkspaceRouter(deps: {
   invites: InvitesService;
   requireAuth: RequestHandler;
   requireSession: RequestHandler;
+  /** Invite emails per workspace. */
+  limitInvites: RequestHandler;
 }): Router {
   const controller = createWorkspaceController(deps.workspace);
   const invites = createInvitesController(deps.invites);
@@ -57,8 +62,8 @@ export function createWorkspaceRouter(deps: {
   router.get("/members", read, validate({ query: paginationQuery }), controller.listMembers);
   router.patch("/members/:id", ...manage, validate({ body: changeRoleBody }), controller.changeRole);
   router.delete("/members/:id", ...manage, controller.remove);
-  router.post("/invites", ...manage, validate({ body: inviteBody }), invites.create);
-  router.post("/invites/:id/resend", ...manage, invites.resend);
+  router.post("/invites", ...manage, deps.limitInvites, validate({ body: inviteBody }), invites.create);
+  router.post("/invites/:id/resend", ...manage, deps.limitInvites, invites.resend);
   router.post("/demo/reset", ...admin, controller.resetDemo);
   return router;
 }
