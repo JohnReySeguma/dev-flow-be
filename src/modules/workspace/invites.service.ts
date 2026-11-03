@@ -8,11 +8,11 @@ import type { Logger } from "../../lib/logger.js";
 import { hashPassword } from "../../lib/password.js";
 import type { AuthMe } from "../auth/auth.schemas.js";
 import type { AuthService } from "../auth/auth.service.js";
-import type { AuthContext, IssuedSession, RequestMeta } from "../auth/auth.types.js";
+import type { AuthContext, Identity, IssuedSession, RequestMeta } from "../auth/auth.types.js";
 import type { UsersRepository } from "../users/users.repository.js";
-import { memberFromInvite } from "./workspace.mapper.js";
+import { memberFromInvite, toWorkspaceView } from "./workspace.mapper.js";
 import type { WorkspaceRepository } from "./workspace.repository.js";
-import type { AcceptInviteInput, InviteInput, InvitePreview, TeamMember } from "./workspace.schemas.js";
+import type { AcceptInviteInput, InviteInput, InvitePreview, TeamMember, WorkspaceView } from "./workspace.schemas.js";
 
 export const INVITE_TTL_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -67,9 +67,10 @@ export function createInvitesService({ workspaces, auth: accounts, users, email,
   }
 
   return {
+    /** Invites anyone who is not yet a member: new people accept, people with an account join. */
     async invite(auth: AuthContext, input: InviteInput): Promise<TeamMember> {
       if (
-        (await users.findByEmail(input.email)) ??
+        (await workspaces.isMemberByEmail(auth.workspaceId, input.email)) ||
         (await workspaces.findInviteByEmail(auth.workspaceId, input.email))
       ) {
         throw alreadyMember(input.email);
@@ -96,26 +97,35 @@ export function createInvitesService({ workspaces, auth: accounts, users, email,
       return memberFromInvite(invite);
     },
 
-    /** What the /invite page shows before the invitee signs up. Public: the token is the credential. */
+    /**
+     * What the /invite page shows: the workspace, and whether the email already has an account
+     * (sign in and join) or not (accept). Public: the token is the credential.
+     */
     async preview(token: string): Promise<InvitePreview> {
       const invite = await findValid(token);
       return {
         email: invite.email,
         role: invite.role,
-        workspace: { name: invite.workspace.name },
+        workspace: { name: invite.workspace.name, slug: invite.workspace.slug },
         invitedBy: invite.invitedBy ? { name: invite.invitedBy.name } : null,
         expiresAt: invite.expiresAt.toISOString(),
+        accountExists: (await users.findByEmail(invite.email)) !== null,
       };
     },
 
-    /** Creates the invitee's account with the invited role and signs them in. */
+    /**
+     * Creates the invitee's account, a member of the inviting workspace only, and signs them in.
+     * The emailed link proves the address, so the account starts verified.
+     */
     async accept(
       token: string,
       input: AcceptInviteInput,
       meta: RequestMeta,
     ): Promise<{ session: IssuedSession; me: AuthMe }> {
       const invite = await findValid(token);
-      if (await users.findByEmail(invite.email)) throw alreadyMember(invite.email);
+      if (await users.findByEmail(invite.email)) {
+        throw new AppError("EMAIL_TAKEN", `${invite.email} already has a DevFlow account. Sign in with it to join.`);
+      }
       if (!(await workspaces.claimInvite(invite.id, invite.tokenHash))) throw invalidInvite();
 
       const user = await accounts.createUser({
@@ -123,8 +133,34 @@ export function createInvitesService({ workspaces, auth: accounts, users, email,
         email: invite.email,
         passwordHash: await hashPassword(input.password),
         membership: { workspaceId: invite.workspaceId, role: invite.role },
+        emailVerifiedAt: new Date(),
       });
       return { session: await accounts.issueSession(user, meta), me: await accounts.me(user.id) };
+    },
+
+    /**
+     * Adds the signed-in account to the inviting workspace with the invited role. The account's
+     * email must be the invited one; holding the emailed link proves it, so it counts as verified.
+     */
+    async join(identity: Identity, token: string): Promise<WorkspaceView> {
+      const invite = await findValid(token);
+      const user = await users.findById(identity.userId);
+      if (user?.email !== invite.email) {
+        throw new AppError(
+          "INVITE_EMAIL_MISMATCH",
+          `This invite is for ${invite.email}. Sign in with that account to join.`,
+        );
+      }
+      const membership = await workspaces.transaction(async (tx) => {
+        if (await tx.isMemberByEmail(invite.workspaceId, invite.email)) {
+          await tx.claimInvite(invite.id, invite.tokenHash);
+          throw alreadyMember(invite.email);
+        }
+        if (!(await tx.claimInvite(invite.id, invite.tokenHash))) throw invalidInvite();
+        return tx.addMember(invite.workspaceId, user.id, invite.role);
+      });
+      await users.markEmailVerified(user.id, new Date());
+      return toWorkspaceView(membership.workspace, membership.role);
     },
 
     /** Sends a fresh link; the previous one stops working. */

@@ -77,6 +77,7 @@
               "CANNOT_REMOVE_SELF",
               "DEMO_WORKSPACE_LOCKED",
               "DEMO_ACCOUNT_LOCKED",
+              "INVITE_EMAIL_MISMATCH",
               "NOT_FOUND",
               "EMAIL_TAKEN",
               "PROJECT_KEY_TAKEN",
@@ -791,10 +792,14 @@
             "properties": {
               "name": {
                 "type": "string"
+              },
+              "slug": {
+                "type": "string"
               }
             },
             "required": [
-              "name"
+              "name",
+              "slug"
             ]
           },
           "invitedBy": {
@@ -814,6 +819,10 @@
           "expiresAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "accountExists": {
+            "type": "boolean",
+            "description": "The email already has a DevFlow account: sign in with it and join (POST /invites/{token}/join) instead of accepting."
           }
         },
         "required": [
@@ -821,18 +830,21 @@
           "role",
           "workspace",
           "invitedBy",
-          "expiresAt"
+          "expiresAt",
+          "accountExists"
         ],
         "example": {
           "email": "grace@acme.dev",
           "role": "member",
           "workspace": {
-            "name": "Acme Inc"
+            "name": "Acme Inc",
+            "slug": "acme-inc"
           },
           "invitedBy": {
             "name": "John Rey"
           },
-          "expiresAt": "2026-11-09T09:00:00.000Z"
+          "expiresAt": "2026-11-09T09:00:00.000Z",
+          "accountExists": false
         }
       },
       "AcceptInviteRequest": {
@@ -4083,7 +4095,7 @@
           "Invites"
         ],
         "summary": "Preview an invite",
-        "description": "Public; for the /invite page. 400 INVITE_INVALID when the link is unknown, already used, replaced by a resend or expired.",
+        "description": "Public; for the /invite page. accountExists says which way to continue: false → accept (create the account), true → sign in with that email and join. 400 INVITE_INVALID when the link is unknown, already used, replaced by a resend or expired.",
         "parameters": [
           {
             "schema": {
@@ -4148,7 +4160,7 @@
           "Invites"
         ],
         "summary": "Accept an invite",
-        "description": "Public. Creates the account for the invited email with the invited role and signs it in (session cookies). Errors: 400 INVITE_INVALID, 409 ALREADY_MEMBER (the email already has an account: sign in instead), 422 VALIDATION_FAILED.",
+        "description": "Public, for people without an account. Creates the account for the invited email, a member of the inviting workspace only (no workspace of its own), verified, and signs it in (session cookies). Errors: 400 INVITE_INVALID, 409 EMAIL_TAKEN (the email already has an account: sign in and join instead), 422 VALIDATION_FAILED.",
         "parameters": [
           {
             "schema": {
@@ -4183,6 +4195,76 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AuthMe"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: too many requests from this client. Retry after Retry-After seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the limit resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit": {
+                "description": "Remaining quota (IETF draft-7 RateLimit header).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error, as RFC 9457 problem details.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invites/{token}/join": {
+      "post": {
+        "tags": [
+          "Invites"
+        ],
+        "summary": "Join with an existing account",
+        "description": "For people who already have an account: sign in with the invited email first. Adds you to the inviting workspace with the invited role and marks your email verified. Signed-in session only. Errors: 400 INVITE_INVALID, 403 INVITE_EMAIL_MISMATCH (signed in with another account), 403 DEMO_ACCOUNT_LOCKED, 409 ALREADY_MEMBER.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "token",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The workspace you joined, with your role.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Workspace"
                 }
               }
             }

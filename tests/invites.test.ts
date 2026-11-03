@@ -124,8 +124,9 @@ describe("accepting an invite", () => {
     expect(res.body).toMatchObject({
       email: "grace@acme.dev",
       role: "viewer",
-      workspace: { name: "Acme Inc" },
+      workspace: { name: "Acme Inc", slug: "acme-inc" },
       invitedBy: { name: "John Rey" },
+      accountExists: false,
     });
   });
 
@@ -142,6 +143,8 @@ describe("accepting an invite", () => {
       status: "active",
       role: "viewer",
     });
+    const grace = await prisma.user.findUniqueOrThrow({ where: { email: "grace@acme.dev" } });
+    expect(grace.emailVerifiedAt).not.toBeNull();
   });
 
   it("works once", async () => {
@@ -167,7 +170,7 @@ describe("accepting an invite", () => {
     expect((await accept(fresh)).body.code).toBe("INVITE_INVALID");
   });
 
-  it("answers ALREADY_MEMBER when the email signed up in the meantime", async () => {
+  it("answers EMAIL_TAKEN when the email signed up in the meantime: join instead", async () => {
     const token = await invite();
     await request(app)
       .post("/api/v2/auth/signup")
@@ -177,7 +180,8 @@ describe("accepting an invite", () => {
     const res = await accept(token);
 
     expect(res.status).toBe(409);
-    expect(res.body.code).toBe("ALREADY_MEMBER");
+    expect(res.body.code).toBe("EMAIL_TAKEN");
+    expect((await preview(token)).body.accountExists).toBe(true);
   });
 
   it("validates the name and password", async () => {
@@ -185,5 +189,116 @@ describe("accepting an invite", () => {
 
     expect(res.status).toBe(422);
     expect(res.body.errors.map((e: { field: string }) => e.field)).toEqual(["name", "password"]);
+  });
+});
+
+describe("joining with an existing account", () => {
+  /** Grace already uses DevFlow: she has her own workspace. */
+  async function signUpGrace(address = "grace@acme.dev") {
+    const res = await request(app)
+      .post("/api/v2/auth/signup")
+      .set("Origin", FRONTEND_ORIGIN)
+      .send({ name: "Grace Hopper", email: address, password: "compiler-1952" });
+    return asBrowser(app, sessionCookieHeader(res));
+  }
+  async function invite(address = "grace@acme.dev", role = "member") {
+    const res = await admin.post("/api/v2/workspaces/acme-inc/invites").send({ email: address, role });
+    expect(res.status).toBe(201);
+    return tokenFrom(email.sent.at(-1)?.text);
+  }
+  const join = (as: ReturnType<typeof asBrowser>, token: string) =>
+    as.post(`/api/v2/invites/${encodeURIComponent(token)}/join`);
+
+  it("invites someone who already has an account and says so in the preview", async () => {
+    await signUpGrace();
+    const token = await invite();
+
+    const preview = await request(app).get(`/api/v2/invites/${encodeURIComponent(token)}`);
+
+    expect(preview.body).toMatchObject({ email: "grace@acme.dev", accountExists: true });
+  });
+
+  it("adds the signed-in account with the invited role, next to its own workspace", async () => {
+    const grace = await signUpGrace();
+    const token = await invite("grace@acme.dev", "member");
+
+    const res = await join(grace, token);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ slug: "acme-inc", name: "Acme Inc", role: "member" });
+    const me = await grace.get("/api/v2/auth/me");
+    expect(me.body.workspaces.map((w: { slug: string; role: string }) => [w.slug, w.role])).toEqual([
+      ["grace-hoppers-workspace", "admin"],
+      ["acme-inc", "member"],
+    ]);
+    expect((await grace.get("/api/v2/workspaces/acme-inc/projects")).status).toBe(200);
+    expect(await prisma.workspaceInvite.count()).toBe(0);
+    const user = await prisma.user.findUniqueOrThrow({ where: { email: "grace@acme.dev" } });
+    expect(user.emailVerifiedAt).not.toBeNull();
+  });
+
+  it("refuses another account, and keeps the invite for the right one", async () => {
+    const grace = await signUpGrace();
+    const token = await invite();
+    const mallory = await signUpGrace("mallory@evil.example");
+
+    const res = await join(mallory, token);
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe("INVITE_EMAIL_MISMATCH");
+    expect((await join(grace, token)).status).toBe(200);
+  });
+
+  it("works once", async () => {
+    const grace = await signUpGrace();
+    const token = await invite();
+    await join(grace, token);
+
+    const again = await join(grace, token);
+
+    expect(again.status).toBe(400);
+    expect(again.body.code).toBe("INVITE_INVALID");
+  });
+
+  it("needs a signed-in session, not an access token", async () => {
+    const grace = await signUpGrace();
+    const token = await invite();
+    const slug = (await grace.get("/api/v2/auth/me")).body.workspaces[0].slug as string;
+    const { secret } = (
+      await grace
+        .post("/api/v2/me/tokens")
+        .send({ name: "cli", scopes: ["issues:read"], expiresInDays: null, workspace: slug })
+    ).body;
+
+    const anonymous = await request(app)
+      .post(`/api/v2/invites/${encodeURIComponent(token)}/join`)
+      .set("Origin", FRONTEND_ORIGIN);
+    const bearer = await request(app)
+      .post(`/api/v2/invites/${encodeURIComponent(token)}/join`)
+      .set("Authorization", `Bearer ${secret as string}`);
+
+    expect(anonymous.status).toBe(401);
+    expect(bearer.status).toBe(403);
+  });
+
+  it("is locked for the shared demo accounts", async () => {
+    const grace = await signUpGrace();
+    const token = await invite();
+    await prisma.user.update({ where: { email: "grace@acme.dev" }, data: { isDemo: true } });
+
+    const res = await join(grace, token);
+
+    expect(res.body.code).toBe("DEMO_ACCOUNT_LOCKED");
+  });
+
+  it("still refuses to invite someone who is already a member here", async () => {
+    const grace = await signUpGrace();
+    await join(grace, await invite());
+
+    const again = await admin
+      .post("/api/v2/workspaces/acme-inc/invites")
+      .send({ email: "grace@acme.dev", role: "viewer" });
+
+    expect(again.body.code).toBe("ALREADY_MEMBER");
   });
 });

@@ -7,6 +7,8 @@ export type NewUser = {
   handle: string;
   gradient: string;
   passwordHash: string | null;
+  /** Set when the address is already proven, e.g. by an accepted invite. */
+  emailVerifiedAt?: Date;
   /** The workspace the account joins (an invite), created in the same statement. */
   membership?: { workspaceId: string; role: Role };
 };
@@ -38,6 +40,9 @@ export function createUsersRepository(prisma: PrismaClient) {
     setPasswordHash: (id: string, passwordHash: string | null) =>
       prisma.user.update({ where: { id }, data: { passwordHash } }),
     touchLastActive: (id: string, at: Date) => prisma.user.update({ where: { id }, data: { lastActiveAt: at } }),
+    /** Records that the owner proved the address; keeps the first proof. */
+    markEmailVerified: (id: string, at: Date) =>
+      prisma.user.updateMany({ where: { id, emailVerifiedAt: null }, data: { emailVerifiedAt: at } }),
   };
 }
 
