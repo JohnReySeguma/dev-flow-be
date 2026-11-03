@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "DevFlow API",
-    "version": "2.0.0-beta.5",
+    "version": "2.0.0",
     "description": "REST API for DevFlow, a sprint-based issue tracker. Errors use RFC 9457 problem details; see docs/INTEGRATION.md for the error catalogue and integration contract. Every endpoint except the health checks is rate-limited per client and answers 429 RATE_LIMITED with Retry-After when a limit is reached (limits: docs/INTEGRATION.md §4.1)."
   },
   "servers": [

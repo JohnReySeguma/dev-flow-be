@@ -6,6 +6,58 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-11-03
+
+API v2, stable. DevFlow is multi-workspace:
+
+- **Workspaces:** every account gets its own workspace, with a copy of the sample projects, and can belong to others
+  with a different role in each.
+- **Joining:** people join other workspaces only by invite, with a new account or an existing one.
+- **Isolation:** everything except the account lives under `/api/v2/workspaces/{slug}`, and other workspaces answer
+  `404`.
+- **Public site:** the demo workspace and accounts are locked, and email is verified before invites can be sent.
+- **GitHub:** each workspace connects its own GitHub App installations.
+
+The contract is the `2.0.0-beta.5` one, unchanged. The frontend integrated every beta, up to its `v1.9.0`, and a test
+against a real GitHub App passed. Breaking changes from here on need `/api/v3`.
+
+### Frontend impact
+
+- **Nothing new since `2.0.0-beta.5`.** Point `api:types` at the `v2.0.0` tag for Step 10.
+- **What v2 changed from v1** is listed, item by item, in the Frontend impact sections of `2.0.0-beta.1` to
+  `2.0.0-beta.5` below. The **BREAKING** items are all in `beta.2`:
+  - the `/api/v2` prefix and new cookie paths;
+  - workspace routes under `/workspaces/:ws`;
+  - `/auth/me` returns `workspaces`, and the profile has no `role`;
+  - tokens are bound to a workspace;
+  - `project:join { workspace, projectKey }`.
+
+  `beta.3` also changed `ALREADY_MEMBER` to `EMAIL_TAKEN` when accepting an invite for an existing account.
+
+### Security
+
+- `npm audit --omit=dev`: no known vulnerabilities.
+- Reviewed for v2:
+  - workspace isolation on every route, socket join and webhook;
+  - tokens bound to one workspace and checked against membership on every request;
+  - invite, join and verification tokens hashed, single-use and expiring;
+  - GitHub installations verified against the installing user;
+  - demo locks;
+  - limits per client, user and workspace.
+
+  Remaining trade-offs are in `docs/INTEGRATION.md` §9.
+
+### Handoff checklist
+
+- [x] `docs/openapi.json` regenerated and valid
+- [x] `docs/INTEGRATION.md` coverage matrix updated (accurate for `v2.0.0`)
+- [x] New error codes added to the catalogue (none since `beta.5`)
+- [x] New realtime events documented with examples (none since `beta.5`)
+- [x] **Frontend impact** section in `CHANGELOG.md`
+- [x] Seed and demo accounts still work on a fresh database, and on a migrated one
+- [x] `docker compose up --build` instructions in the README still accurate
+- [x] Known limitations or stubs listed (`docs/INTEGRATION.md` §9)
+
 ## [2.0.0-beta.5] - 2026-11-03
 
 GitHub per workspace, and Live Sync that ends as soon as someone loses access to a workspace.
@@ -644,7 +696,8 @@ Foundation: configuration, database, error format, health checks, feature flags,
 - [x] `docker compose up --build` instructions in the README still accurate
 - [x] Known limitations or stubs listed (`docs/INTEGRATION.md` §8)
 
-[Unreleased]: https://github.com/JohnReySeguma/dev-flow-be/compare/v2.0.0-beta.5...HEAD
+[Unreleased]: https://github.com/JohnReySeguma/dev-flow-be/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/JohnReySeguma/dev-flow-be/compare/v1.0.1...v2.0.0
 [2.0.0-beta.5]: https://github.com/JohnReySeguma/dev-flow-be/compare/v2.0.0-beta.4...v2.0.0-beta.5
 [2.0.0-beta.4]: https://github.com/JohnReySeguma/dev-flow-be/compare/v2.0.0-beta.3...v2.0.0-beta.4
 [2.0.0-beta.3]: https://github.com/JohnReySeguma/dev-flow-be/compare/v2.0.0-beta.2...v2.0.0-beta.3
