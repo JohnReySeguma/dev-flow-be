@@ -23,10 +23,6 @@ const inviteListArgs = (workspaceId: string, limit: number, cursor?: Cursor) => 
 function repository(db: Db) {
   return {
     findById: (id: string): Promise<Workspace | null> => db.workspace.findUnique({ where: { id } }),
-    /** The seeded demo workspace, which GitHub deliveries apply to until installations are linked per workspace. */
-    findDemo: (): Promise<Workspace | null> =>
-      db.workspace.findFirst({ where: { isDemo: true }, orderBy: { createdAt: "asc" } }),
-
     /**
      * Creates a workspace with a slug from its name, suffixed when that slug is taken, and makes
      * `ownerId` its admin.
