@@ -57,6 +57,7 @@ export function createAuthService({
     email: string;
     passwordHash: string | null;
     membership?: { workspaceId: string; role: Role };
+    emailVerifiedAt?: Date;
   }): Promise<User> {
     let user: User;
     try {
@@ -67,6 +68,7 @@ export function createAuthService({
         gradient: gradientFor(input.email),
         passwordHash: input.passwordHash,
         ...(input.membership && { membership: input.membership }),
+        ...(input.emailVerifiedAt && { emailVerifiedAt: input.emailVerifiedAt }),
       });
     } catch (error) {
       if (isUniqueViolation(error)) throw new AppError("EMAIL_TAKEN", undefined, { cause: error });

@@ -74,6 +74,12 @@ function repository(db: Db) {
 
     countMembers: (workspaceId: string) => db.workspaceMember.count({ where: { workspaceId } }),
 
+    isMemberByEmail: async (workspaceId: string, email: string) =>
+      (await db.workspaceMember.count({ where: { workspaceId, user: { email } } })) > 0,
+
+    addMember: (workspaceId: string, userId: string, role: Role) =>
+      db.workspaceMember.create({ data: { workspaceId, userId, role }, include: { workspace: true } }),
+
     /** The caller's membership in the workspace with this slug, or null when they are not a member. */
     findMembershipBySlug: (userId: string, slug: string) =>
       db.workspaceMember.findFirst({ where: { userId, workspace: { slug } }, include: { workspace: true } }),

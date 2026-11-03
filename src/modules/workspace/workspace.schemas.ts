@@ -96,18 +96,23 @@ export const invitePreviewResponse = z
   .object({
     email: z.email(),
     role: roleSchema,
-    workspace: z.object({ name: z.string() }),
+    workspace: z.object({ name: z.string(), slug: z.string() }),
     invitedBy: z.object({ name: z.string() }).nullable(),
     expiresAt: z.iso.datetime(),
+    accountExists: z.boolean().meta({
+      description:
+        "The email already has a DevFlow account: sign in with it and join (POST /invites/{token}/join) instead of accepting.",
+    }),
   })
   .meta({
     id: "InvitePreview",
     example: {
       email: "grace@acme.dev",
       role: "member",
-      workspace: { name: "Acme Inc" },
+      workspace: { name: "Acme Inc", slug: "acme-inc" },
       invitedBy: { name: "John Rey" },
       expiresAt: "2026-11-09T09:00:00.000Z",
+      accountExists: false,
     },
   });
 

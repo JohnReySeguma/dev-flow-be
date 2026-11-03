@@ -1,5 +1,5 @@
 import type { Request, RequestHandler } from "express";
-import { authOf } from "../../middleware/require-auth.js";
+import { authOf, identityOf } from "../../middleware/require-auth.js";
 import { setSessionCookies } from "../auth/auth.cookies.js";
 import type { InvitesService } from "./invites.service.js";
 import type { AcceptInviteInput, InviteInput } from "./workspace.schemas.js";
@@ -27,5 +27,9 @@ export function createInvitesController(invites: InvitesService) {
     res.status(201).json(me);
   };
 
-  return { create, resend, preview, accept };
+  const join: RequestHandler = async (req, res) => {
+    res.json(await invites.join(identityOf(req), tokenOf(req)));
+  };
+
+  return { create, resend, preview, accept, join };
 }

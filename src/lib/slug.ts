@@ -11,8 +11,8 @@ const SUFFIX_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
 export function slugBase(name: string): string {
   const slug = name
     .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/['’]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/['\u2019]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .slice(0, MAX_BASE_LENGTH)

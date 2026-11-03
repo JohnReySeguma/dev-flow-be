@@ -169,8 +169,9 @@ export function registerWorkspaceDocs(registry: OpenAPIRegistry, workspace: Open
     tags: ["Invites"],
     summary: "Preview an invite",
     description:
-      "Public; for the /invite page. 400 INVITE_INVALID when the link is unknown, already used, replaced by a " +
-      "resend or expired.",
+      "Public; for the /invite page. accountExists says which way to continue: false → accept (create the " +
+      "account), true → sign in with that email and join. 400 INVITE_INVALID when the link is unknown, already " +
+      "used, replaced by a resend or expired.",
     request: { params: z.object({ token: z.string() }) },
     responses: { 200: { description: "The invite.", ...json(invitePreviewResponse) }, default: problemResponse },
   });
@@ -180,9 +181,10 @@ export function registerWorkspaceDocs(registry: OpenAPIRegistry, workspace: Open
     tags: ["Invites"],
     summary: "Accept an invite",
     description:
-      "Public. Creates the account for the invited email with the invited role and signs it in (session cookies). " +
-      "Errors: 400 INVITE_INVALID, 409 ALREADY_MEMBER (the email already has an account: sign in instead), " +
-      "422 VALIDATION_FAILED.",
+      "Public, for people without an account. Creates the account for the invited email, a member of the " +
+      "inviting workspace only (no workspace of its own), verified, and signs it in (session cookies). Errors: " +
+      "400 INVITE_INVALID, 409 EMAIL_TAKEN (the email already has an account: sign in and join instead), 422 " +
+      "VALIDATION_FAILED.",
     request: { params: z.object({ token: z.string() }), body: json(acceptInviteBody) },
     responses: {
       201: {
@@ -192,6 +194,23 @@ export function registerWorkspaceDocs(registry: OpenAPIRegistry, workspace: Open
         },
         ...json(authMeResponse),
       },
+      default: problemResponse,
+    },
+  });
+  registry.registerPath({
+    method: "post",
+    path: "/invites/{token}/join",
+    tags: ["Invites"],
+    summary: "Join with an existing account",
+    description:
+      "For people who already have an account: sign in with the invited email first. Adds you to the inviting " +
+      "workspace with the invited role and marks your email verified. Signed-in session only. Errors: 400 " +
+      "INVITE_INVALID, 403 INVITE_EMAIL_MISMATCH (signed in with another account), 403 DEMO_ACCOUNT_LOCKED, 409 " +
+      "ALREADY_MEMBER.",
+    security: [{ cookieAuth: [] }],
+    request: { params: z.object({ token: z.string() }) },
+    responses: {
+      200: { description: "The workspace you joined, with your role.", ...json(workspaceResponse) },
       default: problemResponse,
     },
   });

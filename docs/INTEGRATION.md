@@ -1,7 +1,7 @@
 # DevFlow API — Frontend Integration Guide
 
 > **For:** the frontend ([`dev-flow`](https://github.com/JohnReySeguma/dev-flow)).
-> **Accurate for:** `v2.0.0-beta.2`. Updated at every release (see [`FRONTEND_HANDOFF.md`](FRONTEND_HANDOFF.md)).
+> **Accurate for:** `v2.0.0-beta.3`. Updated at every release (see [`FRONTEND_HANDOFF.md`](FRONTEND_HANDOFF.md)).
 > **Machine-readable contract:** [`openapi.json`](openapi.json), also served at `/api/v2/openapi.json`, with
 > Swagger UI at `/api/v2/docs`.
 > **Step-by-step plan for the frontend:** [`FRONTEND_BRIEF.md`](FRONTEND_BRIEF.md).
@@ -119,6 +119,7 @@ starting with `/workspaces/:ws` are relative to `/api/v2`, `:ws` being the works
 | `team-members.tsx`                     | Change role                       | `PATCH /workspaces/:ws/members/:id`                                             | 0.3.0        |
 | `team-members.tsx`                     | Remove member / revoke invite     | `DELETE /workspaces/:ws/members/:id`                                            | 0.3.0        |
 | `/invite` page                         | Preview and accept an invite      | `GET /invites/:token`, `POST /invites/:token/accept`                            | 0.3.0        |
+| `/invite` page, signed in              | Join with an existing account     | `POST /invites/:token/join`                                                     | 2.0.0-beta.3 |
 
 ### Operational
 
@@ -180,7 +181,7 @@ remaining quota.
 | `POST /auth/login`, `/auth/signup`, `/auth/password/*`, OAuth starts | 50 per 15 minutes |
 | `POST /auth/refresh`                                                 | 60 per 15 minutes |
 | `POST /workspaces/:ws/invites`, `.../resend`                         | 30 an hour        |
-| `GET /invites/:token`, `POST /invites/:token/accept`                 | 30 per 15 minutes |
+| `GET /invites/:token`, `POST /invites/:token/accept` and `/join`     | 30 per 15 minutes |
 
 On `429`: show "Too many attempts, try again in N minutes" (from `Retry-After`), keep the form's input, and don't
 retry automatically. The refresh flow (§5.3) should treat a `429` from `/auth/refresh` as "try again later", not as
@@ -191,36 +192,37 @@ is.
 
 Codes are stable: new ones may be added, existing ones are never renamed or repurposed.
 
-| Code                        | HTTP | Meaning                                                                         | Returned by                                                                            |
-| --------------------------- | ---- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `BAD_REQUEST`               | 400  | The body is not valid JSON                                                      | Any endpoint with a JSON body, the GitHub webhook                                      |
-| `RESET_TOKEN_INVALID`       | 400  | The reset link is unknown, already used or expired; request a new one           | `POST /auth/password/reset`                                                            |
-| `INVITE_INVALID`            | 400  | The invite link is unknown, used, replaced by a resend or expired               | `GET /invites/:token`, `POST /invites/:token/accept`                                   |
-| `UNAUTHENTICATED`           | 401  | Not signed in (or the session was revoked); redirect to `/login`                | Every authenticated endpoint, `POST /auth/refresh`                                     |
-| `TOKEN_EXPIRED`             | 401  | Access token expired; call `POST /auth/refresh` once and retry                  | Every cookie-authenticated endpoint                                                    |
-| `INVALID_CREDENTIALS`       | 401  | Wrong email or password (same answer for unknown emails)                        | `POST /auth/login`                                                                     |
-| `WEBHOOK_SIGNATURE_INVALID` | 401  | `X-Hub-Signature-256` missing or wrong (GitHub only, never the frontend)        | `POST /api/integrations/github/webhook`                                                |
-| `FORBIDDEN`                 | 403  | Not allowed: role too low, cross-site write, or a token on a session-only route | Every write (origin check), admin routes, `PATCH /me`, `/me/tokens`, `/workspaces`     |
-| `CANNOT_CHANGE_OWN_ROLE`    | 403  | Admins cannot change their own role                                             | `PATCH /workspaces/:ws/members/:id`                                                    |
-| `CANNOT_REMOVE_SELF`        | 403  | Admins cannot remove themselves (use leave)                                     | `DELETE /workspaces/:ws/members/:id`                                                   |
-| `DEMO_WORKSPACE_LOCKED`     | 403  | Turned off in the public demo workspace (§5.10)                                 | Rename, delete, leave, invites, member changes in the demo workspace (new in `beta.2`) |
-| `DEMO_ACCOUNT_LOCKED`       | 403  | Turned off for the shared demo accounts (§8)                                    | `PATCH /me`, `POST`/`DELETE /me/tokens`, `POST /workspaces` (new in `beta.2`)          |
-| `NOT_FOUND`                 | 404  | Unknown route or resource, or a workspace you are not a member of (§1.2)        | Any route, disabled OAuth provider or GitHub App                                       |
-| `EMAIL_TAKEN`               | 409  | Sign-up with an email that already has an account                               | `POST /auth/signup`                                                                    |
-| `PROJECT_KEY_TAKEN`         | 409  | Project key already in use in this workspace                                    | `POST /workspaces/:ws/projects`                                                        |
-| `SPRINT_ALREADY_ACTIVE`     | 409  | Another sprint is active in the project; complete it first                      | `POST /workspaces/:ws/sprints/:id/start`                                               |
-| `SPRINT_NOT_PLANNED`        | 409  | Only planned sprints can be started or deleted                                  | `POST .../sprints/:id/start`, `DELETE .../sprints/:id`                                 |
-| `SPRINT_NOT_ACTIVE`         | 409  | Only the active sprint can be completed                                         | `POST .../sprints/:id/complete`                                                        |
-| `STATUS_DELETE_BLOCKED`     | 409  | Deleting would leave < 2 statuses or no to-do / done status (`detail` says why) | `DELETE .../projects/:key/statuses/:id`                                                |
-| `STATUS_UPDATE_BLOCKED`     | 409  | Recategorising would leave no to-do or no done status (`detail` says why)       | `PATCH .../projects/:key/statuses/:id`                                                 |
-| `LAST_ADMIN`                | 409  | The last admin cannot be demoted, removed or leave (`detail` says what to do)   | `PATCH`/`DELETE /workspaces/:ws/members/:id`, `POST /workspaces/:ws/leave`             |
-| `ALREADY_MEMBER`            | 409  | The email is already a member, already invited, or already has an account       | `POST /workspaces/:ws/invites`, `POST /invites/:token/accept`                          |
-| `CONFLICT_STALE`            | 412  | `If-Match` no longer matches; re-fetch and retry                                | `PATCH /me`, `PATCH .../projects/:key`, `PATCH .../issues/:issueKey`                   |
-| `PAYLOAD_TOO_LARGE`         | 413  | Body larger than 100 kB                                                         | Any endpoint with a JSON body                                                          |
-| `VALIDATION_FAILED`         | 422  | Invalid fields, listed in `errors`                                              | Every endpoint with input                                                              |
-| `RATE_LIMITED`              | 429  | Too many requests; wait `Retry-After` seconds (§4.1)                            | Any endpoint except `/health`                                                          |
-| `INTERNAL_ERROR`            | 500  | Unexpected failure; quote `requestId` when reporting                            | Any endpoint                                                                           |
-| `EMAIL_DELIVERY_FAILED`     | 502  | The email could not be sent; the invite is saved, offer Resend                  | `POST /workspaces/:ws/invites`, `.../resend`                                           |
+| Code                        | HTTP | Meaning                                                                         | Returned by                                                                                                |
+| --------------------------- | ---- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `BAD_REQUEST`               | 400  | The body is not valid JSON                                                      | Any endpoint with a JSON body, the GitHub webhook                                                          |
+| `RESET_TOKEN_INVALID`       | 400  | The reset link is unknown, already used or expired; request a new one           | `POST /auth/password/reset`                                                                                |
+| `INVITE_INVALID`            | 400  | The invite link is unknown, used, replaced by a resend or expired               | `GET /invites/:token`, `POST /invites/:token/accept`, `/join`                                              |
+| `UNAUTHENTICATED`           | 401  | Not signed in (or the session was revoked); redirect to `/login`                | Every authenticated endpoint, `POST /auth/refresh`                                                         |
+| `TOKEN_EXPIRED`             | 401  | Access token expired; call `POST /auth/refresh` once and retry                  | Every cookie-authenticated endpoint                                                                        |
+| `INVALID_CREDENTIALS`       | 401  | Wrong email or password (same answer for unknown emails)                        | `POST /auth/login`                                                                                         |
+| `WEBHOOK_SIGNATURE_INVALID` | 401  | `X-Hub-Signature-256` missing or wrong (GitHub only, never the frontend)        | `POST /api/integrations/github/webhook`                                                                    |
+| `FORBIDDEN`                 | 403  | Not allowed: role too low, cross-site write, or a token on a session-only route | Every write (origin check), admin routes, `PATCH /me`, `/me/tokens`, `/workspaces`                         |
+| `CANNOT_CHANGE_OWN_ROLE`    | 403  | Admins cannot change their own role                                             | `PATCH /workspaces/:ws/members/:id`                                                                        |
+| `CANNOT_REMOVE_SELF`        | 403  | Admins cannot remove themselves (use leave)                                     | `DELETE /workspaces/:ws/members/:id`                                                                       |
+| `DEMO_WORKSPACE_LOCKED`     | 403  | Turned off in the public demo workspace (§5.10)                                 | Rename, delete, leave, invites, member changes in the demo workspace (new in `beta.2`)                     |
+| `INVITE_EMAIL_MISMATCH`     | 403  | Joining while signed in with an account whose email is not the invited one      | `POST /invites/:token/join` (new in `beta.3`)                                                              |
+| `DEMO_ACCOUNT_LOCKED`       | 403  | Turned off for the shared demo accounts (§8)                                    | `PATCH /me`, `POST`/`DELETE /me/tokens`, `POST /workspaces`, `POST /invites/:token/join` (new in `beta.2`) |
+| `NOT_FOUND`                 | 404  | Unknown route or resource, or a workspace you are not a member of (§1.2)        | Any route, disabled OAuth provider or GitHub App                                                           |
+| `EMAIL_TAKEN`               | 409  | The email already has an account (accepting an invite: sign in and join)        | `POST /auth/signup`, `POST /invites/:token/accept`                                                         |
+| `PROJECT_KEY_TAKEN`         | 409  | Project key already in use in this workspace                                    | `POST /workspaces/:ws/projects`                                                                            |
+| `SPRINT_ALREADY_ACTIVE`     | 409  | Another sprint is active in the project; complete it first                      | `POST /workspaces/:ws/sprints/:id/start`                                                                   |
+| `SPRINT_NOT_PLANNED`        | 409  | Only planned sprints can be started or deleted                                  | `POST .../sprints/:id/start`, `DELETE .../sprints/:id`                                                     |
+| `SPRINT_NOT_ACTIVE`         | 409  | Only the active sprint can be completed                                         | `POST .../sprints/:id/complete`                                                                            |
+| `STATUS_DELETE_BLOCKED`     | 409  | Deleting would leave < 2 statuses or no to-do / done status (`detail` says why) | `DELETE .../projects/:key/statuses/:id`                                                                    |
+| `STATUS_UPDATE_BLOCKED`     | 409  | Recategorising would leave no to-do or no done status (`detail` says why)       | `PATCH .../projects/:key/statuses/:id`                                                                     |
+| `LAST_ADMIN`                | 409  | The last admin cannot be demoted, removed or leave (`detail` says what to do)   | `PATCH`/`DELETE /workspaces/:ws/members/:id`, `POST /workspaces/:ws/leave`                                 |
+| `ALREADY_MEMBER`            | 409  | The email is already a member of this workspace, or already invited to it       | `POST /workspaces/:ws/invites`, `POST /invites/:token/join`                                                |
+| `CONFLICT_STALE`            | 412  | `If-Match` no longer matches; re-fetch and retry                                | `PATCH /me`, `PATCH .../projects/:key`, `PATCH .../issues/:issueKey`                                       |
+| `PAYLOAD_TOO_LARGE`         | 413  | Body larger than 100 kB                                                         | Any endpoint with a JSON body                                                                              |
+| `VALIDATION_FAILED`         | 422  | Invalid fields, listed in `errors`                                              | Every endpoint with input                                                                                  |
+| `RATE_LIMITED`              | 429  | Too many requests; wait `Retry-After` seconds (§4.1)                            | Any endpoint except `/health`                                                                              |
+| `INTERNAL_ERROR`            | 500  | Unexpected failure; quote `requestId` when reporting                            | Any endpoint                                                                                               |
+| `EMAIL_DELIVERY_FAILED`     | 502  | The email could not be sent; the invite is saved, offer Resend                  | `POST /workspaces/:ws/invites`, `.../resend`                                                               |
 
 ## 5. Authentication
 
@@ -343,18 +345,37 @@ to:
 ${CORS_ORIGIN}/invite?token=<token>
 ```
 
-The `/invite` page reads `token`, shows `GET /invites/:token` (`{ email, role, workspace: { name }, invitedBy, expiresAt }`)
-and submits `POST /invites/:token/accept { name, password }`: `201` → the account exists, is a member of **that
-workspace only** with the invited role (no workspace of its own), and is signed in (same body and cookies as
-`/auth/signup`). Continue into that workspace. Both answer `400 INVITE_INVALID` for a link that is unknown, already
-used, replaced by a resend or older than 7 days.
+Anyone who is not yet a member of the workspace can be invited, whether or not they already use DevFlow. The
+`/invite` page reads `token` and shows `GET /invites/:token`:
 
-**In `beta.2`, invites are for new accounts only:** inviting an email that already has a DevFlow account answers
-`409 ALREADY_MEMBER`, and so does accepting when the email signed up in the meantime. `beta.3` lets existing accounts
-join from the same link.
+```json
+{
+  "email": "grace@acme.dev",
+  "role": "member",
+  "workspace": { "name": "Acme Inc", "slug": "acme-inc" },
+  "invitedBy": { "name": "John Rey" },
+  "expiresAt": "2026-11-09T09:00:00.000Z",
+  "accountExists": false
+}
+```
+
+`accountExists` decides the rest of the page:
+
+- **`false`, a new person:** a name and password form submitting `POST /invites/:token/accept { name, password }`.
+  `201` → the account exists, is a member of **that workspace only** with the invited role (no workspace of its own),
+  is signed in (same body and cookies as `/auth/signup`) and its email counts as verified. Continue into the
+  workspace. `409 EMAIL_TAKEN` means the email signed up in the meantime: switch to joining.
+- **`true`, an existing account:** ask them to sign in with that email (keep the token, e.g. `/login?redirect=/invite?token=…`),
+  then `POST /invites/:token/join` (no body) with the session. `200` → the `Workspace` they joined, with their role;
+  it now appears in `/auth/me` next to their other workspaces, and their email counts as verified. Signed in with
+  another account → `403 INVITE_EMAIL_MISMATCH` (the invite stays usable: offer to sign out and in again). Already a
+  member → `409 ALREADY_MEMBER`. Demo accounts → `403 DEMO_ACCOUNT_LOCKED`. Access tokens → `403 FORBIDDEN`.
+
+All three answer `400 INVITE_INVALID` for a link that is unknown, already used, replaced by a resend or older than 7
+days. An invite works once, whichever way it is used.
 
 `POST /workspaces/:ws/invites/:id/resend` emails a fresh link; the previous link stops working. Inviting an email that
-is already a member or already invited answers `409 ALREADY_MEMBER`. If the email cannot be sent, the API answers
+is already a member of this workspace or already invited to it answers `409 ALREADY_MEMBER`. If the email cannot be sent, the API answers
 `502 EMAIL_DELIVERY_FAILED` but keeps the invite, so show the error and offer Resend instead of "Invite sent".
 
 ### 5.8 Personal access tokens
@@ -677,8 +698,6 @@ see the API's `docs/DEPLOYMENT.md`).
 
 ## 9. Known limitations
 
-- `beta.2`: inviting someone who already has an account answers `409 ALREADY_MEMBER`; `beta.3` adds joining with an
-  existing account (§5.7).
 - `beta.2`: sign-up does not verify email addresses, and creating workspaces is limited only by the general rate
   limit; `beta.4` adds email verification (needed to send invites) and a per-user limit on new workspaces. OAuth
   sign-in reclaims accounts registered with someone else's address (§5.5).
@@ -692,6 +711,5 @@ see the API's `docs/DEPLOYMENT.md`).
 - Rate limits are per client IP: users behind one corporate NAT share them (the overall limit is generous for that).
 - `GET .../projects/:key/snapshot` returns every open issue unpaginated, as the store expects. Large projects make it
   slow; use `GET .../projects/:key/issues` for paged access.
-- Signing up directly with an invited email leaves the invite pending (accepting it then answers `ALREADY_MEMBER`);
-  revoke it from the members list.
+- Signing up directly with an invited email leaves the invite pending; the new account can still join with it.
 - `lastActiveAt` is updated on sign-in and on each refresh (about every 15 minutes of activity), not on every request.

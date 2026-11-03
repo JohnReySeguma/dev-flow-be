@@ -113,6 +113,35 @@ describe("GET /api/v2/workspaces", () => {
   });
 });
 
+describe("roles per workspace", () => {
+  it("lets one person act as admin in one workspace and as viewer in another", async () => {
+    const grace = await signUp("Grace Hopper", "grace@acme.dev");
+    await addMember(grace.slug, ada.id, "viewer");
+    const create = (slug: string) =>
+      ada.browser.post(`/api/v2/workspaces/${slug}/projects`).send({ name: "Engines", key: "ENG" });
+
+    expect((await create(ada.slug)).status).toBe(201);
+    expect((await create(grace.slug)).status).toBe(403);
+    expect((await ada.browser.get(`/api/v2/workspaces/${grace.slug}/projects`)).status).toBe(200);
+    expect((await ada.browser.get(`/api/v2/workspaces/${grace.slug}/bootstrap`)).body.workspace.role).toBe("viewer");
+  });
+
+  it("applies a role change in one workspace only", async () => {
+    const grace = await signUp("Grace Hopper", "grace@acme.dev");
+    await addMember(grace.slug, ada.id, "viewer");
+
+    await grace.browser.patch(`/api/v2/workspaces/${grace.slug}/members/${ada.id}`).send({ role: "member" });
+
+    const roles = (await ada.browser.get("/api/v2/auth/me")).body.workspaces.map(
+      (w: { slug: string; role: string }) => [w.slug, w.role],
+    );
+    expect(roles).toEqual([
+      [ada.slug, "admin"],
+      [grace.slug, "member"],
+    ]);
+  });
+});
+
 describe("PATCH /api/v2/workspaces/:ws", () => {
   it("renames the workspace and keeps its slug", async () => {
     const res = await ada.browser.patch(`/api/v2/workspaces/${ada.slug}`).send({ name: "Analytical Engines" });

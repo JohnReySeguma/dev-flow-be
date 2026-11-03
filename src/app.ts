@@ -102,7 +102,7 @@ export function createApp(deps: AppDeps): Express {
   api.post(["/workspaces/:ws/invites", "/workspaces/:ws/invites/:id/resend"], limit.invites);
   api.use("/invites", limit.inviteTokens);
   api.use("/config", createConfigRouter({ config: services.config }));
-  api.use("/invites", createInviteAcceptRouter({ invites: services.invites }));
+  api.use("/invites", createInviteAcceptRouter({ invites: services.invites, ...withAuth, requireSession }));
   api.use("/workspaces", createWorkspacesRouter({ workspace: services.workspace, ...withAuth, requireSession }));
 
   // Everything that belongs to one workspace. Membership is resolved once, here: routers below
